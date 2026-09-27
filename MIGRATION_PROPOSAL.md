@@ -1,6 +1,6 @@
 # Frost UI SelectMenu 4 migration proposal
 
-Status: sections 1 (package and tooling), 2 (build migration), 3 (component architecture and behavior), 4 (styles and Sass), and 5 (testing infrastructure) complete. Sections 6 (CI), 7 (README/demos), and final release verification remain pending.
+Status: sections 1 (package and tooling), 2 (build migration), 3 (component architecture and behavior), 4 (styles and Sass), and 5 (testing infrastructure) complete. Section 6 workflows are implemented; hosted CI/Codecov and npm trusted-publisher verification remain pending. Section 7 (README/demos) and final release verification remain pending.
 
 Reviewed: 2026-09-27. Proposed release: `@fr0st/ui-selectmenu@4.0.0`, from `3.1.9`.
 
@@ -31,7 +31,7 @@ Mark a section complete only after its acceptance criteria pass. Add newly disco
 | 3. Component migration and fixes | Complete | Private class implementation, UI 4 lifecycle, documented API, preserved form behavior, and regression tests pass. |
 | 4. Styles and Sass | Complete | Sass modules, UI 4 input markup/tokens, logical properties, and component styling checks pass. |
 | 5. Test infrastructure | Complete | Local test server, shared fixture, Chromium/Firefox/WebKit smoke checks, and source coverage pass. Behavioral/style tests accompany sections 3–4; see their validation records and the local startup limitation below. |
-| 6. CI and Codecov | Pending | Reference CI matrix, hosted coverage upload, bundle freshness, and package validation are configured. |
+| 6. CI and Codecov | Implemented; hosted verification pending | Reference CI/release workflows, OIDC coverage upload, tracked bundle freshness, and package validation configured and locally checked. Codecov activation/upload and npm trusted-publisher verification remain outstanding. |
 | 7. README and demos | Pending | Installation/API/migration documentation and consolidated UI-style demo are complete and verified. |
 | 8. Release verification | Pending | Clean install, lint, builds, all browser projects, coverage, packaging, and documentation examples verified; outstanding issues recorded. |
 
@@ -274,13 +274,32 @@ Coverage scenarios:
 
 ## 6. CI and Codecov
 
-- [ ] Add `.github/workflows/ci.yml` following the references' push-to-main and pull-request triggers and Markdown path exclusions.
-- [ ] Use the same matrix: Chromium on Node 20/22/24; Firefox and WebKit on Node 24. Keep the Node/PostCSS decision above consistent with the manifest and matrix.
-- [ ] Use reference checkout/setup-node versions, npm caching, `npm ci`, browser installation with OS dependencies, lint, build, and `--forbid-only` browser tests.
-- [ ] Run coverage on Node 24/Chromium in place of that matrix cell's normal test run. Upload only `coverage/lcov.info` with the reference Codecov action and OIDC permissions; fail on upload errors as the references do.
-- [ ] Add generated-bundle freshness and `npm pack --dry-run` checks. Ensure new ESM artifacts are tracked: `git diff --exit-code -- dist` alone does not detect untracked files.
+- [x] Add `.github/workflows/ci.yml` following the references' push-to-main and pull-request triggers and Markdown path exclusions.
+- [x] Use the same matrix: Chromium on Node 20/22/24; Firefox and WebKit on Node 24. Keep the Node/PostCSS decision above consistent with the manifest and matrix.
+- [x] Use reference checkout/setup-node versions, npm caching, `npm ci`, browser installation with OS dependencies, lint, build, and `--forbid-only` browser tests.
+- [x] Run coverage on Node 24/Chromium in place of that matrix cell's normal test run. Upload only `coverage/lcov.info` with the reference Codecov action and OIDC permissions; fail on upload errors as the references do.
+- [x] Add generated-bundle freshness and `npm pack --dry-run` checks. Ensure new ESM artifacts are tracked: `git diff --exit-code -- dist` alone does not detect untracked files.
 - [ ] Configure/verify the actual repository's Codecov OIDC access and badges when the workflow is exercised. Local source coverage does not by itself prove hosted upload works.
-- [ ] For full automation alignment, add the sibling release-published `publish.yml` workflow with build/lint/Chromium/package checks and npm provenance. Verify npm trusted-publisher configuration before enabling a release; this proposal does not publish anything.
+- [x] Add the sibling release-published `publish.yml` workflow with build/lint/Chromium/package checks and npm provenance.
+- [ ] Verify npm trusted-publisher configuration before publishing a release; this proposal does not publish anything.
+
+### Section 6 implementation and validation — 2026-09-27
+
+- Started from the clean section 4 commit `50c863e` (`Align SelectMenu styles and Sass with UI 4`). Added `.github/workflows/ci.yml` and `publish.yml`; the existing `.github/codecov.yml` already matches the references and remains unchanged.
+- All three primary references have identical CI and release workflows. Retained their triggers, Markdown exclusions, five matrix entries, `actions/checkout@v6`, `actions/setup-node@v6`, npm cache/clean install, Playwright browser installation, lint/build/test commands, and Node 24 Chromium coverage replacement. `--forbid-only` remains in the npm scripts consumed by both workflows.
+- Codecov uses `codecov/codecov-action@v7`, `use_oidc: true`, `id-token: write`, `fail_ci_if_error: true`, `disable_search: true`, and only `./coverage/lcov.info`. These OIDC requirements match the [official action documentation](https://github.com/codecov/codecov-action/tree/v7#using-oidc).
+- Strengthened the reference freshness step with `git status --porcelain --untracked-files=all -- dist`, catching tracked changes, deletions, staged changes, and new untracked bundles. Applied the same check before package validation in the publish workflow. The release job otherwise matches the references and publishes using `npm publish --provenance` only on `release.published`.
+- `actionlint` 1.7.12 passed on both workflow files. The standalone validator was downloaded from its official GitHub release into `/tmp` and its published SHA-256 digest verified; no new project dependency was added. Parsed both workflows as YAML and compared their triggers, permissions, matrix, and steps with UI's references.
+- Exercised the exact freshness script in a temporary Git repository: clean output and unrelated changes pass; modified, staged, deleted, and untracked ESM output fail. The check also passes against this checkout after a full rebuild; `dist/` remains byte-identical to the section 4 commit.
+- `npm run lint`, `npm run lint:sass:unused`, `npm run build`, and `git diff --check` passed. `npm pack --dry-run --json` passed and lists 21 package files, including all 12 distribution files. The dry run used a temporary npm cache because the default cache is read-only inside the local sandbox.
+- A bounded `CI=true npm run test:coverage -- --workers=4` attempt reproduced M09: automatic server startup did not reach test execution before the 45-second timeout. No server workaround was added to the workflows or test configuration. Starting the unchanged server first, as in earlier sections, allowed all **113 coverage cases to pass**, without retries. LCOV remains **525/540 lines (97.22%)**, **99/100 functions (99.00%)**, and **369/412 branches (89.56%)**. Monocart reports four intermediate assertion errors from polling; Playwright reports no failed tests.
+
+### Hosted setup and verification still required
+
+- GitHub API confirms `elusivecodes/FrostUI-SelectMenu` is public, its default branch is `main`, Actions are enabled, and all actions are allowed. There are currently no hosted workflows; the new files have not been pushed or dispatched. The first GitHub run must verify the five Node/browser cells, automatic server startup, and the Codecov OIDC upload.
+- The [public Codecov repository API](https://api.codecov.io/api/v2/github/elusivecodes/repos/FrostUI-SelectMenu/) currently returns `active: false` and `activated: false`. Confirm repository activation and a successful first OIDC upload in [Codecov](https://app.codecov.io/gh/elusivecodes/FrostUI-SelectMenu) before claiming hosted coverage works. CI/coverage badges belong to section 7 after their URLs/statuses are verified.
+- `npm trust list @fr0st/ui-selectmenu --json` returned HTTP 401, so the existing trusted-publisher settings could not be read or configured. Before publishing a release, verify the package's GitHub trusted publisher uses owner `elusivecodes`, repository `FrostUI-SelectMenu`, workflow filename `publish.yml`, no environment (the workflow defines none), and permits direct `npm publish`. npm's [trusted-publishing documentation](https://docs.npmjs.com/trusted-publishers/) describes these fields and the Node/npm minimum versions; the reference Node 24 release job satisfies those minimums.
+- No remote settings, releases, or npm packages were changed. Workflow implementation is ready for review, but section 6's external acceptance checks remain open rather than being marked complete on local evidence alone.
 
 ## 7. README and demos
 
@@ -314,13 +333,14 @@ The original findings below came from pre-migration source inspection; file refe
 | B13 | **Fixed in section 3:** full-width menu positioning used its old width because width was set after Popper measured it; start placement could be hundreds of pixels away. | Set width in `beforeUpdate`; assert placement/spacing for top, bottom, start, and end and anchoring during scrolling. |
 | B14 | **Fixed in section 4:** search input width measurement participates in body grid/flex layout and can stretch, creating an unnecessary extra row in multiple selections. | Measure with a hidden, absolutely positioned span; check input width on grid and flex pages. |
 | M02 | **Fixed in sections 3–4:** obsolete `.ripple-line` markup, Sass `@import`, and physical left/right spacing differed from current UI. | Sass modules, UI input markup/focus, logical spacing, RTL positioning, and configurable Sass builds are covered by section 4 validation. |
-| M03 | **Partially resolved:** the original package lacked UI/fQuery dependency declarations, compiled ESM, tests, coverage, and CI. | Sections 1, 2, 3, and testing infrastructure in 5 are complete. Implement hosted CI/Codecov in section 6. |
+| M03 | **Partially resolved:** the original package lacked UI/fQuery dependency declarations, compiled ESM, tests, coverage, and CI. | Sections 1, 2, 3, and testing infrastructure in 5 are complete. Section 6 workflows are implemented and locally validated; hosted CI/Codecov verification remains open. |
 | M04 | **Confirmed tooling choice:** PostCSS CLI 12 requires Node >=22 while UI supports Node 20; sibling manifests also trail some current patch versions. | Apply the explicit latest-compatible policy above and record the final resolved versions. |
 | M05 | **Fixed in section 3:** fQuery 5 traversal returns arrays (`child`, `parent`, etc.), while some current code treats results as individual nodes/truthy presence. | Audit consumers individually; use `.shift()` or cardinality checks where required, with pagination/removal regressions. |
 | M06 | **Resolved in phase 1:** the old lockfile identified the package as 3.1.8 while the manifest was 3.1.9; in-place resolution also conflicted with old Stylelint peers. | Generated a fresh lockfile through normal npm resolution; clean `npm ci` passed and root metadata matches 4.0.0. |
 | M07 | **Recorded in phase 1:** Sass's optional fallback installation can claim the `sass` executable; npm reports fallback packages as extraneous and warns about the optional watcher script. | Retain UI's `sass ...` command and `sass-embedded` dependency. No custom executable path or packaging workaround. |
 | M08 | **Recorded in phase 1:** current `clean-css-cli` pulls deprecated `glob`/`inflight`. | Retain UI's supported CSS minifier for alignment; the clean-install audit reports zero vulnerabilities. No unsupported transitive major override was introduced. |
-| M09 | **Local validation limitation:** Playwright's initial availability check on an unopened localhost:3001 port stalled before launching the web server. | Starting the reference server first allowed all nine browser cases and the coverage run to pass. Keep reference configuration; verify automatic startup again in CI or an environment where the probe completes. |
+| M09 | **Local validation limitation, reproduced in section 6:** Playwright's initial availability check on an unopened localhost:3001 port stalled before launching the web server. | Starting the reference server first allowed browser validation and all 113 current coverage cases to pass. Keep reference configuration; verify automatic startup again in CI or an environment where the probe completes. |
+| M10 | **Section 6 hosted checks pending:** Codecov reports the repository inactive and npm trusted-publisher inspection returns HTTP 401. Local workflow validation cannot establish hosted upload or release authentication. | Verify activation/first upload and the exact `publish.yml` trusted-publisher mapping described in section 6 before release. |
 | D01 | **Confirmed documentation drift:** current README lacks API/migration guidance, demos use legacy CDN paths, and a reference demo contains a stale version label. | Rewrite with verified package/repository links and current version labels. |
 
 ## Completion checklist and validation record
