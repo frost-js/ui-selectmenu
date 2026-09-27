@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Frost UI SelectMenu Demo</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fr0st/ui@4/dist/frost-ui.min.css">
+    <link rel="stylesheet" href="../dist/frost-ui-selectmenu.css">
+    <link rel="stylesheet" href="assets/demo.css">
+    <script src="https://cdn.jsdelivr.net/npm/@fr0st/ui@4/dist/frost-ui-bundle.min.js"></script>
+    <script src="../dist/frost-ui-selectmenu.js"></script>
+    <script src="assets/demo.js" defer></script>
+</head>
+
+<body>
+    <header class="navbar bg-glass sticky-top border-bottom">
+        <div class="container d-flex align-items-center justify-content-between gap-3">
+            <a class="navbar-brand d-flex align-items-center gap-2 fw-bold" href="#top">
+                <span class="badge bg-primary bg-gradient shadow-glow fs-5" aria-hidden="true">F</span>
+                <span>SelectMenu</span>
+            </a>
+            <div class="d-flex align-items-center gap-2">
+                <label class="small fw-bold mb-0" for="demo-theme">Theme</label>
+                <select class="input-outline input-sm w-auto rounded-pill" id="demo-theme" data-demo-theme>
+                    <option value="system">System</option>
+                    <option value="light">Light</option>
+                    <option value="dark">Dark</option>
+                </select>
+            </div>
+        </div>
+    </header>
+
+    <main class="container py-4 py-lg-5" id="top">
+        <section class="card border-0 overflow-hidden shadow-lg mb-5">
+            <div class="row g-0 align-items-stretch">
+                <div class="col-lg-7 d-flex align-items-center bg-ambient">
+                    <div class="p-4 p-md-5">
+                        <span class="badge bg-primary-subtle text-primary-subtle mb-3">SelectMenu v4 · Frost UI v4</span>
+                        <h1 class="display-2 mb-4">Find your <span class="text-gradient">selection.</span></h1>
+                        <p class="lead text-body-secondary mb-4">Search, group, and select. Try single choices, removable chips, asynchronous results, and native forms.</p>
+                        <nav class="d-flex flex-wrap gap-2" aria-label="Demo sections">
+                            <a class="btn btn-primary ripple" href="#styles">Styles</a>
+                            <a class="btn btn-secondary ripple" href="#data">Local data</a>
+                            <a class="btn btn-outline-primary ripple" href="#async">Async search</a>
+                            <a class="btn btn-outline-primary ripple" href="#forms">Forms</a>
+                            <a class="btn btn-outline-primary ripple" href="#integration">Layout</a>
+                            <a class="btn btn-outline-primary ripple" href="#methods-events">API &amp; events</a>
+                        </nav>
+                    </div>
+                </div>
+                <div class="col-lg-5 d-flex align-items-center bg-glass">
+                    <div class="p-4 p-md-5 w-100">
+                        <label class="fw-bold mb-2" for="hero-fruit">Build a fruit basket</label>
+                        <select class="input-outline" id="hero-fruit" multiple data-ui-toggle="selectmenu"
+                            data-ui-close-on-select="false" data-ui-placeholder="Choose some fruit" data-ui-full-width="true">
+                            <option value="apple" selected>Apple</option>
+                            <option value="banana">Banana</option>
+                            <option value="cherry" selected>Cherry</option>
+                            <option value="pear">Pear</option>
+                        </select>
+                        <p class="form-text mb-0">Type to filter, use arrow keys and Enter to select, or remove a chip.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+        <section class="mb-5" id="styles">
+            <header class="border-bottom pb-3 mb-4">
+                <h2 class="h3 mb-1">Filled, outline, and sizes</h2>
+                <p class="text-body-secondary mb-0">Both single and multiple selection use the original select’s input classes.</p>
+            </header>
+            <div class="row g-4">
+                <div class="col-md-6">
+                    <div class="card card-body h-100 p-4">
+                        <h3 class="h5">Filled · single</h3>
+                        <p class="text-body-secondary">Search native options with UI input styling.</p>
+                        <label class="mb-2" for="filled-single">Filled single fruit</label>
+                        <select class="input-filled" id="filled-single" data-ui-toggle="selectmenu" data-ui-allow-clear="true">
+                            <option value="apple">Apple</option>
+                            <option value="banana">Banana</option>
+                            <option value="cherry">Cherry</option>
+                            <option value="pear">Pear</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card card-body h-100 p-4">
+                        <h3 class="h5">Filled · multiple</h3>
+                        <p class="text-body-secondary">Search native options with UI input styling.</p>
+                        <label class="mb-2" for="filled-multiple">Filled multiple fruit</label>
+                        <select class="input-filled" id="filled-multiple" data-ui-toggle="selectmenu" multiple data-ui-close-on-select="false" data-ui-placeholder="Choose fruit">
+                            <option value="apple">Apple</option>
+                            <option value="banana">Banana</option>
+                            <option value="cherry">Cherry</option>
+                            <option value="pear">Pear</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card card-body h-100 p-4">
+                        <h3 class="h5">Outline · single</h3>
+                        <p class="text-body-secondary">Search native options with UI input styling.</p>
+                        <label class="mb-2" for="outline-single">Outline single fruit</label>
+                        <select class="input-outline" id="outline-single" data-ui-toggle="selectmenu" data-ui-allow-clear="true">
+                            <option value="apple">Apple</option>
+                            <option value="banana">Banana</option>
+                            <option value="cherry">Cherry</option>
+                            <option value="pear">Pear</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card card-body h-100 p-4">
+                        <h3 class="h5">Outline · multiple</h3>
+                        <p class="text-body-secondary">Search native options with UI input styling.</p>
+                        <label class="mb-2" for="outline-multiple">Outline multiple fruit</label>
+                        <select class="input-outline" id="outline-multiple" data-ui-toggle="selectmenu" multiple data-ui-close-on-select="false" data-ui-placeholder="Choose fruit">
+                            <option value="apple">Apple</option>
+                            <option value="banana">Banana</option>
+                            <option value="cherry">Cherry</option>
+                            <option value="pear">Pear</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card card-body h-100 p-4">
+                        <h3 class="h5">Filled sizes</h3>
+                        <p class="text-body-secondary">Small, default, and large controls and menus.</p>
+                        <div class="mb-3">
+                            <label class="mb-2" for="filled-small">Filled small fruit</label>
+                            <select class="input-filled input-sm" id="filled-small" data-ui-toggle="selectmenu">
+                                <option value="apple">Apple</option>
+                                <option value="banana">Banana</option>
+                                <option value="cherry">Cherry</option>
+                                <option value="pear">Pear</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="mb-2" for="filled-default">Filled default fruit</label>
+                            <select class="input-filled " id="filled-default" data-ui-toggle="selectmenu">
+                                <option value="apple">Apple</option>
+                                <option value="banana">Banana</option>
+                                <option value="cherry">Cherry</option>
+                                <option value="pear">Pear</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="mb-2" for="filled-large">Filled large fruit</label>
+                            <select class="input-filled input-lg" id="filled-large" data-ui-toggle="selectmenu">
+                                <option value="apple">Apple</option>
+                                <option value="banana">Banana</option>
+                                <option value="cherry">Cherry</option>
+                                <option value="pear">Pear</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card card-body h-100 p-4">
+                        <h3 class="h5">Outline sizes</h3>
+                        <p class="text-body-secondary">Small, default, and large controls and menus.</p>
+                        <div class="mb-3">
+                            <label class="mb-2" for="outline-small">Outline small fruit</label>
+                            <select class="input-outline input-sm" id="outline-small" data-ui-toggle="selectmenu">
+                                <option value="apple">Apple</option>
+                                <option value="banana">Banana</option>
+                                <option value="cherry">Cherry</option>
+                                <option value="pear">Pear</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="mb-2" for="outline-default">Outline default fruit</label>
+                            <select class="input-outline " id="outline-default" data-ui-toggle="selectmenu">
+                                <option value="apple">Apple</option>
+                                <option value="banana">Banana</option>
+                                <option value="cherry">Cherry</option>
+                                <option value="pear">Pear</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="mb-2" for="outline-large">Outline large fruit</label>
+                            <select class="input-outline input-lg" id="outline-large" data-ui-toggle="selectmenu">
+                                <option value="apple">Apple</option>
+                                <option value="banana">Banana</option>
+                                <option value="cherry">Cherry</option>
+                                <option value="pear">Pear</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+        <section class="mb-5" id="data">
+            <header class="border-bottom pb-3 mb-4">
+                <h2 class="h3 mb-1">Local data and rendering</h2>
+                <p class="text-body-secondary mb-0">Native groups, JavaScript data, filtering, and selection limits.</p>
+            </header>
+            <div class="row g-4">
+                <div class="col-md-6">
+                    <div class="card card-body h-100 p-4">
+                        <h3 class="h5">Groups and disabled options</h3>
+                        <p class="text-body-secondary">Disabled items and groups remain visible but cannot be selected.</p>
+                        <label class="mb-2" for="grouped">Grouped fruit</label>
+                        <select class="input-outline" id="grouped" data-ui-toggle="selectmenu">
+                            <optgroup label="Available">
+                                <option value="apple">Apple</option>
+                                <option value="pear" disabled>Pear (unavailable)</option>
+                            </optgroup>
+                            <optgroup label="Seasonal" disabled>
+                                <option value="cherry">Cherry</option>
+                            </optgroup>
+                            <optgroup label="Tropical">
+                                <option value="banana">Banana</option>
+                            </optgroup>
+                        </select>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card card-body h-100 p-4">
+                        <h3 class="h5">Placeholder and clear</h3>
+                        <p class="text-body-secondary">Choose an item, then use the clear button to return to the placeholder.</p>
+                        <label class="mb-2" for="placeholder">Optional fruit</label>
+                        <select class="input-outline" id="placeholder" data-ui-toggle="selectmenu" data-ui-allow-clear="true" data-ui-placeholder="Choose a fruit">
+                            <option value="apple">Apple</option>
+                            <option value="banana">Banana</option>
+                            <option value="cherry">Cherry</option>
+                            <option value="pear">Pear</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card card-body h-100 p-4">
+                        <h3 class="h5">Array data and accents</h3>
+                        <p class="text-body-secondary">Search “cafe”, “sao”, or “zurich” without entering accents.</p>
+                        <label class="mb-2" for="cities">Search cities</label>
+                        <select class="input-outline" id="cities" data-ui-toggle="selectmenu" data-ui-placeholder="Choose a city"></select>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card card-body h-100 p-4">
+                        <h3 class="h5">Object data</h3>
+                        <p class="text-body-secondary">A value-to-label object supplies the choices.</p>
+                        <label class="mb-2" for="object-data">Project status</label>
+                        <select class="input-outline" id="object-data" data-ui-toggle="selectmenu" data-ui-placeholder="Choose a status"></select>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card card-body h-100 p-4">
+                        <h3 class="h5">Selection limit</h3>
+                        <p class="text-body-secondary">Choose at most two fruits. Remove a chip to choose another.</p>
+                        <label class="mb-2" for="limit">Up to two fruits</label>
+                        <select class="input-outline" id="limit" data-ui-toggle="selectmenu" multiple data-ui-max-selections="2" data-ui-close-on-select="false" data-ui-placeholder="Choose two fruits">
+                            <option value="apple">Apple</option>
+                            <option value="banana">Banana</option>
+                            <option value="cherry">Cherry</option>
+                            <option value="pear">Pear</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card card-body h-100 p-4">
+                        <h3 class="h5">Custom rendering</h3>
+                        <p class="text-body-secondary">Results include a region; the selected label stays compact.</p>
+                        <label class="mb-2" for="rendered">City and region</label>
+                        <select class="input-outline" id="rendered" data-ui-toggle="selectmenu" data-ui-placeholder="Choose a city"></select>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card card-body h-100 p-4">
+                        <h3 class="h5">Minimum search length</h3>
+                        <p class="text-body-secondary">Type at least three characters to see matching cities.</p>
+                        <label class="mb-2" for="minimum">Find a city</label>
+                        <select class="input-outline" id="minimum" data-ui-toggle="selectmenu" data-ui-min-search="3" data-ui-placeholder="Type three characters"></select>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card card-body h-100 p-4">
+                        <h3 class="h5">Disabled control</h3>
+                        <p class="text-body-secondary">The original disabled attribute also disables the generated control.</p>
+                        <label class="mb-2" for="disabled">Unavailable fruit</label>
+                        <select class="input-outline" id="disabled" data-ui-toggle="selectmenu" disabled>
+                            <option value="apple">Apple</option>
+                            <option value="banana">Banana</option>
+                            <option value="cherry">Cherry</option>
+                            <option value="pear">Pear</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </section>
+        <section class="mb-5" id="async">
+            <header class="border-bottom pb-3 mb-4">
+                <h2 class="h3 mb-1">Asynchronous results</h2>
+                <p class="text-body-secondary mb-0">Local data with a predictable delay: no external API or credentials required.</p>
+            </header>
+            <div class="row g-4">
+                <div class="col-md-6">
+                    <div class="card card-body h-100 p-4">
+                        <h3 class="h5">Search and pagination</h3>
+                        <p class="text-body-secondary">Search “City” and scroll for more results. Each page contains ten cities.</p>
+                        <label class="mb-2" for="remote">Remote cities</label>
+                        <select class="input-outline" id="remote" data-ui-toggle="selectmenu" data-ui-placeholder="Search 35 cities"></select>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card card-body h-100 p-4">
+                        <h3 class="h5">Initial value and loading</h3>
+                        <p class="text-body-secondary">A saved native option displays immediately. Searches show a loading message.</p>
+                        <label class="mb-2" for="remote-initial">Saved remote city</label>
+                        <select class="input-outline" id="remote-initial" data-ui-toggle="selectmenu" data-ui-allow-clear="true">
+                            <option value="city-12" selected>City 12</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card card-body h-100 p-4">
+                        <h3 class="h5">Errors and empty results</h3>
+                        <p class="text-body-secondary">Search “error” to simulate a failure, “missing” for no results, then “City” to retry.</p>
+                        <label class="mb-2" for="remote-error">Search with error handling</label>
+                        <select class="input-outline" id="remote-error" data-ui-toggle="selectmenu" data-ui-placeholder="Try error or missing"></select>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card card-body h-100 p-4">
+                        <h3 class="h5">Multiple remote values</h3>
+                        <p class="text-body-secondary">Choose several cities or resolve values that have not been loaded yet.</p>
+                        <label class="mb-2" for="remote-multiple">Remote city collection</label>
+                        <select class="input-outline" id="remote-multiple" data-ui-toggle="selectmenu" multiple data-ui-close-on-select="false" data-ui-placeholder="Choose cities"></select>
+                        <button class="btn btn-secondary mt-3" id="resolve-values" type="button">Load cities 2 and 24</button>
+                    </div>
+                </div>
+            </div>
+        </section>
+        <section class="mb-5" id="forms">
+            <header class="border-bottom pb-3 mb-4">
+                <h2 class="h3 mb-1">Native forms</h2>
+                <p class="text-body-secondary mb-0">Submit synchronized values, exercise required validation, and reset to the original selection.</p>
+            </header>
+            <div class="row g-4">
+                <div class="col-md-6">
+                    <div class="card card-body h-100 p-4">
+                        <h3 class="h5">Submit and reset</h3>
+                        <p class="text-body-secondary">Clearing the required fruit prevents submission. Reset restores Apple and Design.</p>
+                        <form id="selection-form">
+                            <div class="mb-3">
+                                <label class="mb-2" for="form-fruit">Required fruit</label>
+                                <select class="input-outline" id="form-fruit" data-ui-toggle="selectmenu" name="fruit" required data-ui-allow-clear="true">
+                                    <option value="apple" selected>Apple</option>
+                                    <option value="banana">Banana</option>
+                                </select>
+                            </div>
+                            <div class="mb-3">
+                                <label class="mb-2" for="form-tags">Project tags</label>
+                                <select class="input-outline" id="form-tags" data-ui-toggle="selectmenu" name="tags" multiple>
+                                    <option value="design" selected>Design</option>
+                                    <option value="development">Development</option>
+                                    <option value="testing">Testing</option>
+                                </select>
+                            </div>
+                            <div class="d-flex flex-wrap gap-2">
+                                <button class="btn btn-primary" type="submit">Submit form</button>
+                                <button class="btn btn-secondary" type="reset">Reset form</button>
+                            </div>
+                            <output class="d-block mt-3 small" id="form-output" aria-live="polite">Submit to inspect the form values.</output>
+                        </form>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card card-body h-100 p-4">
+                        <h3 class="h5">Disabled fieldset</h3>
+                        <p class="text-body-secondary">Toggle the fieldset to enable or disable all its controls.</p>
+                        <fieldset id="demo-fieldset" disabled>
+                            <legend class="h6">Availability</legend>
+                            <label class="mb-2" for="fieldset-fruit">Fieldset fruit</label>
+                            <select class="input-outline" id="fieldset-fruit" data-ui-toggle="selectmenu">
+                                <option value="apple">Apple</option>
+                                <option value="banana">Banana</option>
+                                <option value="cherry">Cherry</option>
+                                <option value="pear">Pear</option>
+                            </select>
+                        </fieldset>
+                        <button class="btn btn-secondary mt-3" id="toggle-fieldset" type="button">Enable fieldset</button>
+                    </div>
+                </div>
+            </div>
+        </section>
+        <section class="mb-5" id="integration">
+            <header class="border-bottom pb-3 mb-4">
+                <h2 class="h3 mb-1">Layout and direction</h2>
+                <p class="text-body-secondary mb-0">UI input groups, floating labels, right-to-left layout, and modal placement.</p>
+            </header>
+            <div class="row g-4">
+                <div class="col-md-6">
+                    <div class="card card-body h-100 p-4">
+                        <h3 class="h5">Floating label and input group</h3>
+                        <p class="text-body-secondary">Uses the current UI form markup.</p>
+                        <div class="input-group">
+                            <span class="input-group-text">Fruit</span>
+                            <div class="form-input">
+                                <select class="input-outline input-floating" id="floating-fruit" data-ui-toggle="selectmenu">
+                                    <option value="apple">Apple</option>
+                                    <option value="banana">Banana</option>
+                                    <option value="cherry">Cherry</option>
+                                    <option value="pear">Pear</option>
+                                </select>
+                                <label class="label-floating" for="floating-fruit">Favorite fruit</label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card card-body h-100 p-4">
+                        <h3 class="h5">Right-to-left</h3>
+                        <p class="text-body-secondary">Direction is inherited from the containing layout.</p>
+                        <div dir="rtl">
+                            <label class="mb-2" for="rtl-fruit">RTL fruit basket</label>
+                            <select class="input-outline" id="rtl-fruit" data-ui-toggle="selectmenu" multiple data-ui-placeholder="Choose fruit" data-ui-full-width="true">
+                                <option value="apple">Apple</option>
+                                <option value="banana">Banana</option>
+                                <option value="cherry">Cherry</option>
+                                <option value="pear">Pear</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card card-body h-100 p-4">
+                        <h3 class="h5">Inside a modal</h3>
+                        <p class="text-body-secondary">The menu stays inside the dialog’s focus scope. Close the static-backdrop dialog with Done or Close.</p>
+                        <button class="btn btn-primary" type="button" data-ui-toggle="modal" data-ui-target="#select-modal">Open selection dialog</button>
+                    </div>
+                </div>
+            </div>
+        </section>
+        <section class="mb-5" id="methods-events">
+            <header class="border-bottom pb-3 mb-4">
+                <h2 class="h3 mb-1">Methods and events</h2>
+                <p class="text-body-secondary mb-0">Programmatic value changes are silent; user changes and menu lifecycle events appear in the log.</p>
+            </header>
+            <div class="row g-4">
+                <div class="col-md-6">
+                    <div class="card card-body h-100 p-4">
+                        <h3 class="h5">Interactive instance</h3>
+                        <p class="text-body-secondary">Dispose restores the native select. Use Init to enhance it again.</p>
+                        <label class="mb-2" for="methods-fruit">API fruit basket</label>
+                        <select class="input-outline" id="methods-fruit" data-ui-toggle="selectmenu" multiple data-ui-placeholder="Choose fruit">
+                            <option value="apple">Apple</option>
+                            <option value="banana">Banana</option>
+                            <option value="cherry">Cherry</option>
+                            <option value="pear">Pear</option>
+                        </select>
+                        <div class="d-flex flex-wrap gap-2 mt-4 mb-3">
+                            <button class="btn btn-secondary" data-demo-method="init" type="button">Init</button>
+                            <button class="btn btn-secondary" data-demo-method="dispose" type="button">Dispose</button>
+                            <button class="btn btn-secondary" data-demo-method="enable" type="button">Enable</button>
+                            <button class="btn btn-secondary" data-demo-method="disable" type="button">Disable</button>
+                            <button class="btn btn-secondary" data-demo-method="show" type="button">Show</button>
+                            <button class="btn btn-secondary" data-demo-method="hide" type="button">Hide</button>
+                            <button class="btn btn-secondary" data-demo-method="toggle" type="button">Toggle</button>
+                            <button class="btn btn-secondary" data-demo-method="update" type="button">Update position</button>
+                            <button class="btn btn-secondary" data-demo-method="setValue" type="button">Set value</button>
+                            <button class="btn btn-secondary" data-demo-method="getValue" type="button">Get value</button>
+                            <button class="btn btn-secondary" data-demo-method="data" type="button">Selected data</button>
+                            <button class="btn btn-secondary" data-demo-method="setPlaceholder" type="button">Set placeholder</button>
+                            <button class="btn btn-secondary" data-demo-method="getPlaceholder" type="button">Get placeholder</button>
+                            <button class="btn btn-secondary" data-demo-method="setMaxSelections" type="button">Limit to one</button>
+                            <button class="btn btn-secondary" data-demo-method="getMaxSelections" type="button">Get limit</button>
+                            <button class="btn btn-secondary" data-demo-method="clear" type="button">Clear</button>
+                        </div>
+                        <output class="small text-body-secondary" id="method-output" aria-live="polite">Ready.</output>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card card-body h-100 p-4">
+                        <h3 class="h5">Event log</h3>
+                        <p class="text-body-secondary">Observe change, show, shown, hide, and hidden events from the API example.</p>
+                        <div class="demo-event-log overflow-y-auto" id="event-log" role="log" aria-live="polite" aria-label="SelectMenu events">
+                        </div>
+                        <button class="btn btn-outline-secondary mt-3" id="clear-log" type="button">Clear log</button>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <div class="modal" id="select-modal" tabindex="-1" role="dialog" aria-labelledby="modal-title" aria-hidden="true" data-ui-backdrop="static">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2 class="modal-title h5" id="modal-title">Choose a fruit</h2>
+                    <button class="btn-close" type="button" data-ui-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <label class="mb-2" for="modal-fruit">Dialog fruit</label>
+                    <select class="input-filled" id="modal-fruit" data-ui-toggle="selectmenu" data-ui-full-width="true">
+                        <option value="apple">Apple</option>
+                        <option value="banana">Banana</option>
+                    </select>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" type="button" data-ui-dismiss="modal">Done</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <footer class="border-top bg-glass">
+        <div class="container py-4 d-flex flex-wrap justify-content-between gap-2">
+            <span class="text-body-secondary">Frost UI SelectMenu v4</span>
+            <a href="https://github.com/elusivecodes/FrostUI-SelectMenu">View the repository</a>
+        </div>
+    </footer>
+</body>
+
+</html>

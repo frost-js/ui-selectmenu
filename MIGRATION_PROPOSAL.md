@@ -1,6 +1,6 @@
 # Frost UI SelectMenu 4 migration proposal
 
-Status: sections 1 (package and tooling), 2 (build migration), 3 (component architecture and behavior), 4 (styles and Sass), and 5 (testing infrastructure) complete. Section 6 workflows are implemented; hosted CI/Codecov and npm trusted-publisher verification remain pending. Section 7 (README/demos) and final release verification remain pending.
+Status: sections 1 (package and tooling), 2 (build migration), 3 (component architecture and behavior), 4 (styles and Sass), and 5 (testing infrastructure) complete. Section 6 workflows are implemented; hosted CI/Codecov and npm trusted-publisher verification remain pending. Section 7 (README/demos) is complete. Final release verification remains pending, including hosted checks and enabling the CI badge after the workflow is pushed.
 
 Reviewed: 2026-09-27. Proposed release: `@fr0st/ui-selectmenu@4.0.0`, from `3.1.9`.
 
@@ -32,7 +32,7 @@ Mark a section complete only after its acceptance criteria pass. Add newly disco
 | 4. Styles and Sass | Complete | Sass modules, UI 4 input markup/tokens, logical properties, and component styling checks pass. |
 | 5. Test infrastructure | Complete | Local test server, shared fixture, Chromium/Firefox/WebKit smoke checks, and source coverage pass. Behavioral/style tests accompany sections 3–4; see their validation records and the local startup limitation below. |
 | 6. CI and Codecov | Implemented; hosted verification pending | Reference CI/release workflows, OIDC coverage upload, tracked bundle freshness, and package validation configured and locally checked. Codecov activation/upload and npm trusted-publisher verification remain outstanding. |
-| 7. README and demos | Pending | Installation/API/migration documentation and consolidated UI-style demo are complete and verified. |
+| 7. README and demos | Complete | README installation/API/migration guidance, Sass examples, and consolidated UI-style demo verified. Demo checks pass in Chromium, Firefox, and WebKit; hosted badge follow-ups remain with section 6/release verification. |
 | 8. Release verification | Pending | Clean install, lint, builds, all browser projects, coverage, packaging, and documentation examples verified; outstanding issues recorded. |
 
 ## 1. Package and tooling
@@ -303,13 +303,31 @@ Coverage scenarios:
 
 ## 7. README and demos
 
-- [ ] Rewrite README in the standalone reference order: badges/introduction, highlights, installation, usage, options, data attributes, methods, events, fQuery API, accessibility, forms, styling/Sass/RTL, development, migration notes, and license.
-- [ ] Document both required stylesheets, npm/bundler ESM imports, direct-browser ESM import maps, and UMD script ordering. Browser ESM maps must include UI/fQuery's transitive `@fr0st/core` requirement, without adding an unnecessary direct core dependency here.
-- [ ] Document item/group schemas, search/value callback signatures, pagination response shape, sanitization, initial remote values, cancellation behavior, value types, and form reset/validation contracts.
-- [ ] Replace the duplicated light/dark filled/outline demo pages and separate methods/events pages with `demo/index.html` and `demo/assets/demo.css` / `demo.js`, following UI and the component references' navigation, cards, examples, and theme selector.
-- [ ] Preserve all useful demonstrations: filled/outline, sizes, single/multiple, groups, disabled options, placeholders, clear/removal, limits, custom rendering, local/asynchronous search, loading/error/no-results, pagination, forms, methods, and event logging.
-- [ ] Use deterministic local asynchronous data in demos. Reference current UI package assets and this checkout's SelectMenu build; remove legacy `elusivecodes/frostui@latest` GitHub-CDN links.
-- [ ] Label the demo with the correct SelectMenu/UI versions. The current Sortable reference still displays “Frost UI v3 component”; do not copy that stale label.
+- [x] Rewrite README in the standalone reference order: badges/introduction, highlights, installation, usage, options, data attributes, methods, events, fQuery API, accessibility, forms, styling/Sass/RTL, development, migration notes, and license.
+- [x] Document both required stylesheets, npm/bundler ESM imports, direct-browser ESM import maps, and UMD script ordering. Browser ESM maps must include UI/fQuery's transitive `@fr0st/core` requirement, without adding an unnecessary direct core dependency here.
+- [x] Document item/group schemas, search/value callback signatures, pagination response shape, sanitization, initial remote values, cancellation behavior, value types, and form reset/validation contracts.
+- [x] Replace the duplicated light/dark filled/outline demo pages and separate methods/events pages with `demo/index.html` and `demo/assets/demo.css` / `demo.js`, following UI and the component references' navigation, cards, examples, and theme selector.
+- [x] Preserve all useful demonstrations: filled/outline, sizes, single/multiple, groups, disabled options, placeholders, clear/removal, limits, custom rendering, local/asynchronous search, loading/error/no-results, pagination, forms, methods, and event logging.
+- [x] Use deterministic local asynchronous data in demos. Reference current UI package assets and this checkout's SelectMenu build; remove legacy `elusivecodes/frostui@latest` GitHub-CDN links.
+- [x] Label the demo with the correct SelectMenu/UI versions. The current Sortable reference still displays “Frost UI v3 component”; do not copy that stale label.
+
+### Section 7 implementation and validation — 2026-09-27
+
+- Committed section 6 first as `830bc91` (`Add CI, Codecov and release publishing workflows`). Section 7 changes are documentation/demo changes only; component source, distribution bundles, dependencies, and CI configuration remain unchanged.
+- Rewrote README in the standalone component order. Documented both stylesheets, ESM imports/import maps, UMD load order, all options/methods/events, data schemas, remote search/value resolution/pagination, cancellation, renderer sanitization, value normalization, accessibility, forms, styling/Sass/RTL, development, and 3.x migration.
+- Replaced ten legacy pages with `demo/index.html` and `demo/assets/demo.css` / `demo.js`. The reference navigation, cards, version label, theme selector/storage, and event log now cover 30 controls. Preserved native/groups/disabled/size examples, array/object data, accents, custom rendering, minimum search, selection limits, loading/pagination/error/empty/retry behavior, and methods/events. Added form reset/validation, fieldset state, RTL, floating input groups, and modal examples.
+- Remote examples use deterministic local data with a 500 ms delay and cancellable promises. No external service is required. The demo uses UI's npm `@4` CDN assets and this checkout's SelectMenu bundles. Method buttons preserve focus until the requested method runs, so opening/closing/toggling are demonstrable without an intervening outside-click close.
+- Demo smoke checks passed in **Chromium, Firefox, and WebKit**, each initializing all **30 controls** without page errors. Checked native selection/clearing, accent matching and keyboard selection, disabled groups, custom rendering, minimum search, limits, remote loading/pagination/value resolution/error/retry, form submission/reset/required focus, fieldsets, RTL, floating labels, modal interaction, lifecycle/API controls, event logging, and theme selector persistence. Mobile width checks passed at 390 px; desktop/mobile screenshots were inspected. The selector check verifies demo state management, not a component theme styling matrix.
+- Browser checks for README ESM, UMD, and the package-import JavaScript passed using the local release bundles and installed peers. The package-import example was resolved through an import map for this browser smoke check; CSS imports remain bundler syntax. Executed the documented asynchronous callback and custom renderer successfully. The README Sass example compiled with package load paths and produced both requested overrides.
+- Verified the actual UI/fQuery/core CDN assets return HTTP 200. A separate Chromium run loaded the demo's **live CDN** dependencies, initialized all 30 controls, selected an item, and exercised the static-backdrop dialog with reduced motion. Most behavioral smoke checks route CDN URLs to installed peers to avoid network-dependent test results.
+- Project lint, separate demo JavaScript/CSS lint, HTML nesting/unique IDs/label associations, local asset/anchor links, README relative links, and `git diff --check` passed. No additional test framework, dependencies, or committed smoke-test harness was introduced.
+- Found **U01**, an upstream UI default-backdrop/reduced-motion issue, and reproduced it in a plain UI modal without SelectMenu. The demo uses UI's documented `data-ui-backdrop="static"` option with explicit Close/Done controls; no dependency patch or timing workaround was introduced.
+
+### Documentation release follow-ups
+
+- npm currently reports SelectMenu **3.1.9**, so the README explicitly identifies the examples as targeting 4.x and explains local `dist/` use for an unreleased checkout. Version-4 CDN URLs cannot be verified as published artifacts until release.
+- The canonical CI badge returns HTTP 404 because `ci.yml` has not been pushed. Its Markdown is kept in an HTML comment until that URL works; enable it after the first hosted run. The Codecov badge returns HTTP 200 with **unknown** coverage, consistent with section 6's pending first upload. No badge claims local results are hosted results.
+- Final clean-install/release checks remain section 8 work. Section 7 did not publish, push, activate Codecov, or change npm trust.
 
 ## Initial bug and issue register
 
@@ -341,7 +359,8 @@ The original findings below came from pre-migration source inspection; file refe
 | M08 | **Recorded in phase 1:** current `clean-css-cli` pulls deprecated `glob`/`inflight`. | Retain UI's supported CSS minifier for alignment; the clean-install audit reports zero vulnerabilities. No unsupported transitive major override was introduced. |
 | M09 | **Local validation limitation, reproduced in section 6:** Playwright's initial availability check on an unopened localhost:3001 port stalled before launching the web server. | Starting the reference server first allowed browser validation and all 113 current coverage cases to pass. Keep reference configuration; verify automatic startup again in CI or an environment where the probe completes. |
 | M10 | **Section 6 hosted checks pending:** Codecov reports the repository inactive and npm trusted-publisher inspection returns HTTP 401. Local workflow validation cannot establish hosted upload or release authentication. | Verify activation/first upload and the exact `publish.yml` trusted-publisher mapping described in section 6 before release. |
-| D01 | **Confirmed documentation drift:** current README lacks API/migration guidance, demos use legacy CDN paths, and a reference demo contains a stale version label. | Rewrite with verified package/repository links and current version labels. |
+| D01 | **Fixed in section 7:** the old README lacked API/migration guidance, demos used legacy CDN paths, and a reference demo had a stale version label. | README rewritten and demos consolidated with SelectMenu/UI v4 labels. Published-version and hosted-badge limitations are recorded above. |
+| U01 | **Upstream UI issue found in section 7:** with reduced motion, opening a default-backdrop modal via `data-ui-toggle="modal"` can immediately produce `show, shown, hide, hidden`. Reproduced against live UI v4 CDN assets in a modal containing no SelectMenu. | Track the event-order/backdrop behavior in UI. The SelectMenu demo uses the supported static-backdrop option and explicit Close/Done controls, verified in all three browsers. No UI dependency source was modified. |
 
 ## Completion checklist and validation record
 
@@ -354,7 +373,7 @@ The original findings below came from pre-migration source inspection; file refe
 - [ ] Confirm LCOV maps to SelectMenu source, inspect uncovered branches, and record achieved coverage.
 - [ ] Verify clean/repeat builds and tracked distribution outputs, including newly introduced ESM files.
 - [ ] Run `npm pack --dry-run` and exercise packed-package ESM/UMD consumption, exported CSS/Sass paths, and minified files.
-- [ ] Smoke-test README examples and the consolidated demo, including forms, keyboard use, RTL, asynchronous data, and lifecycle controls.
+- [x] Smoke-test README examples and the consolidated demo, including forms, keyboard use, RTL, asynchronous data, and lifecycle controls. See section 7 validation.
 - [ ] Verify hosted CI/Codecov and publishing configuration where repository access permits; record external setup still outstanding.
 - [ ] Resolve every confirmed defect or explicitly document a remaining limitation and its impact before declaring migration complete.
 

@@ -1,0 +1,7 @@
+.demo-event-log {
+    height: 18rem;
+}
+
+section[id] {
+    scroll-margin-top: 6rem;
+}
