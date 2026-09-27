@@ -205,7 +205,7 @@ Changes to defaults apply to newly created instances. `SelectMenu.classes` conta
 | `debounce` | `number` | `250` | Remote-search delay in milliseconds. Value resolution is immediate. |
 | `duration` | `number` | `100` | Menu opacity transition in milliseconds; reduced motion is respected. |
 | `maxHeight` | `string` | `'250px'` | Maximum height of the scrolling results. |
-| `appendTo` | `string \| HTMLElement \| null` | `null` | Menu insertion target; otherwise insert beside the generated control. |
+| `appendTo` | `string \| HTMLElement \| null` | `null` | Menu insertion target; otherwise insert after the input group or generated control. |
 | `fullWidth` | `boolean` | `false` | Match the menu width to the control. |
 | `placement` | `'auto' \| 'top' \| 'bottom' \| 'start' \| 'end'` | `'bottom'` | Preferred Popper placement. |
 | `position` | `'start' \| 'center' \| 'end'` | `'start'` | Menu alignment. |

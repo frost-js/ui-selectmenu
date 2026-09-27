@@ -453,7 +453,8 @@ export default class SelectMenu extends BaseComponent {
         if (this.options.appendTo) {
             $.append(this.options.appendTo, this.#menuNode);
         } else {
-            $.after(this.#container, this.#menuNode);
+            // The menu's search input must not affect UI input-group styling.
+            $.after($.closest(this.#container, '.input-group')[0] || this.#container, this.#menuNode);
         }
 
         $.show(this.#menuNode);

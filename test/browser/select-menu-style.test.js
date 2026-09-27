@@ -133,6 +133,51 @@ test.describe('SelectMenu styles', () => {
             await expect(page.getByRole('combobox')).toHaveCSS('border-top-right-radius', '0px');
         });
 
+        for (const style of ['outline', 'filled']) {
+            for (const direction of ['ltr', 'rtl']) {
+                test(`preserves floating labels and input-group geometry during interaction (${style}, ${direction})`, async ({ page }) => {
+                    await page.evaluate(({ style, direction }) => {
+                        document.querySelector('#host').innerHTML = `<div class="input-group" dir="${direction}">` +
+                            '<span class="input-group-text">Fruit</span><div class="form-input">' +
+                            `<select id="select" class="input-${style} input-floating"><option>Apple</option></select>` +
+                            '<label for="select" class="label-floating">Favorite fruit</label></div></div>';
+                        UI.SelectMenu.init(document.querySelector('#select'));
+                    }, { style, direction });
+                    const control = page.getByRole('combobox');
+                    const label = page.locator('.label-floating');
+                    const bounds = await control.boundingBox();
+                    const radius = await control.evaluate((node) => getComputedStyle(node).borderRadius);
+                    for (const state of ['hover', 'focus', 'open', 'closed']) {
+                        if (state === 'hover') {
+                            await control.hover();
+                        } else if (state === 'focus') {
+                            await control.focus();
+                        } else if (state === 'open') {
+                            await control.click();
+                            await expect(page.getByRole('listbox')).toBeVisible();
+                        } else {
+                            await page.getByRole('searchbox').press('Escape');
+                            await expect(page.locator('.selectmenu-menu')).toHaveCount(0);
+                        }
+                        await expect(control).toHaveCSS('border-radius', radius);
+                        const current = await control.boundingBox();
+                        expect(current.x).toBe(bounds.x);
+                        expect(current.width).toBe(bounds.width);
+                        // Include the label in hit testing to detect whether the control paints over it.
+                        expect(await label.evaluate((node) => {
+                            const range = document.createRange();
+                            range.selectNodeContents(node);
+                            const text = range.getBoundingClientRect();
+                            node.style.pointerEvents = 'auto';
+                            const visible = document.elementFromPoint(text.x + text.width / 2, text.y + text.height / 2) === node;
+                            node.style.removeProperty('pointer-events');
+                            return visible;
+                        })).toBe(true);
+                    }
+                });
+            }
+        }
+
         for (const display of ['grid', 'flex']) {
             test(`measures search text independently of a ${display} page layout`, async ({ page }) => {
                 await page.evaluate((display) => {

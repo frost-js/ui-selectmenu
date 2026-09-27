@@ -39,7 +39,7 @@ function getDomData(node) {
 			...$.getDataset(child),
 			text: child.textContent,
 			value: child.value,
-			disabled: child.matches(":disabled"),
+			disabled: child.disabled,
 			element: child
 		};
 	});
@@ -430,7 +430,7 @@ var SelectMenu = class extends BaseComponent {
 		this.#refreshFocus();
 		const id = ++this.#transitionId;
 		if (this.options.appendTo) $.append(this.options.appendTo, this.#menuNode);
-		else $.after(this.#container, this.#menuNode);
+		else $.after($.closest(this.#container, ".input-group")[0] || this.#container, this.#menuNode);
 		$.show(this.#menuNode);
 		this.#load();
 		this.#createPopper();

@@ -1,5 +1,6 @@
 .selectmenu-container {
   min-width: 0;
+  isolation: isolate;
 }
 .selectmenu-container:has(> [data-ui-action=clear]) > .selectmenu-toggle {
   column-gap: 2em;

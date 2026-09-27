@@ -52,7 +52,7 @@ export function getDomData(node) {
                 ...$.getDataset(child),
                 text: child.textContent,
                 value: child.value,
-                disabled: child.matches(':disabled'),
+                disabled: child.disabled,
                 element: child,
             };
         });

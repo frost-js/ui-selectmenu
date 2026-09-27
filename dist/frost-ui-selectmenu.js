@@ -71,7 +71,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 				..._fr0st_query.default.getDataset(child),
 				text: child.textContent,
 				value: child.value,
-				disabled: child.matches(":disabled"),
+				disabled: child.disabled,
 				element: child
 			};
 		});
@@ -462,7 +462,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 			this.#refreshFocus();
 			const id = ++this.#transitionId;
 			if (this.options.appendTo) _fr0st_query.default.append(this.options.appendTo, this.#menuNode);
-			else _fr0st_query.default.after(this.#container, this.#menuNode);
+			else _fr0st_query.default.after(_fr0st_query.default.closest(this.#container, ".input-group")[0] || this.#container, this.#menuNode);
 			_fr0st_query.default.show(this.#menuNode);
 			this.#load();
 			this.#createPopper();

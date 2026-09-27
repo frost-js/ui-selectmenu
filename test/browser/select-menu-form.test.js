@@ -58,6 +58,34 @@ test.describe('SelectMenu forms', () => {
         });
     });
 
+    test.describe('#init', () => {
+        for (const multiple of [false, true]) {
+            test(`enables options after an initially disabled fieldset is enabled (multiple=${multiple})`, async ({ page }) => {
+                await page.evaluate((multiple) => {
+                    document.querySelector('fieldset').disabled = true;
+                    const node = document.querySelector('#select');
+                    node.multiple = multiple;
+                    node.insertAdjacentHTML('beforeend', '<option value="c" disabled>Cherry</option>' +
+                        '<optgroup label="Unavailable" disabled><option value="p">Pear</option></optgroup>');
+                    UI.SelectMenu.init(node);
+                }, multiple);
+                await expect(page.getByRole('combobox')).toBeDisabled();
+                await page.evaluate((_) => document.querySelector('fieldset').disabled = false);
+                await expect(page.getByRole('combobox')).toBeEnabled();
+                await page.getByRole('combobox').click();
+                await expect(page.getByRole('option', { name: 'Banana', exact: true })).toBeEnabled();
+                await expect(page.getByRole('option', { name: 'Cherry', exact: true })).toBeDisabled();
+                await expect(page.getByRole('option', { name: 'Pear', exact: true })).toBeDisabled();
+                await page.getByRole('option', { name: 'Banana', exact: true }).click();
+                if (multiple) {
+                    await expect(page.locator('#select')).toHaveValues(['a', 'b']);
+                } else {
+                    await expect(page.locator('#select')).toHaveValue('b');
+                }
+            });
+        }
+    });
+
     test.describe('#setValue', () => {
         test('preserves disabled data items in native options and after disposal', async ({ page }) => {
             await page.evaluate((_) => {
