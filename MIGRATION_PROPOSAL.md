@@ -1,6 +1,6 @@
 # Frost UI SelectMenu 4 migration proposal
 
-Status: phases 1 (package and tooling) and 2 (build migration) complete; phases 3–8 pending. Bundles build and load successfully; component behavior still requires the phase 4 UI 4 source migration.
+Status: sections 1 (package and tooling), 2 (build migration), and 5 (testing infrastructure) complete. Sections 3, 4, 6, and 7 and final release verification remain pending. Component behavior still requires the section 3 UI 4 source migration; current tests are infrastructure smoke checks.
 
 Reviewed: 2026-09-27. Proposed release: `@fr0st/ui-selectmenu@4.0.0`, from `3.1.9`.
 
@@ -19,18 +19,20 @@ Local source files are the alignment baseline. Registry versions were checked se
 
 ## Progress tracker
 
-Mark an implementation phase complete only after its acceptance criteria pass. Add newly discovered defects to the issue register below and record the relevant test when resolved.
+Tracker numbers now match the numbered sections below. The original tracker incorrectly called testing phase 3 while the body placed it in section 5; testing infrastructure was started under that mismatch and finished first at the user's direction. Component refactoring (section 3) and styles (section 4) have not been completed.
 
-| Phase | Status | Deliverable / acceptance criteria |
+Mark a section complete only after its acceptance criteria pass. Add newly discovered defects to the issue register below and record the relevant test when resolved.
+
+| Section | Status | Deliverable / acceptance criteria |
 | --- | --- | --- |
 | 0. Inventory and proposal | Complete | Existing source, styles, packaging, demos, and reference patterns reviewed; dependency versions checked; initial issues recorded. |
 | 1. Package and tooling | Complete | `.npmrc`, `.gitignore`, major version, metadata, exports, scripts, lint configuration, and lockfile updated; `npx sort-package-json` and clean `npm ci` passed. See phase 1 validation below. |
 | 2. Build migration | Complete | Vite produces ESM and UMD, expanded/minified CSS, and source maps; packed bundle loading and UI global extension passed Chromium smoke checks. |
-| 3. Test infrastructure | Pending | Local test server, shared fixture, Chromium/Firefox/WebKit projects, and source coverage work with installed dependencies. |
-| 4. Component migration and fixes | Pending | Private class implementation, UI 4 lifecycle, documented API, preserved form behavior, and regression tests pass. |
-| 5. Styles and Sass | Pending | Sass modules, UI 4 input markup/tokens, logical properties, and component styling checks pass. |
-| 6. README and demos | Pending | Installation/API/migration documentation and consolidated UI-style demo are complete and verified. |
-| 7. CI and Codecov | Pending | Reference CI matrix, coverage configuration, bundle freshness, and package validation are configured. |
+| 3. Component migration and fixes | Pending | Private class implementation, UI 4 lifecycle, documented API, preserved form behavior, and regression tests pass. |
+| 4. Styles and Sass | Pending | Sass modules, UI 4 input markup/tokens, logical properties, and component styling checks pass. |
+| 5. Test infrastructure | Complete | Local test server, shared fixture, Chromium/Firefox/WebKit smoke checks, and source coverage pass. Behavioral tests and the coverage target remain pending; see validation and the local startup limitation below. |
+| 6. CI and Codecov | Pending | Reference CI matrix, hosted coverage upload, bundle freshness, and package validation are configured. |
+| 7. README and demos | Pending | Installation/API/migration documentation and consolidated UI-style demo are complete and verified. |
 | 8. Release verification | Pending | Clean install, lint, builds, all browser projects, coverage, packaging, and documentation examples verified; outstanding issues recorded. |
 
 ## 1. Package and tooling
@@ -83,12 +85,12 @@ The proposed repository identity is `frost-js/ui-selectmenu`, consistent with th
 - Regenerated the lockfile from the manifest in a clean temporary directory after npm's in-place resolver hit the old Stylelint peer tree. Used normal peer resolution, with neither `--force` nor `--legacy-peer-deps`. This also fixes the old lockfile's 3.1.8 version mismatch with the previous 3.1.9 manifest.
 - `npx sort-package-json`: passed on Node 24.21.0; rerun after the final manifest edit confirmed the file was already sorted.
 - `npm ci`: passed using npm 11.19.0, installing 379 packages; npm audit reported zero vulnerabilities. Manifest/lockfile names, versions, engines, peers, and development ranges match.
-- ESLint on `eslint.config.js`, `postcss.config.js`, and `stylelint.config.js`: passed. Full JavaScript lint runs correctly but reports **48 existing source errors**, principally JSDoc/import-order issues and the undefined `tag` in B01. Fix these in phase 4; do not weaken the shared rules.
+- ESLint on `eslint.config.js`, `postcss.config.js`, and `stylelint.config.js`: passed. Full JavaScript lint runs correctly but reports **48 existing source errors**, principally JSDoc/import-order issues and the undefined `tag` in B01. Fix these in section 3; do not weaken the shared rules.
 - `npm run lint:css` and `npm run lint:sass:unused`: passed (33 Sass variables, none unused).
-- Vite, Playwright, and Sass executable checks passed. Compiling the current Sass with the established `sass ...` command, running PostCSS/autoprefixer, and minifying with clean-css into `/tmp` all passed. Sass reports the known `@import` deprecation scheduled for phase 5.
+- Vite, Playwright, and Sass executable checks passed. Compiling the current Sass with the established `sass ...` command, running PostCSS/autoprefixer, and minifying with clean-css into `/tmp` all passed. Sass reports the known `@import` deprecation scheduled for section 4.
 - The 1.105.0 Sass dependency tree includes optional fallback `sass` packages; this clean install pointed `node_modules/.bin/sass` at `sass/sass.js`. Keep UI's established `sass ...` command and `sass-embedded` dependency. Record this installation detail without introducing a custom executable path or packaging workaround.
 - `npm ls --depth=0` exits successfully with all direct dependencies present, but labels the fallback `sass`, `@parcel/watcher`, its Linux binary, and `node-addon-api` as extraneous on this platform. npm also warns about the fallback watcher's unapproved build script and deprecated `glob`/`inflight` beneath `clean-css-cli`. No blanket install-script approval or transitive override was added; the intended CSS pipeline passes without them.
-- Whitespace and configuration syntax checks passed. Application source, demos, generated `dist/` files, and the existing Rollup config remain for their later phases. The package is **not release-ready**: phase 2 must create the ESM outputs/Vite config, phase 3 the tests, and phase 4 the UI 4-compatible source. Full build, browser tests, and package-consumption checks have not been run.
+- At the end of phase 1, whitespace and configuration syntax checks passed; application source, demos, generated `dist/` files, and the Rollup config were unchanged. Full build, browser tests, and package-consumption checks were still pending. Subsequent validation is recorded in sections 2 and 5; the package remains **not release-ready** until the UI 4-compatible source and behavioral tests are complete.
 
 ## 2. Vite and distribution
 
@@ -111,10 +113,10 @@ Vite's [build configuration](https://vite.dev/config/build-options) and [migrati
 - `npm run build`: passed, producing all 12 distribution files (four JavaScript bundles, two stylesheets, and their six source maps). A second full build produced byte-identical files.
 - ESLint on `vite.config.js` and `src/js/browser.js`: passed. No component implementation or Sass source edits were needed in this phase.
 - `npm pack --dry-run`: passed. A real local tarball also contained the expected root ESM export, `dist/*` and `src/*` files, and renamed browser entry. Verified package-root and representative JS/CSS/Sass subpath resolution against the extracted package.
-- Chromium smoke checks against the extracted tarball passed for expanded/minified ESM and UMD. Checks covered exports, inheritance from the installed UI base class, fQuery registration, preservation of the existing UMD UI/fQuery globals and Modal component, CSS loading, and absence of page errors. Chromium required execution outside the filesystem sandbox; no test infrastructure was added ahead of phase 3.
+- Chromium smoke checks against the extracted tarball passed for expanded/minified ESM and UMD. Checks covered exports, inheritance from the installed UI base class, fQuery registration, preservation of the existing UMD UI/fQuery globals and Modal component, CSS loading, and absence of page errors. Chromium required execution outside the filesystem sandbox; section 5 test infrastructure had not been added yet.
 - JavaScript source maps include component source and exclude bundled dependency source; JavaScript/CSS maps embed source content. Build files retain external UI/fQuery references.
-- Generated CSS drops obsolete vendor prefixes under the phase 1 Browserslist target. The known Sass `@import` deprecation remains for phase 5; no new component defects were identified by these packaging checks.
-- Validation is limited to building, packaging, registration, and loading. The existing `_node`/`_options` incompatibility (M01), source lint issues, and behavior bugs remain for phase 4; passing these smoke checks does not establish that SelectMenu can yet be instantiated against UI 4. The full cross-browser behavioral suite remains pending.
+- Generated CSS drops obsolete vendor prefixes under the phase 1 Browserslist target. The known Sass `@import` deprecation remains for section 4; no new component defects were identified by these packaging checks.
+- Validation is limited to building, packaging, registration, and loading. The existing `_node`/`_options` incompatibility (M01), source lint issues, and behavior bugs remain for section 3; passing these smoke checks does not establish that SelectMenu can yet be instantiated against UI 4. The full cross-browser behavioral suite remains pending.
 
 ## 3. Component architecture and behavior
 
@@ -176,11 +178,23 @@ test/browser/select-menu-data.test.js
 test/browser/select-menu-form.test.js
 ```
 
-- [ ] Use Chromium, Firefox, and WebKit projects, `test/browser/**/*.test.js`, the local server on port 3001, reduced motion, and the references' viewport/timeouts.
-- [ ] Serve installed UI assets via package resolution and this package's built JS/CSS through explicit local routes; keep tests independent of public CDNs and live APIs.
-- [ ] Shared fixture verifies UI/SelectMenu/fQuery registration and CSS readiness, resets the page, and conditionally collects Chromium V8 coverage.
-- [ ] Use Monocart with `FROST_UI_SELECTMENU_COVERAGE`, the unminified SelectMenu UMD URL, the local source map, and source filtering for `src/js/`. Include unexecuted implementation files; exclude dependency code and only demonstrably erased re-export entry modules, with comments explaining exclusions.
-- [ ] Produce console summary, HTML, and `coverage/lcov.info`; mirror `.github/codecov.yml` with project target 95%, threshold 5%, and informational patch coverage. Record achieved coverage; do not assume the target has been met.
+- [x] Use Chromium, Firefox, and WebKit projects, `test/browser/**/*.test.js`, the local server on port 3001, reduced motion, and the references' viewport/timeouts.
+- [x] Serve installed UI assets via package resolution and this package's built JS/CSS through explicit local routes; keep tests independent of public CDNs and live APIs.
+- [x] Shared fixture verifies UI/SelectMenu/fQuery registration and CSS readiness, resets the page, and conditionally collects Chromium V8 coverage.
+- [x] Use Monocart with `FROST_UI_SELECTMENU_COVERAGE`, the unminified SelectMenu UMD URL, the local source map, and source filtering for `src/js/`. Include unexecuted implementation files; exclude dependency code and only demonstrably erased re-export entry modules, with comments explaining exclusions.
+- [x] Produce console summary, HTML, and `coverage/lcov.info`; mirror `.github/codecov.yml` with project target 95%, threshold 5%, and informational patch coverage. Record achieved coverage; the target is not yet met.
+
+### Testing infrastructure implementation and validation — 2026-09-27
+
+- Committed section 2 as `a6949e9` (`Build SelectMenu ESM and UMD bundles with Vite`) before adding the test infrastructure.
+- Browser configuration, `test/package.json`, and Codecov settings match Sortable. The static server, test page, shared fixture, and coverage configuration follow the same reference, with SelectMenu paths/names and stylesheet readiness added.
+- Added three smoke checks under `SelectMenu`: UI export/inheritance, fQuery registration, and stylesheet loading. Registration checks use scalar assertions; rendered styles use locator `toHaveCSS` assertions. No theme matrix, constructor workaround, or private-state access was added.
+- ESLint on both Playwright configurations and all test JavaScript passed. Playwright discovers nine cases: the three smoke checks in each of Chromium, Firefox, and WebKit.
+- All **nine browser cases passed**. The Chromium coverage run also passed all three cases and produced console, HTML, and LCOV reports.
+- Verified that LCOV includes all eight current JavaScript implementation modules, retains uncovered functions, and excludes UI/fQuery dependencies and the erased `src/js/browser.js` entry. The runtime registration in `src/js/index.js` remains included.
+- Current LCOV line coverage is **45/707 (6.36%)**, with 0/99 functions covered. Monocart's V8 summary uses a different line accounting and reports 9.77% lines. These are infrastructure-only results; they do not meet the 95% Codecov target. Component behavior and meaningful coverage growth remain part of the section 3 refactor and its regression tests.
+- **Local startup limitation:** `npm test` completed its build but stalled at Playwright's initial `HTTP GET http://localhost:3001/` probe before starting the server. That run was interrupted. Starting the unchanged server first allowed the reference `reuseExistingServer` behavior to work, and all browser/coverage checks then passed. No workaround was added to the committed configuration. The server was stopped after validation; automatic startup still needs verification in an environment where the unopened-port probe completes.
+- The build left `dist/` byte-identical to the section 2 commit. No component/source/style changes were made. Hosted Codecov upload and CI remain section 6 work.
 
 ### Required describe structure and assertions
 
@@ -246,12 +260,13 @@ These findings come from source inspection, not a completed browser run. “Conf
 | B11 | **Confirmed markup gap:** generated comboboxes do not inherit the original label/description; clear controls are spans/divs with button roles and no complete keyboard activation path. | Establish accessible naming/relationships and keyboard-operable removal controls without invalid nested interactive elements. |
 | B12 | **Needs browser confirmation:** Enter in the search handler selects without preventing the form default; disabled controls use class/tabindex/ARIA but event handlers do not consistently enforce disabled state. | Test Enter submission and disabled/fieldset/clear interactions; enforce the intended native behavior. |
 | M02 | **Confirmed styling mismatch:** obsolete `.ripple-line` markup, Sass `@import`, and physical left/right spacing differ from current UI. | Update styling and verify filled focus, RTL, and custom Sass builds. |
-| M03 | **Confirmed package gap:** runtime imports have no declared UI/fQuery peers or development copies; no compiled ESM root, tests, coverage, or CI exists. | Complete phases 1–3 and 7; verify a clean install and packed-package consumption. |
+| M03 | **Partially resolved:** the original package lacked UI/fQuery dependency declarations, compiled ESM, tests, coverage, and CI. | Sections 1, 2, and testing infrastructure in 5 are complete. Implement CI in section 6 and behavioral tests alongside section 3. |
 | M04 | **Confirmed tooling choice:** PostCSS CLI 12 requires Node >=22 while UI supports Node 20; sibling manifests also trail some current patch versions. | Apply the explicit latest-compatible policy above and record the final resolved versions. |
 | M05 | **Needs contract audit:** fQuery 5 traversal returns arrays (`child`, `parent`, etc.), while some current code treats results as individual nodes/truthy presence. | Audit consumers individually; use `.shift()` or cardinality checks where required, with pagination/removal regressions. |
 | M06 | **Resolved in phase 1:** the old lockfile identified the package as 3.1.8 while the manifest was 3.1.9; in-place resolution also conflicted with old Stylelint peers. | Generated a fresh lockfile through normal npm resolution; clean `npm ci` passed and root metadata matches 4.0.0. |
 | M07 | **Recorded in phase 1:** Sass's optional fallback installation can claim the `sass` executable; npm reports fallback packages as extraneous and warns about the optional watcher script. | Retain UI's `sass ...` command and `sass-embedded` dependency. No custom executable path or packaging workaround. |
 | M08 | **Recorded in phase 1:** current `clean-css-cli` pulls deprecated `glob`/`inflight`. | Retain UI's supported CSS minifier for alignment; the clean-install audit reports zero vulnerabilities. No unsupported transitive major override was introduced. |
+| M09 | **Local validation limitation:** Playwright's initial availability check on an unopened localhost:3001 port stalled before launching the web server. | Starting the reference server first allowed all nine browser cases and the coverage run to pass. Keep reference configuration; verify automatic startup again in CI or an environment where the probe completes. |
 | D01 | **Confirmed documentation drift:** current README lacks API/migration guidance, demos use legacy CDN paths, and a reference demo contains a stale version label. | Rewrite with verified package/repository links and current version labels. |
 
 ## Completion checklist and validation record
@@ -269,4 +284,4 @@ These findings come from source inspection, not a completed browser run. “Conf
 - [ ] Verify hosted CI/Codecov and publishing configuration where repository access permits; record external setup still outstanding.
 - [ ] Resolve every confirmed defect or explicitly document a remaining limitation and its impact before declaring migration complete.
 
-Initial proposal validation consisted of source/configuration review and registry metadata queries. Phase 1 tooling checks and phase 2 build/package/browser-loading checks are recorded above; full component runtime/browser validation remains pending.
+Initial proposal validation consisted of source/configuration review and registry metadata queries. Tooling, build/package checks, and testing-infrastructure validation are recorded in sections 1, 2, and 5. Full component runtime/browser validation remains pending.
