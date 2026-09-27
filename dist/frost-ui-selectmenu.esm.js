@@ -372,7 +372,7 @@ var SelectMenu = class extends BaseComponent {
 	*/
 	setPlaceholder(placeholder) {
 		this.#placeholderText = String(placeholder ?? "");
-		this.#refresh();
+		this.#refreshPlaceholder();
 	}
 	/**
 	* Silently selects values, resolving remote values when necessary.
@@ -509,6 +509,7 @@ var SelectMenu = class extends BaseComponent {
 		this.#listen(this.#searchInput, "input.ui.selectmenu", (_) => {
 			if ($.is(this.node, ":disabled")) return;
 			this.#updateSearchWidth();
+			if (this.#multiple) this.#refreshPlaceholder();
 			if (this.#open) this.#getData();
 			else this.show();
 		});
@@ -552,22 +553,18 @@ var SelectMenu = class extends BaseComponent {
 	* Loads a remote result page, catching synchronous and asynchronous errors.
 	* @param {SelectMenuRequest} request The search request.
 	* @param {number} id The request generation.
+	* @returns {Promise<void>} Resolves when the request settles.
 	*/
-	#fetchResults(request, id) {
+	async #fetchResults(request, id) {
 		if (!this.node || id !== this.#requestId) return;
-		let result;
 		try {
-			result = this.options.getResults(request);
-		} catch {
-			this.#showError(id);
-			return;
-		}
-		if (!this.node || id !== this.#requestId) {
-			result?.cancel?.();
-			return;
-		}
-		this.#request = result;
-		Promise.resolve(result).then((response) => {
+			const result = this.options.getResults(request);
+			if (!this.node || id !== this.#requestId) {
+				result?.cancel?.();
+				return;
+			}
+			this.#request = result;
+			const response = await result;
 			if (!this.node || id !== this.#requestId) return;
 			const data = this.#parseData(response.results);
 			if (!request.offset) {
@@ -580,13 +577,15 @@ var SelectMenu = class extends BaseComponent {
 			this.#showMore = !!response.showMore && data.length > 0;
 			this.#renderResults(data);
 			if (this.#showMore && this.#itemsList.scrollHeight <= this.#itemsList.clientHeight) this.#scrollHandler();
-		}).catch((_) => this.#showError(id)).finally((_) => {
+		} catch {
+			this.#showError(id);
+		} finally {
 			if (this.node && id === this.#requestId) {
 				this.#request = null;
 				this.#loading = false;
 				this.update();
 			}
-		});
+		}
 	}
 	/**
 	* Loads local or remote results for the current search input.
@@ -633,6 +632,7 @@ var SelectMenu = class extends BaseComponent {
 			if (this.node) {
 				this.#searchInput.value = item.text;
 				this.#updateSearchWidth();
+				this.#refreshPlaceholder();
 				this.#open ? this.#getData() : this.show();
 			}
 		} else if (event.key === "Escape" && this.#open) {
@@ -681,8 +681,9 @@ var SelectMenu = class extends BaseComponent {
 	/**
 	* Resolves unknown selected values without allowing stale responses to win.
 	* @param {SelectMenuValue|SelectMenuValue[]|null} value The requested selection.
+	* @returns {Promise<void>} Resolves when the value is applied or its lookup settles.
 	*/
-	#loadValue(value) {
+	async #loadValue(value) {
 		this.#cancelValueRequest();
 		const values = normalizeValues(value);
 		if (!this.options.getResults || values.every((item) => this.#lookup.has(String(item)))) {
@@ -691,27 +692,22 @@ var SelectMenu = class extends BaseComponent {
 		}
 		const id = this.#valueRequestId;
 		const requested = this.#multiple ? values : values[0] ?? null;
-		let result;
 		try {
-			result = this.options.getResults({ value: requested });
-		} catch {
+			const result = this.options.getResults({ value: requested });
+			if (!this.node || id !== this.#valueRequestId) {
+				result?.cancel?.();
+				return;
+			}
+			this.#valueRequest = result;
 			this.#refresh();
-			return;
-		}
-		if (!this.node || id !== this.#valueRequestId) {
-			result?.cancel?.();
-			return;
-		}
-		this.#valueRequest = result;
-		this.#refresh();
-		Promise.resolve(result).then((response) => {
+			const response = await result;
 			if (this.node && id === this.#valueRequestId) {
 				this.#parseData(response.results);
 				this.#setValue(requested);
 			}
-		}).catch((_) => {}).finally((_) => {
+		} catch {} finally {
 			if (this.node && id === this.#valueRequestId) this.#valueRequest = null;
-		});
+		}
 	}
 	/**
 	* Copies data into the lookup without mutating caller-owned objects.
@@ -940,6 +936,7 @@ var SelectMenu = class extends BaseComponent {
 	* @param {HTMLElement} [container] The destination list.
 	*/
 	#renderResults(results, container = this.#itemsList) {
+		const selectedValues = new Set(normalizeValues(this.#value).map(String));
 		for (const item of results) {
 			if (item.children) {
 				const group = $.create("li", { attributes: {
@@ -957,7 +954,7 @@ var SelectMenu = class extends BaseComponent {
 				this.#renderResults(item.children, list);
 				continue;
 			}
-			const selected = normalizeValues(this.#value).some((value) => String(value) === String(item.value));
+			const selected = selectedValues.has(String(item.value));
 			const disabled = item.disabled || $.is(item.element, ":disabled");
 			const element = $.create("li", {
 				class: [
@@ -1085,7 +1082,6 @@ var SelectMenu = class extends BaseComponent {
 		this.node.ownerDocument.body.append(span);
 		$.setStyle(this.#searchInput, "width", `${$.width(span) + 2}px`);
 		$.remove(span);
-		this.#refreshPlaceholder();
 	}
 };
 
