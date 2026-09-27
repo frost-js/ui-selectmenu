@@ -1,6 +1,6 @@
 # Frost UI SelectMenu 4 migration proposal
 
-Status: sections 1 (package and tooling), 2 (build migration), and 5 (testing infrastructure) complete. Sections 3, 4, 6, and 7 and final release verification remain pending. Component behavior still requires the section 3 UI 4 source migration; current tests are infrastructure smoke checks.
+Status: sections 1 (package and tooling), 2 (build migration), 3 (component architecture and behavior), and 5 (testing infrastructure) complete. Sections 4 (styles), 6 (CI), 7 (README/demos), and final release verification remain pending.
 
 Reviewed: 2026-09-27. Proposed release: `@fr0st/ui-selectmenu@4.0.0`, from `3.1.9`.
 
@@ -19,7 +19,7 @@ Local source files are the alignment baseline. Registry versions were checked se
 
 ## Progress tracker
 
-Tracker numbers now match the numbered sections below. The original tracker incorrectly called testing phase 3 while the body placed it in section 5; testing infrastructure was started under that mismatch and finished first at the user's direction. Component refactoring (section 3) and styles (section 4) have not been completed.
+Tracker numbers now match the numbered sections below. The original tracker incorrectly called testing phase 3 while the body placed it in section 5; testing infrastructure was started under that mismatch and finished first at the user's direction. Component refactoring is tracked under section 3; styles remain section 4.
 
 Mark a section complete only after its acceptance criteria pass. Add newly discovered defects to the issue register below and record the relevant test when resolved.
 
@@ -28,9 +28,9 @@ Mark a section complete only after its acceptance criteria pass. Add newly disco
 | 0. Inventory and proposal | Complete | Existing source, styles, packaging, demos, and reference patterns reviewed; dependency versions checked; initial issues recorded. |
 | 1. Package and tooling | Complete | `.npmrc`, `.gitignore`, major version, metadata, exports, scripts, lint configuration, and lockfile updated; `npx sort-package-json` and clean `npm ci` passed. See phase 1 validation below. |
 | 2. Build migration | Complete | Vite produces ESM and UMD, expanded/minified CSS, and source maps; packed bundle loading and UI global extension passed Chromium smoke checks. |
-| 3. Component migration and fixes | Pending | Private class implementation, UI 4 lifecycle, documented API, preserved form behavior, and regression tests pass. |
+| 3. Component migration and fixes | Complete | Private class implementation, UI 4 lifecycle, documented API, preserved form behavior, and regression tests pass. |
 | 4. Styles and Sass | Pending | Sass modules, UI 4 input markup/tokens, logical properties, and component styling checks pass. |
-| 5. Test infrastructure | Complete | Local test server, shared fixture, Chromium/Firefox/WebKit smoke checks, and source coverage pass. Behavioral tests and the coverage target remain pending; see validation and the local startup limitation below. |
+| 5. Test infrastructure | Complete | Local test server, shared fixture, Chromium/Firefox/WebKit smoke checks, and source coverage pass. Behavioral tests accompany section 3; see its validation record and the local startup limitation below. |
 | 6. CI and Codecov | Pending | Reference CI matrix, hosted coverage upload, bundle freshness, and package validation are configured. |
 | 7. README and demos | Pending | Installation/API/migration documentation and consolidated UI-style demo are complete and verified. |
 | 8. Release verification | Pending | Clean install, lint, builds, all browser projects, coverage, packaging, and documentation examples verified; outstanding issues recorded. |
@@ -133,29 +133,54 @@ src/scss/
   _vars.scss
 ```
 
-- [ ] Move `SelectMenu.defaults` and `SelectMenu.classes` into static class fields, following UI and AuthCodeInput.
-- [ ] Replace SelectMenu's `_...` state and instance helpers with declared `#...` fields/methods. Access inherited state through `this.node` and `this.options`; UI 4 no longer exposes `_node` and `_options`.
-- [ ] Remove `src/js/prototype/` and all runtime prototype composition. Extract only stateless functions with explicit inputs; keep stateful rendering/data/event logic in the class.
-- [ ] Keep `initComponent('selectmenu', SelectMenu)` and default export in the entry module. Preserve `.init()` reuse, registration cleanup, and the fQuery plugin's first-result behavior.
-- [ ] Add JSDoc types for options, language strings, item/group data, values, result responses, render/match/sort callbacks, and `getResults` search/value requests. Use `@augments {BaseComponent<SelectMenuOptions>}`, `@returns`, and `@inheritdoc` consistently.
-- [ ] Audit every fQuery call against v5, particularly array-returning traversal, DOM creation, delegated events, sanitization, debounce/throttle, and animation cleanup.
-- [ ] Align opening/closing with UI's transition lifecycle and reduced-motion styling. Prefer CSS state classes plus `waitForTransition`; preserve the documented numeric `duration` override through component styling if feasible, and explicitly document any changed contract.
-- [ ] Verify Popper `reference`, container positioning, `placement`, `position`, `fixed`, `spacing`, `minContact`, and `fullWidth` under the current API, including `appendTo` and scrolling containers.
-- [ ] Preserve event names: `show`, `shown`, `hide`, `hidden`, and `change` under `.ui.selectmenu`; honor cancellation and disposal from event listeners.
-- [ ] Make request handling robust to out-of-order completion, delayed searches, pagination, rejection, synchronous throws, value loading, hiding, and disposal. Retain cancellable work where supported and ignore obsolete callbacks before mutating any state.
-- [ ] Preserve the native select's options/optgroups, selected/default-selected states, form association, validity, and label relationships. Synchronize native and rendered selection; handle form reset and define programmatic native-change behavior.
-- [ ] Restore original visibility/tabindex on disposal, preserve unrelated runtime changes, remove owned listeners/timers/Popper state, and allow safe reinitialization.
-- [ ] Fix the issues below with browser regressions, including accessible naming and keyboard interaction for the generated control and removal buttons.
+- [x] Move `SelectMenu.defaults` and `SelectMenu.classes` into static class fields, following UI and AuthCodeInput.
+- [x] Replace SelectMenu's `_...` state and instance helpers with declared `#...` fields/methods. Access inherited state through `this.node` and `this.options`; UI 4 no longer exposes `_node` and `_options`.
+- [x] Remove `src/js/prototype/` and all runtime prototype composition. Extract only stateless functions with explicit inputs; keep stateful rendering/data/event logic in the class.
+- [x] Keep `initComponent('selectmenu', SelectMenu)` and default export in the entry module. Preserve `.init()` reuse, registration cleanup, and the fQuery plugin's first-result behavior.
+- [x] Add JSDoc types for options, language strings, item/group data, values, result responses, render/match/sort callbacks, and `getResults` search/value requests. Use `@augments {BaseComponent<SelectMenuOptions>}`, `@returns`, and `@inheritdoc` consistently.
+- [x] Audit every fQuery call against v5, particularly array-returning traversal, DOM creation, delegated events, sanitization, debounce/throttle, and animation cleanup.
+- [x] Align opening/closing with UI's transition lifecycle and reduced-motion styling. Prefer CSS state classes plus `waitForTransition`; preserve the documented numeric `duration` override through component styling if feasible, and explicitly document any changed contract.
+- [x] Verify Popper `reference`, container positioning, `placement`, `position`, `fixed`, `spacing`, `minContact`, and `fullWidth` under the current API, including `appendTo` and scrolling containers.
+- [x] Preserve event names: `show`, `shown`, `hide`, `hidden`, and `change` under `.ui.selectmenu`; honor cancellation and disposal from event listeners.
+- [x] Make request handling robust to out-of-order completion, delayed searches, pagination, rejection, synchronous throws, value loading, hiding, and disposal. Retain cancellable work where supported and ignore obsolete callbacks before mutating any state.
+- [x] Preserve the native select's options/optgroups, selected/default-selected states, form association, validity, and label relationships. Synchronize native and rendered selection; handle form reset and define programmatic native-change behavior.
+- [x] Restore original visibility/tabindex on disposal, preserve unrelated runtime changes, remove owned listeners/timers/Popper state, and allow safe reinitialization.
+- [x] Fix the issues below with browser regressions, including accessible naming and keyboard interaction for the generated control and removal buttons.
 
 Retain the existing public methods: `data`, `disable`, `dispose`, `enable`, `getMaxSelections`, `getPlaceholder`, `getValue`, `hide`, `setMaxSelections`, `setPlaceholder`, `setValue`, `show`, `toggle`, and `update`. Preserve option names unless a specific compatibility fix requires a documented change. Define `null` as an empty single selection and `[]` as an empty multiple selection; normalize and document supported input types rather than relying on truthiness.
 
 Breaking changes to document for v4: UI/fQuery peer majors, supported Node/browser baselines, package root moving to compiled ESM, private internals replacing underscore access/prototype patching, renamed build scripts and browser entry, Sass module configuration, and any deliberate value/event/transition corrections. Do not claim CommonJS support merely because a UMD file exists in a `type: module` package.
 
+### Section 3 implementation and validation — 2026-09-27
+
+- Committed the completed testing infrastructure as `48fd5ca` (`Add Playwright testing and source coverage infrastructure`) before returning to the actual section 3.
+- Replaced all six prototype modules with the private `SelectMenu` class, static defaults/classes, UI 4 `node`/`options` access, and documented options, data, requests, callbacks, and public methods. `helpers.js` contains only stateless data-copying, flattening, native-option parsing, and value-normalization helpers. Registration remains in `index.js`.
+- Preserved original native options/optgroups and `defaultSelected` state. Selected remote/local data creates native options only when needed. Native `change` synchronizes the displayed selection; reset synchronizes after the browser's default action, following AuthCodeInput's timer pattern. Disposal removes owned listeners and work, preserves consumer listeners, restores original attributes, and supports reinitialization.
+- Added accessible combobox naming/descriptions, correctly spelled active-descendant relationships, native buttons for removal, disabled select/fieldset synchronization, keyboard selection without form submission, and one change event per effective user selection change.
+- Replaced animation calls with UI's `waitForTransition`, guarded transition generations, and a `.show` opacity state. The only Sass change in this section supplies that lifecycle transition and reduced-motion behavior. Numeric `duration` remains supported through `--ui-selectmenu-duration`; reduced motion disables it. The broader Sass/token/layout migration remains section 4.
+- Separated search and selected-value request generations. Obsolete responses are ignored before parsing or updating the lookup. Debounced/throttled work and optional request `cancel()` methods are cancelled where relevant. Synchronous throws and rejected promises follow the same failure path; failed value lookups preserve the previous selection.
+- Added browser regressions in the reference grouping/order across `select-menu.test.js`, `select-menu-data.test.js`, and `select-menu-form.test.js`. They cover the B01–B12 fixes, public behavior, cancellation/disposal, async ordering, debounce, grouped pagination, forms, keyboard interaction, and Popper positioning in appended/scrolling containers.
+- Found an additional full-width positioning bug (B13): changing width in Popper's `afterUpdate` left placement calculated from the previous width. Set width in `beforeUpdate` instead; regressions cover all four placements and spacing.
+- `npm run lint`, the final `npm run lint:js`, `npm run lint:sass:unused`, `npm run build`, and `git diff --check`: passed. The 48 inherited source lint errors are resolved without weakening the shared configuration. Regenerated all 12 distribution files.
+- All **255 browser cases passed**: 85 scenarios each in Chromium, Firefox, and WebKit. The Chromium coverage run also passed all **85 cases**, without test retries.
+- Source LCOV contains exactly `helpers.js`, `select-menu.js`, and runtime registration in `index.js`. Coverage is **510/528 lines (96.59%)**, **97/98 functions (98.98%)**, and **351/399 branches (87.97%)**. This meets the 95% line target configured for the later Codecov upload. Monocart's V8 line accounting reports 95.75%; its summary also counts intermediate `expect.poll` attempts as errors even though every test passed.
+- Restoring pre-existing hidden state is covered even if that class is changed while the component is active; repeated disposal is safe. The full-width positioning and native-button reset regressions passed in all three browsers.
+- The unchanged local server was started before each Playwright run and stopped afterward, as documented in M09. The known Sass `@import` deprecation remains for section 4; automatic server startup and hosted CI/Codecov remain for section 6. No dependency, compiler-command, or test-server workaround was introduced.
+
+#### Section 3 value and event contracts for the README migration
+
+- Values are strings or numbers; identity follows native select string keys, so `1` and `'1'` identify the same option. Returned values retain the data item's type. Zero, empty strings, and object-prototype names are valid option values. Duplicate keys normalize to one selection.
+- `setValue` accepts a scalar, array, or `null`; a single select takes the first resolved value, while a multiple select normalizes to an array. Unknown local values are ignored; remote values are resolved with `{ value }`. Empty selections return `null` for single and `[]` for multiple. `getValue()` and `data()` return copies without internal DOM references.
+- Programmatic setters, native-change synchronization, and reset remain silent. User changes, including Backspace and removal buttons, emit exactly one `change.ui.selectmenu` when the effective selection changes. Programmatic selection may preserve disabled native defaults; disabled options and controls reject user interaction.
+- Original options and defaults survive selection, reset, and disposal. External native `.value`/selected changes require dispatching `change` to update the generated control. FormData and required validation use the original select.
+- Search requests receive `{ offset, term? }`; pagination offsets count top-level results, including groups. Value requests receive `{ value }`. Both accept immediate results or promises, with optional `cancel()` on the returned request. The latest request of each kind wins; hiding cancels search work, while disposal cancels both kinds.
+- The `duration` option now controls a CSS opacity transition, respecting reduced motion. Opening/closing may interrupt each other; superseded transitions do not emit stale `shown`/`hidden` events. Lifecycle cancellation and disposal inside listeners remain supported.
+
 ## 4. Styles and Sass
 
 - [ ] Replace `@import "vars"` with Sass modules. Use `_vars.scss`, namespaced `@use`, and a public `@forward` so consumers can still configure the component's documented variables.
 - [ ] Keep component-only CSS and existing `selectmenu-*` selectors where practical. Reuse UI variables for colors, typography, borders, disabled states, and transitions.
-- [ ] Remove generated `.ripple-line` elements and their class setting: UI 4 renders filled input focus styling through CSS backgrounds and no longer contains this helper.
+- [x] Remove generated `.ripple-line` elements and their class setting: completed with the section 3 render refactor. UI 4 renders filled input focus styling through CSS backgrounds and no longer contains this helper.
 - [ ] Align filled/outline wrappers, small/large inputs, selection chips, close controls, focus/disabled/validation states, and floating/input-group usage with UI 4.
 - [ ] Replace directional declarations such as `margin-right`, `padding-left`, and `text-align: left` with appropriate logical properties and check RTL behavior.
 - [ ] Check menu width/overflow, focus visibility, maximum height, Popper positioning, and custom Sass configuration in the built CSS.
@@ -182,7 +207,7 @@ test/browser/select-menu-form.test.js
 - [x] Serve installed UI assets via package resolution and this package's built JS/CSS through explicit local routes; keep tests independent of public CDNs and live APIs.
 - [x] Shared fixture verifies UI/SelectMenu/fQuery registration and CSS readiness, resets the page, and conditionally collects Chromium V8 coverage.
 - [x] Use Monocart with `FROST_UI_SELECTMENU_COVERAGE`, the unminified SelectMenu UMD URL, the local source map, and source filtering for `src/js/`. Include unexecuted implementation files; exclude dependency code and only demonstrably erased re-export entry modules, with comments explaining exclusions.
-- [x] Produce console summary, HTML, and `coverage/lcov.info`; mirror `.github/codecov.yml` with project target 95%, threshold 5%, and informational patch coverage. Record achieved coverage; the target is not yet met.
+- [x] Produce console summary, HTML, and `coverage/lcov.info`; mirror `.github/codecov.yml` with project target 95%, threshold 5%, and informational patch coverage. Record achieved coverage; see section 3 for the current result.
 
 ### Testing infrastructure implementation and validation — 2026-09-27
 
@@ -192,7 +217,7 @@ test/browser/select-menu-form.test.js
 - ESLint on both Playwright configurations and all test JavaScript passed. Playwright discovers nine cases: the three smoke checks in each of Chromium, Firefox, and WebKit.
 - All **nine browser cases passed**. The Chromium coverage run also passed all three cases and produced console, HTML, and LCOV reports.
 - Verified that LCOV includes all eight current JavaScript implementation modules, retains uncovered functions, and excludes UI/fQuery dependencies and the erased `src/js/browser.js` entry. The runtime registration in `src/js/index.js` remains included.
-- Current LCOV line coverage is **45/707 (6.36%)**, with 0/99 functions covered. Monocart's V8 summary uses a different line accounting and reports 9.77% lines. These are infrastructure-only results; they do not meet the 95% Codecov target. Component behavior and meaningful coverage growth remain part of the section 3 refactor and its regression tests.
+- At infrastructure completion, LCOV line coverage was **45/707 (6.36%)**, with 0/99 functions covered. Monocart's V8 summary uses a different line accounting and reports 9.77% lines. These are infrastructure-only results; they do not meet the 95% Codecov target. Component behavior and meaningful coverage growth remain part of the section 3 refactor and its regression tests.
 - **Local startup limitation:** `npm test` completed its build but stalled at Playwright's initial `HTTP GET http://localhost:3001/` probe before starting the server. That run was interrupted. Starting the unchanged server first allowed the reference `reuseExistingServer` behavior to work, and all browser/coverage checks then passed. No workaround was added to the committed configuration. The server was stopped after validation; automatic startup still needs verification in an environment where the unopened-port probe completes.
 - The build left `dist/` byte-identical to the section 2 commit. No component/source/style changes were made. Hosted Codecov upload and CI remain section 6 work.
 
@@ -242,27 +267,28 @@ Coverage scenarios:
 
 ## Initial bug and issue register
 
-These findings come from source inspection, not a completed browser run. “Confirmed” means the source contains the defect described; regression reproduction and fixes remain pending. File references describe the pre-migration source and will change during refactoring.
+The original findings below came from pre-migration source inspection; file references describe that historical source. Section 3 adds browser regressions and fixes for M01, M05, and B01–B12. B13 was discovered during section 3 browser validation. Styling, tooling, and documentation follow-ups retain their own section scope.
 
 | ID | Finding and evidence | Proposed resolution / regression |
 | --- | --- | --- |
-| M01 | **Confirmed migration blocker:** `src/js/select-menu.js` and all prototype modules read `_node`/`_options`; UI 4 stores these privately and exposes `node`/`options`. | Migrate inherited access before testing against new peers; verify initialization and every public method. |
-| B01 | **Confirmed:** `_refreshSingle` in `prototype/helpers.js` references undefined `tag` when `renderSelection` returns an element. | Compare with the actual destination element; test returned DOM nodes and callbacks that fill the supplied destination. |
-| B02 | **Confirmed:** rendering, focus, and hide paths use `aria-activedescendent` instead of `aria-activedescendant`. | Correct all paths and assert the focused option's ID through the actual ARIA attribute. |
-| B03 | **Confirmed:** `_refreshSingle` and `_refreshPlaceholder` use truthiness, so valid `0`/empty-string values are treated as empty. | Distinguish missing selection from valid values; assert native value and displayed label. |
-| B04 | **Confirmed:** multiple `_setValue` dereferences `value.length`/`value.some` after initialization without normalizing null/scalar input; `getValue()` also exposes the internal multiple-value array. | Define/normalize input contracts and protect internal selection state; test empty/scalar/multiple values and returned-array mutation. |
-| B05 | **Confirmed:** multiple-selection Backspace directly pops `_value` and refreshes without the change-event path. | Apply changes through the shared selection path and assert exactly one change event when selection changes. |
-| B06 | **Confirmed:** refresh empties the native select and keeps only selected generated options; original options/optgroups/default selections cannot survive disposal/reset. No form-reset handler exists. | Preserve original controls and defaults; test reset, disposal, reinitialization, required validity, and submission. |
-| B07 | **Confirmed:** `dispose()` always removes tabindex/hidden class and clears `_requests`, but active loading uses `_request`. Pending debounce, mouseup handlers, animations, and requests are not comprehensively invalidated. | Restore original attributes and cancel/invalidate owned work; test disposal during search, mouse interaction, transition, and lifecycle listeners. |
-| B08 | **Confirmed:** remote search merges data into lookup before checking request identity; value-loading requests have no latest-request guard. | Check request generation/liveness before every mutation; reproduce out-of-order search and `setValue` responses. |
-| B09 | **Confirmed:** `Promise.resolve(getResults(...))` evaluates the callback before promise handling, so synchronous throws escape the rejection path. Pending debounced searches can also outlive a below-minimum search. | Handle synchronous/async failures consistently and invalidate pending work when search conditions change. |
-| B10 | **Confirmed:** lookup is a normal object, uses `value in lookup`, and assigns arbitrary values as keys; inherited keys such as `constructor`/`toString` can be mistaken for results and `__proto__` has special assignment behavior. | Use a Map or a null-prototype dictionary with explicit membership checks and documented key normalization. |
-| B11 | **Confirmed markup gap:** generated comboboxes do not inherit the original label/description; clear controls are spans/divs with button roles and no complete keyboard activation path. | Establish accessible naming/relationships and keyboard-operable removal controls without invalid nested interactive elements. |
-| B12 | **Needs browser confirmation:** Enter in the search handler selects without preventing the form default; disabled controls use class/tabindex/ARIA but event handlers do not consistently enforce disabled state. | Test Enter submission and disabled/fieldset/clear interactions; enforce the intended native behavior. |
+| M01 | **Fixed in section 3:** `src/js/select-menu.js` and all prototype modules read `_node`/`_options`; UI 4 stores these privately and exposes `node`/`options`. | Migrate inherited access before testing against new peers; verify initialization and every public method. |
+| B01 | **Fixed in section 3:** `_refreshSingle` in `prototype/helpers.js` references undefined `tag` when `renderSelection` returns an element. | Compare with the actual destination element; test returned DOM nodes and callbacks that fill the supplied destination. |
+| B02 | **Fixed in section 3:** rendering, focus, and hide paths use `aria-activedescendent` instead of `aria-activedescendant`. | Correct all paths and assert the focused option's ID through the actual ARIA attribute. |
+| B03 | **Fixed in section 3:** `_refreshSingle` and `_refreshPlaceholder` use truthiness, so valid `0`/empty-string values are treated as empty. | Distinguish missing selection from valid values; assert native value and displayed label. |
+| B04 | **Fixed in section 3:** multiple `_setValue` dereferences `value.length`/`value.some` after initialization without normalizing null/scalar input; `getValue()` also exposes the internal multiple-value array. | Define/normalize input contracts and protect internal selection state; test empty/scalar/multiple values and returned-array mutation. |
+| B05 | **Fixed in section 3:** multiple-selection Backspace directly pops `_value` and refreshes without the change-event path. | Apply changes through the shared selection path and assert exactly one change event when selection changes. |
+| B06 | **Fixed in section 3:** refresh empties the native select and keeps only selected generated options; original options/optgroups/default selections cannot survive disposal/reset. No form-reset handler exists. | Preserve original controls and defaults; test reset, disposal, reinitialization, required validity, and submission. |
+| B07 | **Fixed in section 3:** `dispose()` always removes tabindex/hidden class and clears `_requests`, but active loading uses `_request`. Pending debounce, mouseup handlers, animations, and requests are not comprehensively invalidated. | Restore original attributes and cancel/invalidate owned work; test disposal during search, mouse interaction, transition, and lifecycle listeners. |
+| B08 | **Fixed in section 3:** remote search merges data into lookup before checking request identity; value-loading requests have no latest-request guard. | Check request generation/liveness before every mutation; reproduce out-of-order search and `setValue` responses. |
+| B09 | **Fixed in section 3:** `Promise.resolve(getResults(...))` evaluates the callback before promise handling, so synchronous throws escape the rejection path. Pending debounced searches can also outlive a below-minimum search. | Handle synchronous/async failures consistently and invalidate pending work when search conditions change. |
+| B10 | **Fixed in section 3:** lookup is a normal object, uses `value in lookup`, and assigns arbitrary values as keys; inherited keys such as `constructor`/`toString` can be mistaken for results and `__proto__` has special assignment behavior. | Use a Map or a null-prototype dictionary with explicit membership checks and documented key normalization. |
+| B11 | **Fixed in section 3:** generated comboboxes do not inherit the original label/description; clear controls are spans/divs with button roles and no complete keyboard activation path. | Establish accessible naming/relationships and keyboard-operable removal controls without invalid nested interactive elements. |
+| B12 | **Fixed in section 3:** Enter in the search handler selects without preventing the form default; disabled controls use class/tabindex/ARIA but event handlers do not consistently enforce disabled state. | Test Enter submission and disabled/fieldset/clear interactions; enforce the intended native behavior. |
+| B13 | **Fixed in section 3:** full-width menu positioning used its old width because width was set after Popper measured it; start placement could be hundreds of pixels away. | Set width in `beforeUpdate`; assert placement/spacing for top, bottom, start, and end and anchoring during scrolling. |
 | M02 | **Confirmed styling mismatch:** obsolete `.ripple-line` markup, Sass `@import`, and physical left/right spacing differ from current UI. | Update styling and verify filled focus, RTL, and custom Sass builds. |
-| M03 | **Partially resolved:** the original package lacked UI/fQuery dependency declarations, compiled ESM, tests, coverage, and CI. | Sections 1, 2, and testing infrastructure in 5 are complete. Implement CI in section 6 and behavioral tests alongside section 3. |
+| M03 | **Partially resolved:** the original package lacked UI/fQuery dependency declarations, compiled ESM, tests, coverage, and CI. | Sections 1, 2, 3, and testing infrastructure in 5 are complete. Implement hosted CI/Codecov in section 6. |
 | M04 | **Confirmed tooling choice:** PostCSS CLI 12 requires Node >=22 while UI supports Node 20; sibling manifests also trail some current patch versions. | Apply the explicit latest-compatible policy above and record the final resolved versions. |
-| M05 | **Needs contract audit:** fQuery 5 traversal returns arrays (`child`, `parent`, etc.), while some current code treats results as individual nodes/truthy presence. | Audit consumers individually; use `.shift()` or cardinality checks where required, with pagination/removal regressions. |
+| M05 | **Fixed in section 3:** fQuery 5 traversal returns arrays (`child`, `parent`, etc.), while some current code treats results as individual nodes/truthy presence. | Audit consumers individually; use `.shift()` or cardinality checks where required, with pagination/removal regressions. |
 | M06 | **Resolved in phase 1:** the old lockfile identified the package as 3.1.8 while the manifest was 3.1.9; in-place resolution also conflicted with old Stylelint peers. | Generated a fresh lockfile through normal npm resolution; clean `npm ci` passed and root metadata matches 4.0.0. |
 | M07 | **Recorded in phase 1:** Sass's optional fallback installation can claim the `sass` executable; npm reports fallback packages as extraneous and warns about the optional watcher script. | Retain UI's `sass ...` command and `sass-embedded` dependency. No custom executable path or packaging workaround. |
 | M08 | **Recorded in phase 1:** current `clean-css-cli` pulls deprecated `glob`/`inflight`. | Retain UI's supported CSS minifier for alignment; the clean-install audit reports zero vulnerabilities. No unsupported transitive major override was introduced. |
@@ -284,4 +310,4 @@ These findings come from source inspection, not a completed browser run. “Conf
 - [ ] Verify hosted CI/Codecov and publishing configuration where repository access permits; record external setup still outstanding.
 - [ ] Resolve every confirmed defect or explicitly document a remaining limitation and its impact before declaring migration complete.
 
-Initial proposal validation consisted of source/configuration review and registry metadata queries. Tooling, build/package checks, and testing-infrastructure validation are recorded in sections 1, 2, and 5. Full component runtime/browser validation remains pending.
+Initial proposal validation consisted of source/configuration review and registry metadata queries. Tooling, build/package checks, and testing-infrastructure validation are recorded in sections 1, 2, and 5. Section 3 implementation and its runtime/browser validation are recorded above; final migration/release validation remains pending.
