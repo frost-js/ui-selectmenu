@@ -206,6 +206,7 @@ var SelectMenu = class extends BaseComponent {
 	#container;
 	#data = [];
 	#form;
+	#generatedOptions = /* @__PURE__ */ new WeakSet();
 	#hidden;
 	#itemsList;
 	#listeners = [];
@@ -342,6 +343,7 @@ var SelectMenu = class extends BaseComponent {
 		this.#cancelSearch();
 		this.#scrollHandler.cancel();
 		this.#searchInput.value = "";
+		this.#updateSearchWidth();
 		this.#setActive(null);
 		this.#setExpanded(false);
 		this.#refreshPlaceholder();
@@ -454,6 +456,8 @@ var SelectMenu = class extends BaseComponent {
 			clearTimeout(this.#resetTimer);
 			this.#resetTimer = setTimeout((_) => {
 				if (this.node && !event.defaultPrevented) {
+					const selected = this.node.selectedOptions[0];
+					if (!this.#multiple && this.#generatedOptions.has(selected) && !selected.defaultSelected) this.node.selectedIndex = -1;
 					this.#loadValue(this.#readNativeValue());
 					this.hide();
 				}
@@ -573,8 +577,9 @@ var SelectMenu = class extends BaseComponent {
 				$.remove($.children(this.#itemsList, "[role=\"status\"]"));
 				this.#data.push(...data);
 			}
-			this.#showMore = !!response.showMore;
+			this.#showMore = !!response.showMore && data.length > 0;
 			this.#renderResults(data);
+			if (this.#showMore && this.#itemsList.scrollHeight <= this.#itemsList.clientHeight) this.#scrollHandler();
 		}).catch((_) => this.#showError(id)).finally((_) => {
 			if (this.node && id === this.#requestId) {
 				this.#request = null;
@@ -724,10 +729,15 @@ var SelectMenu = class extends BaseComponent {
 			if (Array.isArray(source.children)) item.children = this.#parseData(source.children, item.disabled);
 			else {
 				const key = String(item.value);
-				item.element = source.element || this.#lookup.get(key)?.element || [...this.node.options].find((option) => option.value === key) || $.create("option", {
-					text: item.text,
-					value: key
-				});
+				item.element = source.element || this.#lookup.get(key)?.element || [...this.node.options].find((option) => option.value === key);
+				if (!item.element) {
+					item.element = $.create("option", {
+						text: item.text,
+						value: key
+					});
+					this.#generatedOptions.add(item.element);
+				}
+				if (this.#generatedOptions.has(item.element)) item.element.disabled = item.disabled;
 				this.#lookup.set(key, item);
 			}
 			return item;

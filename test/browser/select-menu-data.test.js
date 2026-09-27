@@ -54,6 +54,27 @@ test.describe('SelectMenu data', () => {
     });
 
     test.describe('#setValue', () => {
+        test('updates generated disabled state without changing authored options', async ({ page }) => {
+            await page.evaluate((_) => {
+                document.querySelector('#select option').disabled = true;
+                UI.SelectMenu.init(document.querySelector('#select'), {
+                    getResults: window.getResults, debounce: 0,
+                }).setValue('remote');
+                window.requests[0].resolve({ results: [{ value: 'remote', text: 'Remote', disabled: true }] });
+            });
+            await expect(page.locator('#select')).toHaveValue('remote');
+            await expect(page.locator('#select option[value="remote"]')).toBeDisabled();
+            await page.getByRole('combobox').click();
+            await expect.poll((_) => page.evaluate((_) => window.requests.length)).toBe(2);
+            await page.evaluate((_) => window.requests[1].resolve({ results: [
+                { value: 'remote', text: 'Remote', disabled: false },
+                { value: 'a', text: 'Apple', disabled: false },
+            ] }));
+            await expect(page.getByRole('option', { name: 'Remote', exact: true })).toHaveAttribute('aria-disabled', 'false');
+            await expect(page.locator('#select option[value="remote"]')).toBeEnabled();
+            await expect(page.locator('#select option[value="a"]')).toBeDisabled();
+        });
+
         test('applies only the latest remote value response', async ({ page }) => {
             await page.evaluate((_) => {
                 const instance = UI.SelectMenu.init(document.querySelector('#select'), { getResults: window.getResults });
@@ -134,6 +155,49 @@ test.describe('SelectMenu data', () => {
     });
 
     test.describe('getResults option', () => {
+        for (const outcome of ['empty', 'error']) {
+            test(`stops automatic pagination after an ${outcome} page`, async ({ page }) => {
+                await page.clock.install();
+                await page.evaluate((_) => UI.SelectMenu.init(document.querySelector('#select'), {
+                    getResults: window.getResults, debounce: 0,
+                }).show());
+                await page.clock.runFor(1);
+                await page.evaluate((_) => window.requests[0].resolve({ results: [{ value: 'x', text: 'Extra' }], showMore: true }));
+                await page.clock.runFor(300);
+                expect(await page.evaluate((_) => window.requests.length)).toBe(2);
+                await page.evaluate((outcome) => {
+                    if (outcome === 'empty') {
+                        window.requests[1].resolve({ results: [], showMore: true });
+                    } else {
+                        window.requests[1].reject(new Error('Unavailable'));
+                    }
+                }, outcome);
+                await page.clock.runFor(1000);
+                expect(await page.evaluate((_) => window.requests.length)).toBe(2);
+                await expect(page.getByRole('option')).toHaveText('Extra');
+                if (outcome === 'error') {
+                    await expect(page.getByRole('status')).toHaveText('Error loading data.');
+                } else {
+                    await expect(page.getByRole('status')).toHaveCount(0);
+                }
+            });
+        }
+
+        test('loads another page when the results are too short to scroll', async ({ page }) => {
+            await page.evaluate((_) => UI.SelectMenu.init(document.querySelector('#select'), {
+                getResults: window.getResults, debounce: 0,
+            }).show());
+            await expect.poll((_) => page.evaluate((_) => window.requests.length)).toBe(1);
+            await page.evaluate((_) => window.requests[0].resolve({ results: [{ value: 'x', text: 'Extra' }], showMore: true }));
+            await expect(page.getByRole('option')).toHaveText('Extra');
+            await expect.poll((_) => page.evaluate((_) => window.requests.length)).toBe(2);
+            expect(await page.evaluate((_) => window.requests[1].request.offset)).toBe(1);
+            await page.evaluate((_) => window.requests[1].resolve({ results: [{ value: 'y', text: 'Another' }] }));
+            await expect(page.getByRole('option')).toHaveText(['Extra', 'Another']);
+            await page.getByRole('option', { name: 'Another' }).click();
+            await expect(page.locator('#select')).toHaveValue('y');
+        });
+
         test('shows loading and prevents stale search responses from changing the lookup', async ({ page }) => {
             await page.evaluate((_) => UI.SelectMenu.init(document.querySelector('#select'), {
                 getResults: window.getResults, debounce: 0,

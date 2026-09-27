@@ -223,6 +223,27 @@ test.describe('SelectMenu styles', () => {
         }
     });
 
+    test.describe('#hide', () => {
+        test('restores the multiple control size after clearing a long search', async ({ page }) => {
+            await page.evaluate((_) => {
+                const node = document.querySelector('#select');
+                node.multiple = true;
+                node.selectedIndex = -1;
+                UI.SelectMenu.init(node, { placeholder: 'Choose fruit' });
+            });
+            const control = page.locator('.selectmenu-multi');
+            const search = page.getByRole('combobox');
+            const height = await control.evaluate((node) => getComputedStyle(node).height);
+            const width = await search.evaluate((node) => getComputedStyle(node).width);
+            await search.fill('A long search phrase that does not match any fruit');
+            await search.press('Escape');
+            await expect(search).toHaveValue('');
+            await expect(search).toHaveCSS('width', width);
+            await expect(control).toHaveCSS('height', height);
+            await expect(control).toHaveText('Choose fruit');
+        });
+    });
+
     test.describe('fullWidth option', () => {
         test('wraps long results and constrains the scrollable menu', async ({ page }) => {
             await page.evaluate((_) => UI.SelectMenu.init(document.querySelector('#select'), {

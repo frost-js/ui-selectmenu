@@ -226,7 +226,7 @@ const selectMenu = SelectMenu.init(document.querySelector('#cities'), {
 selectMenu.setValue(0); // Unknown values are resolved asynchronously.
 ```
 
-Scrolling near the bottom requests another page when `showMore` is true. Remote filtering, ordering, and pagination are the callback's responsibility. Empty results display `lang.noResults`; thrown/rejected searches display `lang.error`. Search again or reopen to retry. A failed value lookup retains the previous selection.
+Scrolling near the bottom requests another page when `showMore` is true. Short pages load automatically until the list can scroll or pagination ends; an empty page stops further loading. Remote filtering, ordering, and pagination are the callback's responsibility. Empty results display `lang.noResults`; thrown/rejected searches display `lang.error`. Search again or reopen to retry. A failed value lookup retains the previous selection.
 
 Provide selected native options with labels for initial remote values, or call `setValue()` after initialization. Existing native items already in the lookup do not trigger value resolution. `setValue()` returns `void`, even for remote data; it is not an awaitable loading API.
 
@@ -375,7 +375,7 @@ Use the original select's `name`, `required`, `multiple`, and `disabled` attribu
 </form>
 ```
 
-Form reset restores native defaults and then synchronizes the visible selection asynchronously. Canceled resets are ignored; resetting does not emit a change event. The associated form is captured at initialization, including association via the native `form` attribute.
+Form reset restores native defaults and then synchronizes the visible selection asynchronously. Generated options do not become implicit reset defaults for an initially empty select; an explicit `defaultSelected` is respected. Canceled resets are ignored; resetting does not emit a change event. The associated form is captured at initialization, including association via the native `form` attribute.
 
 To synchronize an external native value change, dispatch a bubbling `change` event after changing the select. `update()` only repositions the menu. Dispose and reinitialize when replacing the available native option list.
 
@@ -441,8 +441,6 @@ Open `http://localhost:8080/demo/`. The demo loads UI v4 from the npm CDN and Se
 - Use `setValue(null)` to clear. Empty-string and zero-valued items remain selectable; multiple values are normalized and returned arrays are copies.
 - Native options/defaults now survive disposal and reset. User Backspace/removal emits a change; programmatic changes remain silent.
 - Remote handlers must support search and value requests. Stale responses are ignored; a returned `cancel()` method is used when available.
-
-See [MIGRATION_PROPOSAL.md](./MIGRATION_PROPOSAL.md) for migration progress, fixed bugs, and outstanding hosted verification.
 
 ## License
 

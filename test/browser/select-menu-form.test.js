@@ -38,6 +38,24 @@ test.describe('SelectMenu forms', () => {
     });
 
     test.describe('#setValue', () => {
+        test('preserves disabled data items in native options and after disposal', async ({ page }) => {
+            await page.evaluate((_) => {
+                const node = document.querySelector('#select');
+                node.multiple = true;
+                UI.SelectMenu.init(node, { data: [
+                    { value: 'x', text: 'Unavailable', disabled: true },
+                    { text: 'Disabled group', disabled: true, children: [{ value: 'y', text: 'Grouped' }] },
+                ] }).setValue(['x', 'y']);
+            });
+            await expect(page.locator('#select')).toHaveValues(['x', 'y']);
+            await expect(page.locator('#select option[value="x"]')).toBeDisabled();
+            await expect(page.locator('#select option[value="y"]')).toBeDisabled();
+            expect(await page.evaluate((_) => new FormData(document.querySelector('#form')).has('fruit'))).toBe(false);
+            await page.evaluate((_) => $('#select').selectmenu('dispose'));
+            await expect(page.locator('#select option[value="x"]')).toBeDisabled();
+            await expect(page.locator('#select option[value="y"]')).toBeDisabled();
+        });
+
         test('updates FormData without emitting changes or replacing defaults', async ({ page }) => {
             await page.evaluate((_) => {
                 const instance = UI.SelectMenu.init(document.querySelector('#select'));
@@ -75,6 +93,31 @@ test.describe('SelectMenu forms', () => {
     });
 
     test.describe('events', () => {
+        test('resets an initially empty select without selecting a generated option', async ({ page }) => {
+            await page.evaluate((_) => {
+                const node = document.querySelector('#select');
+                node.replaceChildren();
+                const instance = UI.SelectMenu.init(node, {
+                    placeholder: 'Choose fruit',
+                    data: [{ value: 'x', text: 'Extra' }, { value: 'y', text: 'Another' }],
+                });
+                instance.setValue('y');
+                instance.setValue('x');
+            });
+            await page.getByRole('button', { name: 'Reset' }).click();
+            await expect(page.locator('#select')).toHaveValue('');
+            await expect(page.getByRole('combobox')).toHaveText('Choose fruit');
+            expect(await page.evaluate((_) => window.changes)).toBe(0);
+
+            await page.evaluate((_) => {
+                document.querySelector('#select option[value="x"]').defaultSelected = true;
+                $('#select').selectmenu('setValue', 'y');
+            });
+            await page.getByRole('button', { name: 'Reset' }).click();
+            await expect(page.locator('#select')).toHaveValue('x');
+            await expect(page.getByRole('combobox')).toHaveText('Extra');
+        });
+
         test('synchronizes external native changes without duplicating events', async ({ page }) => {
             await page.evaluate((_) => {
                 const node = document.querySelector('#select');

@@ -238,6 +238,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 		#container;
 		#data = [];
 		#form;
+		#generatedOptions = /* @__PURE__ */ new WeakSet();
 		#hidden;
 		#itemsList;
 		#listeners = [];
@@ -374,6 +375,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 			this.#cancelSearch();
 			this.#scrollHandler.cancel();
 			this.#searchInput.value = "";
+			this.#updateSearchWidth();
 			this.#setActive(null);
 			this.#setExpanded(false);
 			this.#refreshPlaceholder();
@@ -486,6 +488,8 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 				clearTimeout(this.#resetTimer);
 				this.#resetTimer = setTimeout((_) => {
 					if (this.node && !event.defaultPrevented) {
+						const selected = this.node.selectedOptions[0];
+						if (!this.#multiple && this.#generatedOptions.has(selected) && !selected.defaultSelected) this.node.selectedIndex = -1;
 						this.#loadValue(this.#readNativeValue());
 						this.hide();
 					}
@@ -605,8 +609,9 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 					_fr0st_query.default.remove(_fr0st_query.default.children(this.#itemsList, "[role=\"status\"]"));
 					this.#data.push(...data);
 				}
-				this.#showMore = !!response.showMore;
+				this.#showMore = !!response.showMore && data.length > 0;
 				this.#renderResults(data);
+				if (this.#showMore && this.#itemsList.scrollHeight <= this.#itemsList.clientHeight) this.#scrollHandler();
 			}).catch((_) => this.#showError(id)).finally((_) => {
 				if (this.node && id === this.#requestId) {
 					this.#request = null;
@@ -756,10 +761,15 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 				if (Array.isArray(source.children)) item.children = this.#parseData(source.children, item.disabled);
 				else {
 					const key = String(item.value);
-					item.element = source.element || this.#lookup.get(key)?.element || [...this.node.options].find((option) => option.value === key) || _fr0st_query.default.create("option", {
-						text: item.text,
-						value: key
-					});
+					item.element = source.element || this.#lookup.get(key)?.element || [...this.node.options].find((option) => option.value === key);
+					if (!item.element) {
+						item.element = _fr0st_query.default.create("option", {
+							text: item.text,
+							value: key
+						});
+						this.#generatedOptions.add(item.element);
+					}
+					if (this.#generatedOptions.has(item.element)) item.element.disabled = item.disabled;
 					this.#lookup.set(key, item);
 				}
 				return item;
