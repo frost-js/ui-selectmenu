@@ -1,8 +1,6 @@
 # Frost UI SelectMenu
 
-<!-- Enable after ci.yml is available on the remote main branch (currently HTTP 404).
 [![CI](https://github.com/elusivecodes/FrostUI-SelectMenu/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/elusivecodes/FrostUI-SelectMenu/actions/workflows/ci.yml)
--->
 [![codecov](https://codecov.io/gh/elusivecodes/FrostUI-SelectMenu/branch/main/graph/badge.svg)](https://codecov.io/gh/elusivecodes/FrostUI-SelectMenu)
 [![npm version](https://img.shields.io/npm/v/%40fr0st%2Fui-selectmenu?style=flat-square)](https://www.npmjs.com/package/@fr0st/ui-selectmenu)
 [![npm downloads](https://img.shields.io/npm/dm/%40fr0st%2Fui-selectmenu?style=flat-square)](https://www.npmjs.com/package/@fr0st/ui-selectmenu)
@@ -22,7 +20,9 @@ Searchable single and multiple selects for Frost UI, with grouped options, async
 - Silent programmatic updates, form submission, and reset synchronization
 - Filled and outline Frost UI v4 styles, three sizes, theme tokens, and RTL layouts
 - Native `SelectMenu` class and `selectmenu` fQuery plugin
-- ESM/UMD bundles, source maps, CSS, configurable Sass, and JSDoc IntelliSense
+- Prebuilt ESM and UMD bundles with source maps
+- Expanded and minified component CSS with configurable Sass variables
+- JSDoc-powered IntelliSense
 
 ## Installation
 
@@ -31,68 +31,106 @@ Searchable single and multiple selects for Frost UI, with grouped options, async
 Install SelectMenu with its Frost UI v4 and fQuery v5 peers:
 
 ```bash
-npm i @fr0st/ui-selectmenu@4 @fr0st/ui@4 @fr0st/query@5
+npm i @fr0st/ui-selectmenu @fr0st/ui @fr0st/query
 ```
 
-Import **both stylesheets**, with UI first. The package root resolves to the compiled ESM bundle:
+The package root resolves to the compiled ESM bundle. Import both required stylesheets and the default component export:
 
 ```js
 import '@fr0st/ui/dist/frost-ui.min.css';
 import '@fr0st/ui-selectmenu/dist/frost-ui-selectmenu.min.css';
 import SelectMenu from '@fr0st/ui-selectmenu';
 
-const selectMenu = SelectMenu.init(document.querySelector('#fruit'), {
-    allowClear: true,
-    placeholder: 'Choose a fruit',
-});
+const selectMenu = SelectMenu.init(
+    document.querySelector('#fruit'),
+    {
+        allowClear: true,
+        placeholder: 'Choose a fruit',
+    },
+);
 ```
 
-UI and fQuery are peers so the component shares your application's instances. Package exports include the root, `dist/*`, and `src/*`. A browser DOM is required; server-rendered applications should initialize the component on the client.
+`@fr0st/ui` and `@fr0st/query` are peer dependencies so the component shares the application's UI and fQuery instances. The package root, `dist/*`, and `src/*` are available through package exports.
+
+SelectMenu requires a browser DOM. Server-rendered applications should load the component on the client.
 
 ### Browser (ESM)
 
-Map UI, fQuery, and their transitive `@fr0st/core` dependency when loading directly in a browser:
+The ESM bundle imports `@fr0st/ui` and `@fr0st/query`. Frost UI and fQuery also require `@fr0st/core`, so map all three dependencies when loading the bundle directly in a browser:
 
 ```html
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fr0st/ui@4/dist/frost-ui.min.css">
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fr0st/ui-selectmenu@4/dist/frost-ui-selectmenu.min.css">
+<link
+    rel="stylesheet"
+    href="https://cdn.jsdelivr.net/npm/@fr0st/ui@latest/dist/frost-ui.min.css">
+<link
+    rel="stylesheet"
+    href="https://cdn.jsdelivr.net/npm/@fr0st/ui-selectmenu@latest/dist/frost-ui-selectmenu.min.css">
 
 <script type="importmap">
 {
     "imports": {
-        "@fr0st/core": "https://cdn.jsdelivr.net/npm/@fr0st/core@4/dist/frost-core.esm.min.js",
-        "@fr0st/query": "https://cdn.jsdelivr.net/npm/@fr0st/query@5/dist/fquery.esm.min.js",
-        "@fr0st/ui": "https://cdn.jsdelivr.net/npm/@fr0st/ui@4/dist/frost-ui.esm.min.js"
+        "@fr0st/core": "https://cdn.jsdelivr.net/npm/@fr0st/core@latest/dist/frost-core.esm.min.js",
+        "@fr0st/query": "https://cdn.jsdelivr.net/npm/@fr0st/query@latest/dist/fquery.esm.min.js",
+        "@fr0st/ui": "https://cdn.jsdelivr.net/npm/@fr0st/ui@latest/dist/frost-ui.esm.min.js"
     }
 }
 </script>
 <script type="module">
-    import SelectMenu from 'https://cdn.jsdelivr.net/npm/@fr0st/ui-selectmenu@4/dist/frost-ui-selectmenu.esm.min.js';
+    import SelectMenu from 'https://cdn.jsdelivr.net/npm/@fr0st/ui-selectmenu@latest/dist/frost-ui-selectmenu.esm.min.js';
 
     SelectMenu.init(document.querySelector('#fruit'));
 </script>
 ```
 
-Place the select markup before the initialization script. Serve module examples over HTTP.
-
 ### Browser (UMD)
 
-Load the UI all-in-one bundle before SelectMenu; it provides both `UI` and `fQuery`:
+Load Frost UI's all-in-one bundle before SelectMenu. The UI bundle supplies both the `UI` and `fQuery` globals expected by the component:
 
 ```html
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fr0st/ui@4/dist/frost-ui.min.css">
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fr0st/ui-selectmenu@4/dist/frost-ui-selectmenu.min.css">
+<link
+    rel="stylesheet"
+    href="https://cdn.jsdelivr.net/npm/@fr0st/ui@latest/dist/frost-ui.min.css">
+<link
+    rel="stylesheet"
+    href="https://cdn.jsdelivr.net/npm/@fr0st/ui-selectmenu@latest/dist/frost-ui-selectmenu.min.css">
 
-<script src="https://cdn.jsdelivr.net/npm/@fr0st/ui@4/dist/frost-ui-bundle.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@fr0st/ui-selectmenu@4/dist/frost-ui-selectmenu.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@fr0st/ui@latest/dist/frost-ui-bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@fr0st/ui-selectmenu@latest/dist/frost-ui-selectmenu.min.js"></script>
 <script>
-    const selectMenu = UI.SelectMenu.init(document.querySelector('#fruit'));
+    const selectMenu = UI.SelectMenu.init(
+        document.querySelector('#fruit'),
+    );
 </script>
 ```
 
-SelectMenu extends the existing `globalThis.UI` object. With the non-bundled UI build, load fQuery, UI, and SelectMenu in that order. Do not load a separate fQuery copy alongside `frost-ui-bundle.min.js`.
+The UMD bundle adds `SelectMenu` to the existing `globalThis.UI` object. It expects `globalThis.UI` and `globalThis.fQuery` to exist before it loads. If the non-bundled Frost UI build is used instead, load fQuery, Frost UI, and SelectMenu in that order.
 
-These examples target the 4.x release. For an unreleased checkout, build locally and use its `dist/` files, as the [demo](./demo/index.html) does.
+Do not load the separate fQuery script when using `frost-ui-bundle.js` or `frost-ui-bundle.min.js`.
+
+### Custom Sass builds
+
+Install Sass and create an application stylesheet to customize the component:
+
+```bash
+npm i -D sass
+```
+
+`src/styles.scss`
+
+```scss
+@use '@fr0st/ui-selectmenu/src/scss/selectmenu' with (
+    $selectmenu-item-padding-y: .5rem,
+    $selectmenu-multi-item-spacing: .375rem
+);
+```
+
+Compile the entry point with npm package resolution enabled:
+
+```bash
+npx sass --load-path=node_modules src/styles.scss dist/styles.css
+```
+
+The `selectmenu` module forwards the [component variables](./src/scss/_vars.scss), all of which have `!default` values. Include Frost UI CSS separately. Build tools that already resolve Sass modules from npm packages do not need the explicit load path.
 
 ## Usage
 
@@ -100,7 +138,10 @@ Start with a labeled native select. Its classes determine the generated input's 
 
 ```html
 <label for="fruit">Fruit</label>
-<select class="input-outline" id="fruit" name="fruit">
+<select
+    id="fruit"
+    name="fruit"
+    class="input-outline">
     <option value="apple">Apple</option>
     <option value="banana">Banana</option>
     <option value="pear" disabled>Pear (unavailable)</option>
@@ -108,22 +149,42 @@ Start with a labeled native select. Its classes determine the generated input's 
 ```
 
 ```js
-const selectMenu = SelectMenu.init(document.querySelector('#fruit'), {
-    allowClear: true,
-    fullWidth: true,
-    placeholder: 'Choose a fruit',
-});
+import SelectMenu from '@fr0st/ui-selectmenu';
+
+const selectMenu = SelectMenu.init(
+    document.querySelector('#fruit'),
+    {
+        allowClear: true,
+        fullWidth: true,
+        placeholder: 'Choose a fruit',
+    },
+);
 
 selectMenu.setValue(null); // Start empty instead of selecting the first option.
 ```
 
 Add `multiple` for chips and multiple values. Native selections, including the browser's default first selection for a single select, are respected. `placeholder` labels an empty selection; it does not clear an existing value. An option with `value=""` is a real selectable item, not a special placeholder.
 
-`SelectMenu.init(node, options)` returns the existing instance when already initialized. Dispose before changing initialization options, the native `multiple` attribute, or form association. `instance.node` exposes the original select; `instance.options` is the frozen resolved configuration. Both become `null` after disposal.
+Calling `SelectMenu.init()` again for the same select returns its existing instance. Dispose the current instance before reinitializing with different options, a different native `multiple` attribute, or a different form association.
 
 ## Options
 
-Resolution order is component defaults, `data-ui-*` attributes, then explicit JavaScript options.
+Options are resolved in this order:
+
+1. `SelectMenu.defaults`
+2. The select's `data-ui-*` attributes
+3. Options passed to `SelectMenu.init()`
+
+Resolved `instance.options` are frozen.
+
+`SelectMenu.defaults` and `SelectMenu.classes` are static properties defined on the class. Set application-wide defaults before initializing components:
+
+```js
+SelectMenu.defaults.fullWidth = true;
+SelectMenu.defaults.debounce = 300;
+```
+
+Changes to defaults apply to newly created instances. `SelectMenu.classes` contains the structural and state class names used by the component; custom names need matching CSS and should be configured before initialization.
 
 | Option | Type | Default | Description |
 | --- | --- | --- | --- |
@@ -136,7 +197,7 @@ Resolution order is component defaults, `data-ui-*` attributes, then explicit Ja
 | `renderSelection` | `function` | `(item) => item.text` | Render a selected item. |
 | `sanitize` | `function` | `(html) => $.sanitize(html)` | Sanitize strings used as HTML. |
 | `isMatch` | `function` | Case/accent-insensitive label matching | `(item, term) => boolean` for local searches. |
-| `sortResults` | `function` | Match position, then label | `(a, b, term) => number` for local searches. |
+| `sortResults` | `function` | Normalized match position, then label | `(a, b, term) => number` for local searches, ignoring case and accents by default. |
 | `maxSelections` | `number` | `0` | Multiple-selection limit; zero means unlimited. |
 | `minSearch` | `number` | `0` | Minimum search length before results load. |
 | `allowClear` | `boolean` | `false` | Add a clear button for single selection. Multiple chips always have remove buttons. |
@@ -186,6 +247,8 @@ Leaf items have a unique `value` (`string` or `number`), a `text` label, optiona
 
 Local searches flatten groups, filter with `isMatch`, and sort with `sortResults`; without a search term the original grouping/order is retained. Remote results use the order returned by the callback.
 
+Default matching normalizes both the search term and item labels for case and accents, then performs a literal substring search. For example, `CAFÉ` matches both `Cafe` and `Café`. Sorting uses the same normalization, placing earlier matches first and comparing normalized labels when match positions are equal.
+
 ### Asynchronous search, values, and pagination
 
 `getResults(request)` returns `{ results: items, showMore?: boolean }` or a promise for that object. The same callback handles two request shapes:
@@ -226,7 +289,7 @@ const selectMenu = SelectMenu.init(document.querySelector('#cities'), {
 selectMenu.setValue(0); // Unknown values are resolved asynchronously.
 ```
 
-Scrolling near the bottom requests another page when `showMore` is true. Short pages load automatically until the list can scroll or pagination ends; an empty page stops further loading. Remote filtering, ordering, and pagination are the callback's responsibility. Empty results display `lang.noResults`; thrown/rejected searches display `lang.error`. Search again or reopen to retry. A failed value lookup retains the previous selection.
+Scrolling near the bottom requests another page when `showMore` is true. Short pages load automatically until the list can scroll or pagination ends; an empty page stops further loading. Remote filtering, ordering, and pagination are the callback's responsibility. An empty first page displays `lang.noResults`; an empty later page keeps the existing results. Thrown/rejected searches display `lang.error`. Search again or reopen to retry. A failed value lookup retains the previous selection.
 
 Provide selected native options with labels for initial remote values, or call `setValue()` after initialization. Existing native items already in the lookup do not trigger value resolution. `setValue()` returns `void`, even for remote data; it is not an awaitable loading API.
 
@@ -255,7 +318,18 @@ Renderer items are copies without internal DOM references. Returned strings, pla
 
 ## Data attributes
 
-Use kebab-case `data-ui-*` names for serializable options:
+Serializable options can be supplied through kebab-case `data-ui-*` attributes:
+
+| Attribute | Example |
+| --- | --- |
+| `data-ui-placeholder` | `data-ui-placeholder="Choose a fruit"` |
+| `data-ui-search-input-style` | `data-ui-search-input-style="outline"` |
+| `data-ui-allow-clear` | `data-ui-allow-clear="true"` |
+| `data-ui-close-on-select` | `data-ui-close-on-select="false"` |
+| `data-ui-max-selections` | `data-ui-max-selections="3"` |
+| `data-ui-min-search` | `data-ui-min-search="2"` |
+| `data-ui-debounce` | `data-ui-debounce="300"` |
+| `data-ui-full-width` | `data-ui-full-width="true"` |
 
 ```html
 <select
@@ -273,13 +347,15 @@ Use kebab-case `data-ui-*` names for serializable options:
 </select>
 ```
 
-Other examples include `data-ui-allow-clear="true"`, `data-ui-min-search="2"`, `data-ui-search-input-style="outline"`, and JSON `data-ui-data='[{"value":"a","text":"Apple"}]'`. Supply callbacks and DOM elements through JavaScript.
+Array and object options accept JSON, for example `data-ui-data='[{"value":"a","text":"Apple"}]'`. Supply callbacks and DOM elements through JavaScript.
 
-The toggle attribute is an initialization selector, not an automatic data API. Initialize explicitly:
+The component still needs to be initialized through the class or fQuery plugin. The demo uses `data-ui-toggle="selectmenu"` as a shared initialization selector:
 
 ```js
 $('[data-ui-toggle="selectmenu"]').selectmenu();
 ```
+
+The `data-ui-toggle` attribute does not initialize SelectMenu by itself.
 
 ## Methods
 
@@ -287,16 +363,21 @@ $('[data-ui-toggle="selectmenu"]').selectmenu();
 | --- | --- | --- |
 | `SelectMenu.init(node, options?)` | `SelectMenu` | Return the existing instance or initialize a native select. |
 | `data()` | `object \| object[] \| null` | Copies of selected item data, without internal DOM references. |
-| `disable()` / `enable()` | `void` | Synchronize native/generated disabled state. Disabling also closes the menu. |
+| `disable()` | `void` | Disable the native and generated controls and close the menu. |
 | `dispose()` | `void` | Cancel owned work, remove generated markup/listeners, and restore the native control. |
+| `enable()` | `void` | Enable the native control and refresh the generated disabled state. |
 | `getMaxSelections()` | `number` | Current selection limit; zero means unlimited. |
 | `getPlaceholder()` | `string` | Current empty selection label. |
 | `getValue()` | `string \| number \| array \| null` | Selected value, a copied multiple-value array, or `null` for no single selection. |
-| `hide()` / `show()` / `toggle()` | `void` | Control the menu and its lifecycle events. |
+| `hide()` | `void` | Close the menu and cancel pending search work. |
 | `setMaxSelections(limit)` | `void` | Change the limit, silently truncating excess selections. |
 | `setPlaceholder(text)` | `void` | Change the empty selection label. |
 | `setValue(value)` | `void` | Silently select known values or resolve unknown remote values. Use `null` to clear. |
+| `show()` | `void` | Open the menu and load results for the current search. |
+| `toggle()` | `void` | Open or close the menu. |
 | `update()` | `SelectMenu` | Reposition an open menu; does not reload native options or configuration. |
+
+An instance also exposes its original select as `instance.node` and its frozen resolved configuration as `instance.options`. Both become `null` after disposal.
 
 Values use native string keys: numeric `0` and string `'0'` refer to the same item, so do not use both as separate keys. Returned values use the matched item's type; native option values are strings. Empty strings and zero are valid. Multiple inputs accept arrays, scalars (one selection), or nullish values (clear), deduplicate keys, drop unresolved values, and respect `maxSelections`. A single select uses the first resolved value. Programmatic assignments can select disabled items; user interaction cannot.
 
@@ -304,7 +385,7 @@ Values use native string keys: numeric `0` and string `'0'` refer to the same it
 selectMenu.setValue('banana');
 console.log(selectMenu.getValue());
 console.log(selectMenu.data());
-selectMenu.setValue(null); // There is no separate clear() method.
+selectMenu.setValue(null); // Clear the selection.
 selectMenu.setPlaceholder('Select a fruit');
 selectMenu.dispose();
 ```
@@ -324,28 +405,41 @@ Events originate on the original select:
 ```js
 import $ from '@fr0st/query';
 
-$.addEvent('#fruit', 'change.ui.selectmenu', (event) => {
-    console.log(SelectMenu.init(event.currentTarget).getValue());
-});
+$.addEvent(
+    '#fruit',
+    'change.ui.selectmenu',
+    (event) => {
+        console.log(SelectMenu.init(event.currentTarget).getValue());
+    },
+);
 ```
 
-fQuery exposes the namespace on `event.namespace`; the underlying native event type is `change`, `show`, etc. Initialization, `setValue()`, limit changes, and form resets are silent. Re-selecting the same value does not emit another change. Lifecycle listeners may dispose the component; interrupted transitions do not emit stale completion events.
+fQuery exposes the namespace on `event.namespace`; the underlying native event type is `change`, `show`, etc. Initialization, `setValue()`, limit changes, and form resets are silent. Re-selecting the current value in single mode does not emit another change. In multiple mode, choosing a selected result removes it and emits a change. Lifecycle listeners may dispose the component; interrupted transitions do not emit stale completion events.
 
 ## fQuery API
 
-The package entry point registers `selectmenu` on fQuery's `QuerySet`:
+Importing SelectMenu registers `selectmenu` on `fQuery.QuerySet`:
 
 ```js
 import $ from '@fr0st/query';
 import '@fr0st/ui-selectmenu';
 
-const selectMenu = $('#fruit').selectmenu({ allowClear: true });
+const selectMenu = $('#fruit').selectmenu({
+    allowClear: true,
+});
+
 $('#fruit').selectmenu('setValue', 'banana');
+
 const value = $('#fruit').selectmenu('getValue');
+
+$('#fruit').selectmenu('show');
+$('#fruit').selectmenu('hide');
+$('#fruit').selectmenu('disable');
+$('#fruit').selectmenu('enable');
 $('#fruit').selectmenu('dispose');
 ```
 
-Initialization applies to all matched selects. Method calls use a public method name followed by arguments; the first instance or method result is returned.
+Pass an options object to initialize every matched select, or pass a public method name followed by its arguments. The first component or method result is returned.
 
 ## Accessibility
 
@@ -379,9 +473,9 @@ Form reset restores native defaults and then synchronizes the visible selection 
 
 To synchronize an external native value change, dispatch a bubbling `change` event after changing the select. `update()` only repositions the menu. Dispose and reinitialize when replacing the available native option list.
 
-## Styling, Sass, and RTL
+## Themes and RTL
 
-Load UI CSS before SelectMenu CSS. Apply `input-filled` or `input-outline` to the select, with optional `input-sm` / `input-lg`. Multiple mode uses the same classes. No `.ripple-line` element is needed. Floating labels, input groups, and modal-contained menus are demonstrated in [the demo](./demo/index.html).
+Load UI CSS before SelectMenu CSS. Apply `input-filled` or `input-outline` to the select, with optional `input-sm` / `input-lg`. Multiple mode uses the same classes. Floating labels, input groups, and modal-contained menus are demonstrated in [the demo](./demo/index.html).
 
 The component uses UI theme tokens. UI follows the system theme unless `data-ui-theme="light"` or `data-ui-theme="dark"` is set on the document or an ancestor. Menus appended outside a scoped theme need that theme on their destination too.
 
@@ -394,53 +488,25 @@ Customize the menu's CSS properties, for example:
 }
 ```
 
-Or configure the Sass variables before loading the component stylesheet:
-
-```scss
-@use '@fr0st/ui-selectmenu/src/scss/vars' with (
-    $selectmenu-item-padding-y: .5rem,
-    $selectmenu-multi-item-spacing: .375rem
-);
-@use '@fr0st/ui-selectmenu/src/scss/selectmenu';
-```
-
-Use your bundler's package resolution or `sass --load-path=node_modules app.scss app.css`. Include UI CSS separately (or compile its Sass first). [All component variables](./src/scss/_vars.scss) have `!default` values.
-
 Set `dir="rtl"` on the document, an ancestor, or the select before initialization. The generated control/menu copy the computed direction; logical spacing and Popper start/end placement follow it. Reinitialize after changing direction dynamically.
 
 ## Development
 
-Use Node.js matching `^20.19.0 || ^22.13.0 || >=24`:
+Use Node.js matching `^20.19.0 || ^22.13.0 || >=24`. Install dependencies with `npm ci`, then install Playwright browsers with `npx playwright install --with-deps`.
 
 ```bash
-npm ci
-npx playwright install --with-deps
-npm run lint
-npm run lint:sass:unused
 npm test
-npm run test:coverage
+npm run lint
+npm run build
 ```
 
-`npm test` builds JavaScript and CSS, then runs Chromium, Firefox, and WebKit tests. `npm run test:browser`, `test:headed`, and `test:ui` use existing bundles; rebuild after source changes. Chromium coverage writes HTML and `coverage/lcov.info`.
+`npm test` rebuilds JavaScript and CSS, then runs the Playwright suite in Chromium, Firefox, and WebKit. `npm run test:browser` runs the suite against the existing bundles, so rebuild after changing source files.
 
-After `npm run build`, serve the repository over HTTP and open `demo/index.html`. For example, with Python installed:
+After building, `npm run test:coverage` runs Chromium tests and writes coverage reports to `coverage/`.
 
-```bash
-python3 -m http.server 8080
-```
+`npm run test:headed` and `npm run test:ui` also use the existing bundles and open headed browsers or the Playwright UI.
 
-Open `http://localhost:8080/demo/`. The demo loads UI v4 from the npm CDN and SelectMenu from this checkout. Asynchronous examples use deterministic local data and require no service or credentials.
-
-## Migrating from 3.x
-
-- Upgrade UI to v4 and fQuery to v5; import both UI and SelectMenu stylesheets.
-- The package root now exports the ESM component by default. UMD remains available in `dist/frost-ui-selectmenu.js` and its minified variant, extending `UI.SelectMenu`.
-- Initialize through `SelectMenu.init()` / `UI.SelectMenu.init()` or the `selectmenu` plugin. `data-ui-toggle` alone does not initialize this standalone component.
-- Replace internal `_node` / `_options` access with public `node` / `options`. Implementation fields are private; prototype-composition modules are no longer available.
-- Use UI v4 input classes and remove legacy `.ripple-line` markup. Replace Sass `@import` with `@use`; configure the `vars` module before loading `selectmenu`.
-- Use `setValue(null)` to clear. Empty-string and zero-valued items remain selectable; multiple values are normalized and returned arrays are copies.
-- Native options/defaults now survive disposal and reset. User Backspace/removal emits a change; programmatic changes remain silent.
-- Remote handlers must support search and value requests. Stale responses are ignored; a returned `cancel()` method is used when available.
+`npm run lint:sass:unused` checks for unused Sass variables.
 
 ## License
 
