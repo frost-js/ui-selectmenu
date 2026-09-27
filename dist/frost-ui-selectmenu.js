@@ -328,7 +328,9 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 			if (this.#value === null) return null;
 			return this.#multiple ? this.#value.map((value) => cloneItem(this.#lookup.get(String(value)))) : cloneItem(this.#lookup.get(String(this.#value))) || null;
 		}
-		/** Disables the SelectMenu. */
+		/**
+		* Disables the SelectMenu.
+		*/
 		disable() {
 			this.node.disabled = true;
 			this.#refreshDisabled();
@@ -375,7 +377,9 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 			this.#open = false;
 			super.dispose();
 		}
-		/** Enables the SelectMenu. */
+		/**
+		* Enables the SelectMenu.
+		*/
 		enable() {
 			this.node.disabled = false;
 			this.#refreshDisabled();
@@ -401,7 +405,9 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 		getValue() {
 			return this.#multiple ? this.#value.slice() : this.#value;
 		}
-		/** Hides the menu, allowing interruption of an opening transition. */
+		/**
+		* Hides the menu, allowing interruption of an opening transition.
+		*/
 		hide() {
 			if (!this.node || !this.#open || !_fr0st_query.default.triggerOne(this.node, "hide.ui.selectmenu") || !this.node) return;
 			this.#open = false;
@@ -447,7 +453,9 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 		setValue(value) {
 			this.#loadValue(value);
 		}
-		/** Shows the menu, allowing interruption of a closing transition. */
+		/**
+		* Shows the menu, allowing interruption of a closing transition.
+		*/
 		show() {
 			if (!this.node || this.#open || _fr0st_query.default.is(this.node, ":disabled") || !_fr0st_query.default.triggerOne(this.node, "show.ui.selectmenu") || !this.node) return;
 			this.#open = true;
@@ -465,7 +473,9 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 				if (this.node && id === this.#transitionId) _fr0st_query.default.triggerEvent(this.node, "shown.ui.selectmenu");
 			});
 		}
-		/** Toggles the menu. */
+		/**
+		* Toggles the menu.
+		*/
 		toggle() {
 			if (this.#open) this.hide();
 			else this.show();
@@ -478,7 +488,9 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 			this.#popper?.update();
 			return this;
 		}
-		/** Cancels pending search work and invalidates its responses. */
+		/**
+		* Cancels pending search work and invalidates its responses.
+		*/
 		#cancelSearch() {
 			this.#requestId++;
 			this.#loadResults?.cancel();
@@ -487,20 +499,26 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 			this.#loading = false;
 			request?.cancel?.();
 		}
-		/** Cancels a pending value lookup and invalidates its response. */
+		/**
+		* Cancels a pending value lookup and invalidates its response.
+		*/
 		#cancelValueRequest() {
 			this.#valueRequestId++;
 			const request = this.#valueRequest;
 			this.#valueRequest = null;
 			request?.cancel?.();
 		}
-		/** Clears result nodes and their active descendant references. */
+		/**
+		* Clears result nodes and their active descendant references.
+		*/
 		#clearResults() {
 			this.#focusItem(null);
 			this.#activeItems = [];
 			_fr0st_query.default.empty(this.#itemsList);
 		}
-		/** Creates the menu Popper when positioning is first needed. */
+		/**
+		* Creates the menu Popper when positioning is first needed.
+		*/
 		#createPopper() {
 			if (this.#popper) return;
 			const options = {
@@ -517,7 +535,9 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 			};
 			this.#popper = new _fr0st_ui.Popper(this.#menuNode, options);
 		}
-		/** Attaches control events and native form synchronization. */
+		/**
+		* Attaches control events and native form synchronization.
+		*/
 		#events() {
 			this.#focusHandler = (_) => {
 				_fr0st_query.default.focus(this.#multiple ? this.#searchInput : this.#toggle);
@@ -830,7 +850,9 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 			const values = [...this.node.selectedOptions].map((option) => option.value);
 			return this.#multiple ? values : values[0] ?? null;
 		}
-		/** Refreshes selection labels while retaining native options and defaults. */
+		/**
+		* Refreshes selection labels while retaining native options and defaults.
+		*/
 		#refresh() {
 			const focused = this.#searchInput === this.node.ownerDocument.activeElement;
 			if (this.#multiple) this.#refreshMultiple();
@@ -840,7 +862,9 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 			this.#updateSearchWidth();
 			if (focused) _fr0st_query.default.focus(this.#searchInput);
 		}
-		/** Synchronizes disabled and required semantics with the native control. */
+		/**
+		* Synchronizes disabled and required semantics with the native control.
+		*/
 		#refreshDisabled() {
 			const disabled = _fr0st_query.default.is(this.node, ":disabled");
 			if (disabled) _fr0st_query.default.addClass(this.#toggle, this.constructor.classes.disabled);
@@ -854,12 +878,16 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 			control.setAttribute("aria-required", String(this.node.required));
 			this.#refreshFocus();
 		}
-		/** Keeps UI input focus styling active for the control and its menu. */
+		/**
+		* Keeps UI input focus styling active for the control and its menu.
+		*/
 		#refreshFocus() {
 			if (!_fr0st_query.default.is(this.node, ":disabled") && (this.#open || this.#container.contains(this.node.ownerDocument.activeElement))) _fr0st_query.default.addClass(this.#toggle, this.constructor.classes.focus);
 			else _fr0st_query.default.removeClass(this.#toggle, this.constructor.classes.focus);
 		}
-		/** Rebuilds selected chips while retaining the multiple search input. */
+		/**
+		* Rebuilds selected chips while retaining the multiple search input.
+		*/
 		#refreshMultiple() {
 			const classes = this.constructor.classes;
 			_fr0st_query.default.detach(this.#searchInput);
@@ -875,7 +903,9 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 			}
 			_fr0st_query.default.append(this.#toggle, this.#searchInput);
 		}
-		/** Refreshes the placeholder without interpreting zero or empty-string values as missing. */
+		/**
+		* Refreshes the placeholder without interpreting zero or empty-string values as missing.
+		*/
 		#refreshPlaceholder() {
 			_fr0st_query.default.remove(_fr0st_query.default.children(this.#toggle, `.${this.constructor.classes.placeholder}`));
 			if ((this.#multiple ? !this.#value.length : this.#value === null) && !this.#searchInput.value) _fr0st_query.default.prepend(this.#toggle, _fr0st_query.default.create("span", {
@@ -883,7 +913,9 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 				html: this.options.sanitize(this.#placeholderText || "&nbsp;")
 			}));
 		}
-		/** Rebuilds the single selection label and its optional clear button. */
+		/**
+		* Rebuilds the single selection label and its optional clear button.
+		*/
 		#refreshSingle() {
 			_fr0st_query.default.empty(this.#toggle);
 			_fr0st_query.default.remove(_fr0st_query.default.children(this.#container, "[data-ui-action=\"clear\"]"));
@@ -894,7 +926,9 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 			_fr0st_query.default.append(this.#toggle, label);
 			if (this.options.allowClear) _fr0st_query.default.append(this.#container, this.#renderClear());
 		}
-		/** Renders the controls and their accessible relationships. */
+		/**
+		* Renders the controls and their accessible relationships.
+		*/
 		#render() {
 			const classes = this.constructor.classes;
 			const id = (0, _fr0st_ui.generateId)("selectmenu");
@@ -1159,7 +1193,9 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 				this.update();
 			}
 		}
-		/** Sizes the multiple search input to its text. */
+		/**
+		* Sizes the multiple search input to its text.
+		*/
 		#updateSearchWidth() {
 			if (!this.#multiple) return;
 			const span = _fr0st_query.default.create("span", {

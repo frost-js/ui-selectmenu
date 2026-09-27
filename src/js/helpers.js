@@ -37,19 +37,25 @@ export function flattenItems(items) {
  * @returns {SelectMenuItem[]} The native data.
  */
 export function getDomData(node) {
-    return [...node.children].filter((child) => child.matches('option, optgroup')).map((child) => {
-        if (child.matches('optgroup')) {
-            return { text: child.label, disabled: child.disabled, children: getDomData(child) };
-        }
+    return [...node.children]
+        .filter((child) => child.matches('option, optgroup'))
+        .map((child) => {
+            if (child.matches('optgroup')) {
+                return {
+                    text: child.label,
+                    disabled: child.disabled,
+                    children: getDomData(child),
+                };
+            }
 
-        return {
-            ...$.getDataset(child),
-            text: child.textContent,
-            value: child.value,
-            disabled: child.matches(':disabled'),
-            element: child,
-        };
-    });
+            return {
+                ...$.getDataset(child),
+                text: child.textContent,
+                value: child.value,
+                disabled: child.matches(':disabled'),
+                element: child,
+            };
+        });
 }
 
 /**

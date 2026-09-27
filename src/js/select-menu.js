@@ -232,7 +232,10 @@ export default class SelectMenu extends BaseComponent {
             this.options.data;
 
         this.#data = this.#parseData(data || getDomData(this.node));
-        this.#loadResults = $._debounce((request, id) => this.#fetchResults(request, id), this.options.debounce);
+        this.#loadResults = $._debounce(
+            (request, id) => this.#fetchResults(request, id),
+            this.options.debounce,
+        );
 
         this.#render();
         this.#events();
@@ -253,7 +256,9 @@ export default class SelectMenu extends BaseComponent {
             cloneItem(this.#lookup.get(String(this.#value))) || null;
     }
 
-    /** Disables the SelectMenu. */
+    /**
+     * Disables the SelectMenu.
+     */
     disable() {
         this.node.disabled = true;
         this.#refreshDisabled();
@@ -297,6 +302,7 @@ export default class SelectMenu extends BaseComponent {
 
         $.remove(this.#menuNode);
         $.remove(this.#container);
+
         this.#activeItems = [];
         this.#data = [];
         this.#lookup.clear();
@@ -316,10 +322,13 @@ export default class SelectMenu extends BaseComponent {
         this.#scrollHandler = null;
         this.#value = null;
         this.#open = false;
+
         super.dispose();
     }
 
-    /** Enables the SelectMenu. */
+    /**
+     * Enables the SelectMenu.
+     */
     enable() {
         this.node.disabled = false;
         this.#refreshDisabled();
@@ -349,9 +358,16 @@ export default class SelectMenu extends BaseComponent {
         return this.#multiple ? this.#value.slice() : this.#value;
     }
 
-    /** Hides the menu, allowing interruption of an opening transition. */
+    /**
+     * Hides the menu, allowing interruption of an opening transition.
+     */
     hide() {
-        if (!this.node || !this.#open || !$.triggerOne(this.node, 'hide.ui.selectmenu') || !this.node) {
+        if (
+            !this.node ||
+            !this.#open ||
+            !$.triggerOne(this.node, 'hide.ui.selectmenu') ||
+            !this.node
+        ) {
             return;
         }
 
@@ -407,10 +423,17 @@ export default class SelectMenu extends BaseComponent {
         this.#loadValue(value);
     }
 
-    /** Shows the menu, allowing interruption of a closing transition. */
+    /**
+     * Shows the menu, allowing interruption of a closing transition.
+     */
     show() {
-        if (!this.node || this.#open || $.is(this.node, ':disabled') ||
-            !$.triggerOne(this.node, 'show.ui.selectmenu') || !this.node) {
+        if (
+            !this.node ||
+            this.#open ||
+            $.is(this.node, ':disabled') ||
+            !$.triggerOne(this.node, 'show.ui.selectmenu') ||
+            !this.node
+        ) {
             return;
         }
 
@@ -439,7 +462,9 @@ export default class SelectMenu extends BaseComponent {
         });
     }
 
-    /** Toggles the menu. */
+    /**
+     * Toggles the menu.
+     */
     toggle() {
         if (this.#open) {
             this.hide();
@@ -458,7 +483,9 @@ export default class SelectMenu extends BaseComponent {
         return this;
     }
 
-    /** Cancels pending search work and invalidates its responses. */
+    /**
+     * Cancels pending search work and invalidates its responses.
+     */
     #cancelSearch() {
         this.#requestId++;
         this.#loadResults?.cancel();
@@ -470,7 +497,9 @@ export default class SelectMenu extends BaseComponent {
         request?.cancel?.();
     }
 
-    /** Cancels a pending value lookup and invalidates its response. */
+    /**
+     * Cancels a pending value lookup and invalidates its response.
+     */
     #cancelValueRequest() {
         this.#valueRequestId++;
 
@@ -480,14 +509,18 @@ export default class SelectMenu extends BaseComponent {
         request?.cancel?.();
     }
 
-    /** Clears result nodes and their active descendant references. */
+    /**
+     * Clears result nodes and their active descendant references.
+     */
     #clearResults() {
         this.#focusItem(null);
         this.#activeItems = [];
         $.empty(this.#itemsList);
     }
 
-    /** Creates the menu Popper when positioning is first needed. */
+    /**
+     * Creates the menu Popper when positioning is first needed.
+     */
     #createPopper() {
         if (this.#popper) {
             return;
@@ -513,7 +546,9 @@ export default class SelectMenu extends BaseComponent {
         this.#popper = new Popper(this.#menuNode, options);
     }
 
-    /** Attaches control events and native form synchronization. */
+    /**
+     * Attaches control events and native form synchronization.
+     */
     #events() {
         this.#focusHandler = (_) => {
             $.focus(this.#multiple ? this.#searchInput : this.#toggle);
@@ -535,7 +570,11 @@ export default class SelectMenu extends BaseComponent {
                     if (this.node && !event.defaultPrevented) {
                         const selected = this.node.selectedOptions[0];
 
-                        if (!this.#multiple && this.#generatedOptions.has(selected) && !selected.defaultSelected) {
+                        if (
+                            !this.#multiple &&
+                            this.#generatedOptions.has(selected) &&
+                            !selected.defaultSelected
+                        ) {
                             this.node.selectedIndex = -1;
                         }
 
@@ -549,7 +588,11 @@ export default class SelectMenu extends BaseComponent {
         }
 
         this.#documentHandler = (event) => {
-            if (this.#open && !this.#container.contains(event.target) && !this.#menuNode.contains(event.target)) {
+            if (
+                this.#open &&
+                !this.#container.contains(event.target) &&
+                !this.#menuNode.contains(event.target)
+            ) {
                 this.hide();
             }
         };
@@ -558,8 +601,12 @@ export default class SelectMenu extends BaseComponent {
         $.addEvent([this.#container, this.#menuNode], 'focusin.ui.selectmenu', (_) => this.#refreshFocus());
         $.addEvent([this.#container, this.#menuNode], 'focusout.ui.selectmenu', (_) => {
             queueMicrotask((_) => {
-                if (this.node && this.#open && !this.#container.contains(this.node.ownerDocument.activeElement) &&
-                    !this.#menuNode.contains(this.node.ownerDocument.activeElement)) {
+                if (
+                    this.node &&
+                    this.#open &&
+                    !this.#container.contains(this.node.ownerDocument.activeElement) &&
+                    !this.#menuNode.contains(this.node.ownerDocument.activeElement)
+                ) {
                     this.hide();
                 }
 
@@ -568,11 +615,13 @@ export default class SelectMenu extends BaseComponent {
                 }
             });
         });
+
         $.addEvent(this.#menuNode, 'mousedown.ui.selectmenu', (event) => {
             if (event.target !== this.#searchInput) {
                 event.preventDefault();
             }
         });
+
         $.addEvent(this.#menuNode, 'click.ui.selectmenu', (event) => event.stopPropagation());
 
         $.addEventDelegate(
@@ -603,7 +652,8 @@ export default class SelectMenu extends BaseComponent {
 
                 const key = event.currentTarget.dataset.uiValue;
                 const value = this.#multiple ?
-                    this.#value.filter((item) => String(item) !== key) : null;
+                    this.#value.filter((item) => String(item) !== key) :
+                    null;
 
                 this.#cancelValueRequest();
                 this.#setValue(value, true);
@@ -649,11 +699,18 @@ export default class SelectMenu extends BaseComponent {
                 this.show();
             }
         });
+
         $.addEvent(this.#searchInput, 'keydown.ui.selectmenu', (event) => this.#keydown(event));
 
         if (!this.#multiple) {
             $.addEvent(this.#toggle, 'keydown.ui.selectmenu', (event) => {
-                if ($.is(this.node, ':disabled') || event.ctrlKey || event.altKey || event.metaKey || event.isComposing) {
+                if (
+                    $.is(this.node, ':disabled') ||
+                    event.ctrlKey ||
+                    event.altKey ||
+                    event.metaKey ||
+                    event.isComposing
+                ) {
                     return;
                 }
 
@@ -684,6 +741,7 @@ export default class SelectMenu extends BaseComponent {
                 this.#load(this.#data.length);
             }
         }, 250, { leading: false });
+
         $.addEvent(this.#itemsList, 'scroll.ui.selectmenu', this.#scrollHandler);
 
         this.#observer = new MutationObserver((_) => {
@@ -695,10 +753,17 @@ export default class SelectMenu extends BaseComponent {
                 }
             }
         });
-        this.#observer.observe(this.node, { attributes: true, attributeFilter: ['disabled', 'required'] });
+
+        this.#observer.observe(this.node, {
+            attributes: true,
+            attributeFilter: ['disabled', 'required'],
+        });
 
         for (const fieldset of $.parents(this.node, 'fieldset')) {
-            this.#observer.observe(fieldset, { attributes: true, attributeFilter: ['disabled'] });
+            this.#observer.observe(fieldset, {
+                attributes: true,
+                attributeFilter: ['disabled'],
+            });
         }
     }
 
@@ -803,7 +868,12 @@ export default class SelectMenu extends BaseComponent {
             return;
         }
 
-        if (event.key === 'Backspace' && this.#multiple && !this.#searchInput.value && this.#value.length) {
+        if (
+            event.key === 'Backspace' &&
+            this.#multiple &&
+            !this.#searchInput.value &&
+            this.#value.length
+        ) {
             event.preventDefault();
 
             const item = this.#lookup.get(String(this.#value.at(-1)));
@@ -964,7 +1034,8 @@ export default class SelectMenu extends BaseComponent {
             } else {
                 const key = String(item.value);
 
-                item.element = source.element || this.#lookup.get(key)?.element ||
+                item.element = source.element ||
+                    this.#lookup.get(key)?.element ||
                     [...this.node.options].find((option) => option.value === key);
 
                 if (!item.element) {
@@ -999,7 +1070,9 @@ export default class SelectMenu extends BaseComponent {
         return this.#multiple ? values : values[0] ?? null;
     }
 
-    /** Refreshes selection labels while retaining native options and defaults. */
+    /**
+     * Refreshes selection labels while retaining native options and defaults.
+     */
     #refresh() {
         const focused = this.#searchInput === this.node.ownerDocument.activeElement;
 
@@ -1018,7 +1091,9 @@ export default class SelectMenu extends BaseComponent {
         }
     }
 
-    /** Synchronizes disabled and required semantics with the native control. */
+    /**
+     * Synchronizes disabled and required semantics with the native control.
+     */
     #refreshDisabled() {
         const disabled = $.is(this.node, ':disabled');
 
@@ -1046,7 +1121,9 @@ export default class SelectMenu extends BaseComponent {
         this.#refreshFocus();
     }
 
-    /** Keeps UI input focus styling active for the control and its menu. */
+    /**
+     * Keeps UI input focus styling active for the control and its menu.
+     */
     #refreshFocus() {
         const focused = !$.is(this.node, ':disabled') &&
             (this.#open || this.#container.contains(this.node.ownerDocument.activeElement));
@@ -1058,7 +1135,9 @@ export default class SelectMenu extends BaseComponent {
         }
     }
 
-    /** Rebuilds selected chips while retaining the multiple search input. */
+    /**
+     * Rebuilds selected chips while retaining the multiple search input.
+     */
     #refreshMultiple() {
         const classes = this.constructor.classes;
 
@@ -1079,7 +1158,9 @@ export default class SelectMenu extends BaseComponent {
         $.append(this.#toggle, this.#searchInput);
     }
 
-    /** Refreshes the placeholder without interpreting zero or empty-string values as missing. */
+    /**
+     * Refreshes the placeholder without interpreting zero or empty-string values as missing.
+     */
     #refreshPlaceholder() {
         $.remove($.children(this.#toggle, `.${this.constructor.classes.placeholder}`));
 
@@ -1093,7 +1174,9 @@ export default class SelectMenu extends BaseComponent {
         }
     }
 
-    /** Rebuilds the single selection label and its optional clear button. */
+    /**
+     * Rebuilds the single selection label and its optional clear button.
+     */
     #refreshSingle() {
         $.empty(this.#toggle);
         $.remove($.children(this.#container, '[data-ui-action="clear"]'));
@@ -1113,12 +1196,16 @@ export default class SelectMenu extends BaseComponent {
         }
     }
 
-    /** Renders the controls and their accessible relationships. */
+    /**
+     * Renders the controls and their accessible relationships.
+     */
     #render() {
         const classes = this.constructor.classes;
         const id = generateId('selectmenu');
         const labelledBy = this.node.getAttribute('aria-labelledby');
-        const label = this.node.getAttribute('aria-label') || [...this.node.labels].map((node) => node.textContent.trim()).join(' ');
+        const label = this.node.getAttribute('aria-label') || [...this.node.labels]
+            .map((node) => node.textContent.trim())
+            .join(' ');
         const attributes = {
             'role': 'combobox',
             'aria-haspopup': 'listbox',
@@ -1152,17 +1239,20 @@ export default class SelectMenu extends BaseComponent {
                 'aria-activedescendant': '',
             };
             searchClass = this.options.searchInputStyle === 'filled' ?
-                classes.searchInputFilled : classes.searchInputOutline;
+                classes.searchInputFilled :
+                classes.searchInputOutline;
         }
 
         this.#container = $.create('div', {
             class: classes.container,
             attributes: { dir: $.css(this.node, 'direction') },
         });
+
         this.#toggle = $.create(this.#multiple ? 'div' : 'button', {
             class: [this.node.className, this.#multiple ? classes.multiToggle : classes.toggle],
             attributes: toggleAttributes,
         });
+
         this.#searchInput = $.create('input', {
             class: searchClass,
             attributes: {
@@ -1177,7 +1267,9 @@ export default class SelectMenu extends BaseComponent {
 
         this.#menuNode = $.create('div', {
             class: classes.menu,
-            style: { '--ui-selectmenu-duration': `${Math.max(0, Number(this.options.duration) || 0)}ms` },
+            style: {
+                '--ui-selectmenu-duration': `${Math.max(0, Number(this.options.duration) || 0)}ms`,
+            },
             attributes: { dir: $.css(this.node, 'direction') },
         });
 
@@ -1199,8 +1291,13 @@ export default class SelectMenu extends BaseComponent {
         this.#itemsList = $.create('ul', {
             class: classes.items,
             style: { maxHeight: this.options.maxHeight },
-            attributes: { id, 'role': 'listbox', 'aria-multiselectable': this.#multiple },
+            attributes: {
+                id,
+                'role': 'listbox',
+                'aria-multiselectable': this.#multiple,
+            },
         });
+
         $.append(this.#menuNode, this.#itemsList);
         $.after(this.node, this.#container);
         $.addClass(this.node, classes.hide);
@@ -1214,8 +1311,13 @@ export default class SelectMenu extends BaseComponent {
      */
     #renderClear(value) {
         const button = $.create('button', {
-            class: this.#multiple ? this.constructor.classes.multiClear : this.constructor.classes.clear,
-            attributes: { 'type': 'button', 'aria-label': this.options.lang.clear },
+            class: this.#multiple ?
+                this.constructor.classes.multiClear :
+                this.constructor.classes.clear,
+            attributes: {
+                'type': 'button',
+                'aria-label': this.options.lang.clear,
+            },
             dataset: { uiAction: 'clear' },
         });
 
@@ -1258,7 +1360,10 @@ export default class SelectMenu extends BaseComponent {
     #renderGroup(item, selectedValues) {
         const classes = this.constructor.classes;
         const group = $.create('li', {
-            attributes: { 'role': 'group', 'aria-label': item.text },
+            attributes: {
+                'role': 'group',
+                'aria-label': item.text,
+            },
         });
         const label = $.create('div', { class: classes.group });
         const list = $.create('ul', {
@@ -1360,7 +1465,12 @@ export default class SelectMenu extends BaseComponent {
     #selectValue(key) {
         const item = this.#lookup.get(key);
 
-        if (!item || item.disabled || $.is(item.element, ':disabled') || $.is(this.node, ':disabled')) {
+        if (
+            !item ||
+            item.disabled ||
+            $.is(item.element, ':disabled') ||
+            $.is(this.node, ':disabled')
+        ) {
             return;
         }
 
@@ -1370,7 +1480,8 @@ export default class SelectMenu extends BaseComponent {
 
         if (this.#multiple) {
             value = this.#value.some((entry) => String(entry) === key) ?
-                this.#value.filter((entry) => String(entry) !== key) : [...this.#value, item.value];
+                this.#value.filter((entry) => String(entry) !== key) :
+                [...this.#value, item.value];
         }
 
         this.#setValue(value, true);
@@ -1421,7 +1532,8 @@ export default class SelectMenu extends BaseComponent {
         }
 
         const previous = normalizeValues(this.#value);
-        const changed = previous.length !== values.length || previous.some((entry, index) => entry !== values[index]);
+        const changed = previous.length !== values.length ||
+            previous.some((entry, index) => entry !== values[index]);
 
         this.#value = this.#multiple ? values : values[0] ?? null;
 
@@ -1473,7 +1585,9 @@ export default class SelectMenu extends BaseComponent {
         }
     }
 
-    /** Sizes the multiple search input to its text. */
+    /**
+     * Sizes the multiple search input to its text.
+     */
     #updateSearchWidth() {
         if (!this.#multiple) {
             return;
