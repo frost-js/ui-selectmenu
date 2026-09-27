@@ -417,7 +417,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 			this.#searchInput.value = "";
 			this.#updateSearchWidth();
 			this.#focusItem(null);
-			this.#setExpanded(false);
+			_fr0st_query.default.setAttribute(this.#multiple ? this.#searchInput : this.#toggle, { "aria-expanded": false });
 			this.#refreshPlaceholder();
 			const id = ++this.#transitionId;
 			_fr0st_query.default.removeClass(this.#menuNode, "show");
@@ -468,7 +468,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 			this.#createPopper();
 			_fr0st_query.default.css(this.#menuNode, "opacity");
 			_fr0st_query.default.addClass(this.#menuNode, "show");
-			this.#setExpanded(true);
+			_fr0st_query.default.setAttribute(this.#multiple ? this.#searchInput : this.#toggle, { "aria-expanded": true });
 			(0, _fr0st_ui.waitForTransition)(this.#menuNode, ["opacity"]).then((_) => {
 				if (this.node && id === this.#transitionId) _fr0st_query.default.triggerEvent(this.node, "shown.ui.selectmenu");
 			});
@@ -673,7 +673,10 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 				this.#renderResults(data);
 				if (this.#showMore && this.#itemsList.scrollHeight <= this.#itemsList.clientHeight) this.#scrollHandler();
 			} catch {
-				this.#showError(id);
+				if (this.node && id === this.#requestId) {
+					_fr0st_query.default.remove(_fr0st_query.default.children(this.#itemsList, "[role=\"status\"]"));
+					this.#renderInfo(this.options.lang.error);
+				}
 			} finally {
 				if (this.node && id === this.#requestId) {
 					this.#request = null;
@@ -1144,14 +1147,6 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 			if (this.node) _fr0st_query.default.focus(this.#multiple || this.#open ? this.#searchInput : this.#toggle);
 		}
 		/**
-		* Updates the combobox expanded state.
-		* @param {boolean} expanded Whether results are expanded.
-		*/
-		#setExpanded(expanded) {
-			const control = this.#multiple ? this.#searchInput : this.#toggle;
-			_fr0st_query.default.setAttribute(control, { "aria-expanded": expanded });
-		}
-		/**
 		* Normalizes values and synchronizes native and rendered selection.
 		* @param {SelectMenuValue|SelectMenuValue[]|null} value The requested selection.
 		* @param {boolean} [notify=false] Whether to emit a change event.
@@ -1179,18 +1174,6 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 				} finally {
 					this.#notifying = false;
 				}
-			}
-		}
-		/**
-		* Displays a loading error only for the current request.
-		* @param {number} id The request generation.
-		*/
-		#showError(id) {
-			if (this.node && id === this.#requestId) {
-				_fr0st_query.default.remove(_fr0st_query.default.children(this.#itemsList, "[role=\"status\"]"));
-				this.#renderInfo(this.options.lang.error);
-				this.#loading = false;
-				this.update();
 			}
 		}
 		/**
