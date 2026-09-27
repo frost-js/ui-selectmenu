@@ -1,6 +1,6 @@
 # Frost UI SelectMenu 4 migration proposal
 
-Status: phase 1 (package and tooling) complete; phases 2–8 pending. Build/test scripts and ESM exports describe the migration target and require the later build/test phases before use.
+Status: phases 1 (package and tooling) and 2 (build migration) complete; phases 3–8 pending. Bundles build and load successfully; component behavior still requires the phase 4 UI 4 source migration.
 
 Reviewed: 2026-09-27. Proposed release: `@fr0st/ui-selectmenu@4.0.0`, from `3.1.9`.
 
@@ -25,7 +25,7 @@ Mark an implementation phase complete only after its acceptance criteria pass. A
 | --- | --- | --- |
 | 0. Inventory and proposal | Complete | Existing source, styles, packaging, demos, and reference patterns reviewed; dependency versions checked; initial issues recorded. |
 | 1. Package and tooling | Complete | `.npmrc`, `.gitignore`, major version, metadata, exports, scripts, lint configuration, and lockfile updated; `npx sort-package-json` and clean `npm ci` passed. See phase 1 validation below. |
-| 2. Build migration | Pending | Vite produces ESM and UMD, expanded/minified CSS, and source maps; UMD extends the existing UI global. |
+| 2. Build migration | Complete | Vite produces ESM and UMD, expanded/minified CSS, and source maps; packed bundle loading and UI global extension passed Chromium smoke checks. |
 | 3. Test infrastructure | Pending | Local test server, shared fixture, Chromium/Firefox/WebKit projects, and source coverage work with installed dependencies. |
 | 4. Component migration and fixes | Pending | Private class implementation, UI 4 lifecycle, documented API, preserved form behavior, and regression tests pass. |
 | 5. Styles and Sass | Pending | Sass modules, UI 4 input markup/tokens, logical properties, and component styling checks pass. |
@@ -94,15 +94,27 @@ The proposed repository identity is `frost-js/ui-selectmenu`, consistent with th
 
 Retain `src/js/` and `src/scss/`, following UI's mixed JavaScript/Sass layout. The JavaScript-only siblings' flat `src/` layout is not necessary here.
 
-- [ ] Replace `rollup.config.js` with `vite.config.js`, following the standalone components' ESM/default and UMD modes, using Vite 8's `build.rolldownOptions` and `baseline-widely-available` target.
-- [ ] Keep `src/js/index.js` as the default ESM export and registration entry; rename `src/js/wrapper.js` to `src/js/browser.js` and export the named `SelectMenu` for UMD.
-- [ ] Externalize `@fr0st/query` and `@fr0st/ui` in both modes. UMD uses `fQuery` and `UI` globals, `name: 'UI'`, and `extend: true`.
-- [ ] Build JavaScript before CSS. Clean `dist/` on the first ESM build and preserve it on the UMD build, so all artifacts survive a full build.
-- [ ] Generate `frost-ui-selectmenu.esm.js`, `.esm.min.js`, `.js`, and `.min.js`, all with source maps; retain `.css` and `.min.css` with maps.
-- [ ] Verify ESM import/registration and UMD global extension independently, including minified entry points. Confirm loading SelectMenu leaves existing UI components intact and uses the same fQuery instance.
-- [ ] Verify package root/subpath resolution and `npm pack --dry-run`; do not bundle UI/fQuery into a second standalone dependency bundle.
+- [x] Replace `rollup.config.js` with `vite.config.js`, following the standalone components' ESM/default and UMD modes, using Vite 8's `build.rolldownOptions` and `baseline-widely-available` target.
+- [x] Keep `src/js/index.js` as the default ESM export and registration entry; rename `src/js/wrapper.js` to `src/js/browser.js` and export the named `SelectMenu` for UMD.
+- [x] Externalize `@fr0st/query` and `@fr0st/ui` in both modes. UMD uses `fQuery` and `UI` globals, `name: 'UI'`, and `extend: true`.
+- [x] Build JavaScript before CSS. Clean `dist/` on the first ESM build and preserve it on the UMD build, so all artifacts survive a full build.
+- [x] Generate `frost-ui-selectmenu.esm.js`, `.esm.min.js`, `.js`, and `.min.js`, all with source maps; retain `.css` and `.min.css` with maps.
+- [x] Verify ESM import/registration and UMD global extension independently, including minified entry points. Confirm loading SelectMenu leaves existing UI components intact and uses the same fQuery instance.
+- [x] Verify package root/subpath resolution and `npm pack --dry-run`; do not bundle UI/fQuery into a second standalone dependency bundle.
 
 Vite's [build configuration](https://vite.dev/config/build-options) and [migration guide](https://vite.dev/guide/migration) support the current Rolldown configuration. The sibling Vite files remain the concrete implementation templates.
+
+### Phase 2 implementation and validation — 2026-09-27
+
+- Committed phase 1 as `3d51740` (`Prepare SelectMenu 4 package and tooling`) before starting the build migration.
+- Added `vite.config.js` matching Sortable's configuration exactly after substituting the component name and `src/js/` entry paths. Removed `rollup.config.js` and renamed the unchanged named-export wrapper to `src/js/browser.js`.
+- `npm run build`: passed, producing all 12 distribution files (four JavaScript bundles, two stylesheets, and their six source maps). A second full build produced byte-identical files.
+- ESLint on `vite.config.js` and `src/js/browser.js`: passed. No component implementation or Sass source edits were needed in this phase.
+- `npm pack --dry-run`: passed. A real local tarball also contained the expected root ESM export, `dist/*` and `src/*` files, and renamed browser entry. Verified package-root and representative JS/CSS/Sass subpath resolution against the extracted package.
+- Chromium smoke checks against the extracted tarball passed for expanded/minified ESM and UMD. Checks covered exports, inheritance from the installed UI base class, fQuery registration, preservation of the existing UMD UI/fQuery globals and Modal component, CSS loading, and absence of page errors. Chromium required execution outside the filesystem sandbox; no test infrastructure was added ahead of phase 3.
+- JavaScript source maps include component source and exclude bundled dependency source; JavaScript/CSS maps embed source content. Build files retain external UI/fQuery references.
+- Generated CSS drops obsolete vendor prefixes under the phase 1 Browserslist target. The known Sass `@import` deprecation remains for phase 5; no new component defects were identified by these packaging checks.
+- Validation is limited to building, packaging, registration, and loading. The existing `_node`/`_options` incompatibility (M01), source lint issues, and behavior bugs remain for phase 4; passing these smoke checks does not establish that SelectMenu can yet be instantiated against UI 4. The full cross-browser behavioral suite remains pending.
 
 ## 3. Component architecture and behavior
 
@@ -257,4 +269,4 @@ These findings come from source inspection, not a completed browser run. “Conf
 - [ ] Verify hosted CI/Codecov and publishing configuration where repository access permits; record external setup still outstanding.
 - [ ] Resolve every confirmed defect or explicitly document a remaining limitation and its impact before declaring migration complete.
 
-Initial proposal validation consisted of source/configuration review and registry metadata queries. Phase 1 validation is recorded above; full runtime/browser validation remains pending.
+Initial proposal validation consisted of source/configuration review and registry metadata queries. Phase 1 tooling checks and phase 2 build/package/browser-loading checks are recorded above; full component runtime/browser validation remains pending.
