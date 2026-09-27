@@ -19,6 +19,27 @@ test.describe('SelectMenu forms', () => {
     });
 
     test.describe('#dispose', () => {
+        test('preserves reset handlers for another instance and the form consumer', async ({ page }) => {
+            await page.evaluate((_) => {
+                const first = document.querySelector('#select');
+                const second = first.cloneNode(true);
+                second.id = 'second';
+                second.setAttribute('aria-label', 'Other fruit');
+                first.after(second);
+                $('select').selectmenu();
+                $('#second').selectmenu('setValue', 'b');
+                window.resets = 0;
+                $.addEvent('#form', 'reset.ui.selectmenu', () => window.resets++);
+                $('#select').selectmenu('dispose');
+            });
+
+            await expect(page.getByRole('combobox', { name: 'Other fruit' })).toHaveText('Banana');
+            await page.getByRole('button', { name: 'Reset' }).click();
+            await expect(page.getByRole('combobox', { name: 'Other fruit' })).toHaveText('Apple');
+            await expect(page.locator('#second')).toHaveValue('a');
+            expect(await page.evaluate((_) => window.resets)).toBe(1);
+        });
+
         test('retains original options, groups, defaults, and the current selection', async ({ page }) => {
             expect(await page.evaluate((_) => {
                 const node = document.querySelector('#select');

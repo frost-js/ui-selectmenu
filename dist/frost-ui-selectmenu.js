@@ -60,12 +60,12 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 	* @param {HTMLSelectElement|HTMLOptGroupElement} node The select or group.
 	* @returns {SelectMenuItem[]} The native data.
 	*/
-	function getDOMData(node) {
+	function getDomData(node) {
 		return [...node.children].filter((child) => child.matches("option, optgroup")).map((child) => {
 			if (child.matches("optgroup")) return {
 				text: child.label,
 				disabled: child.disabled,
-				children: getDOMData(child)
+				children: getDomData(child)
 			};
 			return {
 				..._fr0st_query.default.getDataset(child),
@@ -82,7 +82,16 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 	* @returns {SelectMenuValue[]} Unique non-null values.
 	*/
 	function normalizeValues(value) {
-		return [...new Map((Array.isArray(value) ? value : [value]).filter((entry) => entry !== null && entry !== void 0).map((entry) => [String(entry), entry])).values()];
+		const entries = (Array.isArray(value) ? value : [value]).filter((entry) => entry !== null && entry !== void 0).map((entry) => [String(entry), entry]);
+		return [...new Map(entries).values()];
+	}
+	/**
+	* Normalizes text for case- and accent-insensitive matching and sorting.
+	* @param {string} value The text to normalize.
+	* @returns {string} The normalized text.
+	*/
+	function normalizeText(value) {
+		return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 	}
 
 //#endregion
@@ -122,18 +131,42 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 	* @param {HTMLElement} element The rendering destination, which can be filled directly.
 	* @returns {string|HTMLElement|void} HTML to sanitize, an element, or nothing.
 	*/
+	/** @typedef {(SelectMenuResults|PromiseLike<SelectMenuResults>) & {cancel?: Function}} SelectMenuPendingResults */
+	/**
+	* @callback SelectMenuGetResultsCallback
+	* @param {SelectMenuRequest} request The search or value request.
+	* @returns {SelectMenuPendingResults} Results or a promise, optionally exposing a cancel method.
+	*/
+	/**
+	* @callback SelectMenuSanitizeCallback
+	* @param {string} html The rendered HTML.
+	* @returns {string} The sanitized HTML.
+	*/
+	/**
+	* @callback SelectMenuMatchCallback
+	* @param {SelectMenuItem} item The item to match.
+	* @param {string} term The search term.
+	* @returns {boolean} Whether the item matches.
+	*/
+	/**
+	* @callback SelectMenuSortCallback
+	* @param {SelectMenuItem} a The first item.
+	* @param {SelectMenuItem} b The second item.
+	* @param {string} term The search term.
+	* @returns {number} The relative sort order.
+	*/
 	/**
 	* @typedef {object} SelectMenuOptions
 	* @property {string} [placeholder=''] The empty selection label.
 	* @property {SelectMenuLanguage} [lang] The translated interface labels.
 	* @property {'filled'|'outline'} [searchInputStyle='filled'] The search input style.
 	* @property {SelectMenuItem[]|Record<string, string>|null} [data=null] Local data; defaults to native options.
-	* @property {((request: SelectMenuRequest) => SelectMenuResults|PromiseLike<SelectMenuResults>)|null} [getResults=null] Loads search results or resolves values. Requests may expose a cancel method.
+	* @property {SelectMenuGetResultsCallback|null} [getResults=null] Loads search results or resolves values.
 	* @property {SelectMenuRenderer} [renderResult] Renders a result or group label.
 	* @property {SelectMenuRenderer} [renderSelection] Renders a selected item.
-	* @property {((html: string) => string)} [sanitize] Sanitizes rendered HTML.
-	* @property {((item: SelectMenuItem, term: string) => boolean)} [isMatch] Matches a local result.
-	* @property {((a: SelectMenuItem, b: SelectMenuItem, term: string) => number)} [sortResults] Sorts local search results.
+	* @property {SelectMenuSanitizeCallback} [sanitize] Sanitizes rendered HTML.
+	* @property {SelectMenuMatchCallback} [isMatch] Matches a local result.
+	* @property {SelectMenuSortCallback} [sortResults] Sorts local search results.
 	* @property {number} [maxSelections=0] The selection limit; zero is unlimited.
 	* @property {number} [minSearch=0] The minimum search length.
 	* @property {boolean} [allowClear=false] Shows a clear button for single selection.
@@ -202,21 +235,13 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 			renderSelection: (data) => data.text,
 			sanitize: (input) => _fr0st_query.default.sanitize(input),
 			isMatch(data, term) {
-				const value = data.text;
-				const escapedTerm = _fr0st_query.default._escapeRegExp(term);
-				const regExp = new RegExp(escapedTerm, "i");
-				if (regExp.test(value)) return true;
-				const normalized = value.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-				return regExp.test(normalized);
+				return normalizeText(data.text).includes(normalizeText(term));
 			},
 			sortResults(a, b, term) {
-				const aLower = a.text.toLowerCase();
-				const bLower = b.text.toLowerCase();
-				if (term) {
-					const diff = aLower.indexOf(term.toLowerCase()) - bLower.indexOf(term.toLowerCase());
-					if (diff) return diff;
-				}
-				return aLower.localeCompare(bLower);
+				const aNormalized = normalizeText(a.text);
+				const bNormalized = normalizeText(b.text);
+				const termNormalized = normalizeText(term);
+				return aNormalized.indexOf(termNormalized) - bNormalized.indexOf(termNormalized) || aNormalized.localeCompare(bNormalized);
 			},
 			maxSelections: 0,
 			minSearch: 0,
@@ -235,35 +260,38 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 		};
 		#activeItems = [];
 		#ariaHidden;
-		#container;
+		#changeHandler = null;
+		#container = null;
 		#data = [];
-		#form;
+		#documentHandler = null;
+		#focusHandler = null;
+		#form = null;
 		#generatedOptions = /* @__PURE__ */ new WeakSet();
 		#hidden;
-		#itemsList;
-		#listeners = [];
+		#itemsList = null;
 		#loading = false;
-		#loadResults;
+		#loadResults = null;
 		#lookup = /* @__PURE__ */ new Map();
 		#maxSelections;
-		#menuNode;
+		#menuNode = null;
 		#multiple;
 		#notifying = false;
-		#observer;
+		#observer = null;
 		#open = false;
 		#placeholderText;
-		#popper;
-		#request;
+		#popper = null;
+		#request = null;
 		#requestId = 0;
+		#resetHandler = null;
 		#resetTimer;
-		#scrollHandler;
-		#searchInput;
+		#scrollHandler = null;
+		#searchInput = null;
 		#showMore = false;
 		#tabIndex;
-		#toggle;
+		#toggle = null;
 		#transitionId = 0;
-		#value;
-		#valueRequest;
+		#value = null;
+		#valueRequest = null;
 		#valueRequestId = 0;
 		/**
 		* Creates a SelectMenu.
@@ -286,7 +314,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 				value,
 				text
 			})) : this.options.data;
-			this.#data = this.#parseData(data || getDOMData(this.node));
+			this.#data = this.#parseData(data || getDomData(this.node));
 			this.#loadResults = _fr0st_query.default._debounce((request, id) => this.#fetchResults(request, id), this.options.debounce);
 			this.#render();
 			this.#events();
@@ -316,7 +344,10 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 			this.#scrollHandler?.cancel();
 			this.#observer.disconnect();
 			this.#popper?.dispose();
-			for (const [node, events, callback] of this.#listeners) _fr0st_query.default.removeEvent(node, events, callback);
+			_fr0st_query.default.removeEvent(this.node, "focus.ui.selectmenu", this.#focusHandler);
+			_fr0st_query.default.removeEvent(this.node, "change.ui.selectmenu", this.#changeHandler);
+			_fr0st_query.default.removeEvent(this.node.ownerDocument, "mousedown.ui.selectmenu", this.#documentHandler);
+			if (this.#form) _fr0st_query.default.removeEvent(this.#form, "reset.ui.selectmenu", this.#resetHandler);
 			if (this.#hidden) _fr0st_query.default.addClass(this.node, this.constructor.classes.hide);
 			else _fr0st_query.default.removeClass(this.node, this.constructor.classes.hide);
 			for (const [name, value] of [["tabindex", this.#tabIndex], ["aria-hidden", this.#ariaHidden]]) if (value === null) this.node.removeAttribute(name);
@@ -326,7 +357,10 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 			this.#activeItems = [];
 			this.#data = [];
 			this.#lookup.clear();
-			this.#listeners = [];
+			this.#changeHandler = null;
+			this.#documentHandler = null;
+			this.#focusHandler = null;
+			this.#resetHandler = null;
 			this.#container = null;
 			this.#form = null;
 			this.#itemsList = null;
@@ -376,7 +410,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 			this.#scrollHandler.cancel();
 			this.#searchInput.value = "";
 			this.#updateSearchWidth();
-			this.#setActive(null);
+			this.#focusItem(null);
 			this.#setExpanded(false);
 			this.#refreshPlaceholder();
 			const id = ++this.#transitionId;
@@ -422,18 +456,8 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 			if (this.options.appendTo) _fr0st_query.default.append(this.options.appendTo, this.#menuNode);
 			else _fr0st_query.default.after(this.#container, this.#menuNode);
 			_fr0st_query.default.show(this.#menuNode);
-			this.#getData();
-			this.#popper ??= new _fr0st_ui.Popper(this.#menuNode, {
-				reference: this.#toggle,
-				placement: this.options.placement,
-				position: this.options.position,
-				fixed: this.options.fixed,
-				spacing: this.options.spacing,
-				minContact: this.options.minContact,
-				beforeUpdate: this.options.fullWidth ? (node, reference) => {
-					_fr0st_query.default.setStyle(node, "width", `${_fr0st_query.default.width(reference, { boxSize: _fr0st_query.default.BORDER_BOX })}px`);
-				} : null
-			});
+			this.#load();
+			this.#createPopper();
 			_fr0st_query.default.css(this.#menuNode, "opacity");
 			_fr0st_query.default.addClass(this.#menuNode, "show");
 			this.#setExpanded(true);
@@ -472,65 +496,84 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 		}
 		/** Clears result nodes and their active descendant references. */
 		#clearResults() {
-			this.#setActive(null);
+			this.#focusItem(null);
 			this.#activeItems = [];
 			_fr0st_query.default.empty(this.#itemsList);
 		}
-		/** Attaches owned listeners and native form synchronization. */
+		/** Creates the menu Popper when positioning is first needed. */
+		#createPopper() {
+			if (this.#popper) return;
+			const options = {
+				reference: this.#toggle,
+				placement: this.options.placement,
+				position: this.options.position,
+				fixed: this.options.fixed,
+				spacing: this.options.spacing,
+				minContact: this.options.minContact
+			};
+			if (this.options.fullWidth) options.beforeUpdate = (node, reference) => {
+				const width = _fr0st_query.default.width(reference, { boxSize: _fr0st_query.default.BORDER_BOX });
+				_fr0st_query.default.setStyle(node, "width", `${width}px`);
+			};
+			this.#popper = new _fr0st_ui.Popper(this.#menuNode, options);
+		}
+		/** Attaches control events and native form synchronization. */
 		#events() {
-			this.#listen(this.node, "focus.ui.selectmenu", (_) => {
+			this.#focusHandler = (_) => {
 				_fr0st_query.default.focus(this.#multiple ? this.#searchInput : this.#toggle);
-			});
-			this.#listen(this.node, "change.ui.selectmenu", (_) => {
+			};
+			this.#changeHandler = (_) => {
 				if (!this.#notifying) this.#loadValue(this.#readNativeValue());
-			});
-			if (this.#form) this.#listen(this.#form, "reset.ui.selectmenu", (event) => {
-				clearTimeout(this.#resetTimer);
-				this.#resetTimer = setTimeout((_) => {
-					if (this.node && !event.defaultPrevented) {
-						const selected = this.node.selectedOptions[0];
-						if (!this.#multiple && this.#generatedOptions.has(selected) && !selected.defaultSelected) this.node.selectedIndex = -1;
-						this.#loadValue(this.#readNativeValue());
-						this.hide();
-					}
-				}, 0);
-			});
-			this.#listen(this.node.ownerDocument, "mousedown.ui.selectmenu", (event) => {
+			};
+			_fr0st_query.default.addEvent(this.node, "focus.ui.selectmenu", this.#focusHandler);
+			_fr0st_query.default.addEvent(this.node, "change.ui.selectmenu", this.#changeHandler);
+			if (this.#form) {
+				this.#resetHandler = (event) => {
+					clearTimeout(this.#resetTimer);
+					this.#resetTimer = setTimeout((_) => {
+						if (this.node && !event.defaultPrevented) {
+							const selected = this.node.selectedOptions[0];
+							if (!this.#multiple && this.#generatedOptions.has(selected) && !selected.defaultSelected) this.node.selectedIndex = -1;
+							this.#loadValue(this.#readNativeValue());
+							this.hide();
+						}
+					}, 0);
+				};
+				_fr0st_query.default.addEvent(this.#form, "reset.ui.selectmenu", this.#resetHandler);
+			}
+			this.#documentHandler = (event) => {
 				if (this.#open && !this.#container.contains(event.target) && !this.#menuNode.contains(event.target)) this.hide();
-			});
-			this.#listen([this.#container, this.#menuNode], "focusin.ui.selectmenu", (_) => this.#refreshFocus());
-			this.#listen([this.#container, this.#menuNode], "focusout.ui.selectmenu", (_) => {
+			};
+			_fr0st_query.default.addEvent(this.node.ownerDocument, "mousedown.ui.selectmenu", this.#documentHandler);
+			_fr0st_query.default.addEvent([this.#container, this.#menuNode], "focusin.ui.selectmenu", (_) => this.#refreshFocus());
+			_fr0st_query.default.addEvent([this.#container, this.#menuNode], "focusout.ui.selectmenu", (_) => {
 				queueMicrotask((_) => {
 					if (this.node && this.#open && !this.#container.contains(this.node.ownerDocument.activeElement) && !this.#menuNode.contains(this.node.ownerDocument.activeElement)) this.hide();
 					if (this.node) this.#refreshFocus();
 				});
 			});
-			this.#listen(this.#menuNode, "mousedown.ui.selectmenu", (event) => {
+			_fr0st_query.default.addEvent(this.#menuNode, "mousedown.ui.selectmenu", (event) => {
 				if (event.target !== this.#searchInput) event.preventDefault();
 			});
-			this.#listen(this.#menuNode, "click.ui.selectmenu", (event) => {
-				event.stopPropagation();
-				const option = event.target.closest("[data-ui-action=\"select\"]");
-				if (option) this.#selectValue(option.dataset.uiValue);
-			});
-			this.#listen(this.#itemsList, "mouseover.ui.selectmenu", (event) => {
-				const option = event.target.closest("[data-ui-action=\"select\"]");
-				if (option) this.#setActive(option);
-			});
-			this.#listen(this.#container, "click.ui.selectmenu", (event) => {
+			_fr0st_query.default.addEvent(this.#menuNode, "click.ui.selectmenu", (event) => event.stopPropagation());
+			_fr0st_query.default.addEventDelegate(this.#menuNode, "click.ui.selectmenu", "[data-ui-action=\"select\"]", (event) => this.#selectValue(event.currentTarget.dataset.uiValue));
+			_fr0st_query.default.addEventDelegate(this.#itemsList, "mouseover.ui.selectmenu", "[data-ui-action=\"select\"]", (event) => this.#focusItem(event.currentTarget));
+			_fr0st_query.default.addEventDelegate(this.#container, "click.ui.selectmenu", "[data-ui-action=\"clear\"]", (event) => {
 				if (_fr0st_query.default.is(this.node, ":disabled")) return;
-				const clear = event.target.closest("[data-ui-action=\"clear\"]");
-				if (clear) {
-					event.preventDefault();
-					event.stopPropagation();
-					const value = this.#multiple ? this.#value.filter((item) => String(item) !== clear.dataset.uiValue) : null;
-					this.#cancelValueRequest();
-					this.#setValue(value, true);
-					if (this.node) {
-						this.hide();
-						_fr0st_query.default.focus(this.#multiple ? this.#searchInput : this.#toggle);
-					}
-				} else if (this.#multiple) {
+				event.preventDefault();
+				event.stopPropagation();
+				const key = event.currentTarget.dataset.uiValue;
+				const value = this.#multiple ? this.#value.filter((item) => String(item) !== key) : null;
+				this.#cancelValueRequest();
+				this.#setValue(value, true);
+				if (this.node) {
+					this.hide();
+					_fr0st_query.default.focus(this.#multiple ? this.#searchInput : this.#toggle);
+				}
+			});
+			_fr0st_query.default.addEvent(this.#container, "click.ui.selectmenu", (event) => {
+				if (!this.node || event.defaultPrevented || _fr0st_query.default.is(this.node, ":disabled")) return;
+				if (this.#multiple) {
 					_fr0st_query.default.focus(this.#searchInput);
 					this.show();
 				} else {
@@ -538,15 +581,15 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 					if (this.#open) _fr0st_query.default.focus(this.#searchInput);
 				}
 			});
-			this.#listen(this.#searchInput, "input.ui.selectmenu", (_) => {
+			_fr0st_query.default.addEvent(this.#searchInput, "input.ui.selectmenu", (_) => {
 				if (_fr0st_query.default.is(this.node, ":disabled")) return;
 				this.#updateSearchWidth();
 				if (this.#multiple) this.#refreshPlaceholder();
-				if (this.#open) this.#getData();
+				if (this.#open) this.#load();
 				else this.show();
 			});
-			this.#listen(this.#searchInput, "keydown.ui.selectmenu", (event) => this.#keydown(event));
-			if (!this.#multiple) this.#listen(this.#toggle, "keydown.ui.selectmenu", (event) => {
+			_fr0st_query.default.addEvent(this.#searchInput, "keydown.ui.selectmenu", (event) => this.#keydown(event));
+			if (!this.#multiple) _fr0st_query.default.addEvent(this.#toggle, "keydown.ui.selectmenu", (event) => {
 				if (_fr0st_query.default.is(this.node, ":disabled") || event.ctrlKey || event.altKey || event.metaKey || event.isComposing) return;
 				if ([
 					"ArrowDown",
@@ -563,9 +606,9 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 			this.#scrollHandler = _fr0st_query.default._throttle((_) => {
 				if (!this.node || !this.#open || this.#loading || !this.#showMore) return;
 				const list = this.#itemsList;
-				if (list.scrollTop >= list.scrollHeight - list.clientHeight * 1.25) this.#getData(this.#data.length);
+				if (list.scrollTop >= list.scrollHeight - list.clientHeight * 1.25) this.#load(this.#data.length);
 			}, 250, { leading: false });
-			this.#listen(this.#itemsList, "scroll.ui.selectmenu", this.#scrollHandler);
+			_fr0st_query.default.addEvent(this.#itemsList, "scroll.ui.selectmenu", this.#scrollHandler);
 			this.#observer = new MutationObserver((_) => {
 				if (this.node) {
 					this.#refreshDisabled();
@@ -620,35 +663,27 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 			}
 		}
 		/**
-		* Loads local or remote results for the current search input.
-		* @param {number} [offset=0] The remote result offset.
+		* Updates keyboard focus and the active descendant reference.
+		* @param {HTMLElement|null} element The focused option.
 		*/
-		#getData(offset = 0) {
-			this.#cancelSearch();
-			if (!offset) {
-				this.#clearResults();
-				this.#showMore = false;
-			} else _fr0st_query.default.remove(_fr0st_query.default.children(this.#itemsList, "[role=\"status\"]"));
-			const term = this.#searchInput.value;
-			if (term.length < this.options.minSearch) {
-				if (this.#multiple) _fr0st_query.default.hide(this.#menuNode);
-				this.update();
-				return;
+		#focusItem(element) {
+			const previous = _fr0st_query.default.findOne("[data-ui-focus]", this.#itemsList);
+			_fr0st_query.default.removeClass(previous, this.constructor.classes.focus);
+			_fr0st_query.default.removeDataset(previous, "uiFocus");
+			if (element) {
+				_fr0st_query.default.addClass(element, this.constructor.classes.focus);
+				_fr0st_query.default.setDataset(element, { uiFocus: true });
 			}
-			_fr0st_query.default.show(this.#menuNode);
-			if (this.#multiple && this.#maxSelections && this.#value.length >= this.#maxSelections) this.#renderInfo(this.options.lang.maxSelections);
-			else if (this.options.getResults) {
-				this.#loading = true;
-				this.#renderInfo(this.options.lang.loading);
-				this.#loadResults(term ? {
-					offset,
-					term
-				} : { offset }, this.#requestId);
-			} else {
-				const results = term ? flattenItems(this.#data).filter((item) => this.options.isMatch.call(this, cloneItem(item), term)).sort((a, b) => this.options.sortResults.call(this, cloneItem(a), cloneItem(b), term)) : this.#data;
-				this.#renderResults(results);
-			}
-			this.update();
+			_fr0st_query.default.setAttribute([this.#toggle, this.#searchInput], { "aria-activedescendant": element?.id || "" });
+		}
+		/**
+		* Gets local results, retaining groups when there is no search term.
+		* @param {string} term The current search term.
+		* @returns {SelectMenuItem[]} The matching results.
+		*/
+		#getLocalResults(term) {
+			if (!term) return this.#data;
+			return flattenItems(this.#data).filter((item) => this.options.isMatch.call(this, cloneItem(item), term)).sort((a, b) => this.options.sortResults.call(this, cloneItem(a), cloneItem(b), term));
 		}
 		/**
 		* Handles search navigation and selection without submitting a form.
@@ -665,7 +700,8 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 					this.#searchInput.value = item.text;
 					this.#updateSearchWidth();
 					this.#refreshPlaceholder();
-					this.#open ? this.#getData() : this.show();
+					if (this.#open) this.#load();
+					else this.show();
 				}
 			} else if (event.key === "Escape" && this.#open) {
 				event.preventDefault();
@@ -690,25 +726,39 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 					const next = index < 0 ? 0 : index + (event.key === "ArrowDown" ? 1 : -1);
 					const option = this.#activeItems[next];
 					if (option) {
-						this.#setActive(option);
+						this.#focusItem(option);
 						option.scrollIntoView({ block: "nearest" });
 					}
 				}
 			}
 		}
 		/**
-		* Registers a listener whose removal is owned by this instance.
-		* @param {EventTarget|EventTarget[]} node The event targets.
-		* @param {string} events The namespaced event names.
-		* @param {Function} callback The callback.
+		* Loads local or remote results for the current search input.
+		* @param {number} [offset=0] The remote result offset.
 		*/
-		#listen(node, events, callback) {
-			_fr0st_query.default.addEvent(node, events, callback);
-			this.#listeners.push([
-				node,
-				events,
-				callback
-			]);
+		#load(offset = 0) {
+			this.#cancelSearch();
+			if (!offset) {
+				this.#clearResults();
+				this.#showMore = false;
+			} else _fr0st_query.default.remove(_fr0st_query.default.children(this.#itemsList, "[role=\"status\"]"));
+			const term = this.#searchInput.value;
+			if (term.length < this.options.minSearch) {
+				if (this.#multiple) _fr0st_query.default.hide(this.#menuNode);
+				this.update();
+				return;
+			}
+			_fr0st_query.default.show(this.#menuNode);
+			if (this.#multiple && this.#maxSelections && this.#value.length >= this.#maxSelections) this.#renderInfo(this.options.lang.maxSelections);
+			else if (this.options.getResults) {
+				this.#loading = true;
+				this.#renderInfo(this.options.lang.loading);
+				this.#loadResults(term ? {
+					offset,
+					term
+				} : { offset }, this.#requestId);
+			} else this.#renderResults(this.#getLocalResults(term));
+			this.update();
 		}
 		/**
 		* Resolves unknown selected values without allowing stale responses to win.
@@ -776,36 +826,15 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 		* @returns {string|string[]|null} The native selection.
 		*/
 		#readNativeValue() {
-			for (const item of flattenItems(getDOMData(this.node))) if (!this.#lookup.has(String(item.value))) this.#lookup.set(String(item.value), item);
+			for (const item of flattenItems(getDomData(this.node))) if (!this.#lookup.has(String(item.value))) this.#lookup.set(String(item.value), item);
 			const values = [...this.node.selectedOptions].map((option) => option.value);
 			return this.#multiple ? values : values[0] ?? null;
 		}
 		/** Refreshes selection labels while retaining native options and defaults. */
 		#refresh() {
 			const focused = this.#searchInput === this.node.ownerDocument.activeElement;
-			if (this.#multiple) _fr0st_query.default.detach(this.#searchInput);
-			_fr0st_query.default.empty(this.#toggle);
-			const values = this.#multiple ? this.#value : normalizeValues(this.#value);
-			for (const value of values) {
-				const item = this.#lookup.get(String(value));
-				if (this.#multiple) {
-					const group = _fr0st_query.default.create("div", { class: this.constructor.classes.multiGroup });
-					const clear = this.#renderClear(item.value);
-					const label = _fr0st_query.default.create("span", { class: this.constructor.classes.multiItem });
-					this.#renderContent(item, label, this.options.renderSelection);
-					_fr0st_query.default.append(group, [clear, label]);
-					_fr0st_query.default.append(this.#toggle, group);
-				} else {
-					const label = _fr0st_query.default.create("span", { class: this.constructor.classes.selectionSingle });
-					this.#renderContent(item, label, this.options.renderSelection);
-					_fr0st_query.default.append(this.#toggle, label);
-				}
-			}
-			if (this.#multiple) _fr0st_query.default.append(this.#toggle, this.#searchInput);
-			else {
-				_fr0st_query.default.remove(_fr0st_query.default.children(this.#container, "[data-ui-action=\"clear\"]"));
-				if (this.options.allowClear && values.length) _fr0st_query.default.append(this.#container, this.#renderClear());
-			}
+			if (this.#multiple) this.#refreshMultiple();
+			else this.#refreshSingle();
 			this.#refreshPlaceholder();
 			this.#refreshDisabled();
 			this.#updateSearchWidth();
@@ -830,6 +859,22 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 			if (!_fr0st_query.default.is(this.node, ":disabled") && (this.#open || this.#container.contains(this.node.ownerDocument.activeElement))) _fr0st_query.default.addClass(this.#toggle, this.constructor.classes.focus);
 			else _fr0st_query.default.removeClass(this.#toggle, this.constructor.classes.focus);
 		}
+		/** Rebuilds selected chips while retaining the multiple search input. */
+		#refreshMultiple() {
+			const classes = this.constructor.classes;
+			_fr0st_query.default.detach(this.#searchInput);
+			_fr0st_query.default.empty(this.#toggle);
+			for (const value of this.#value) {
+				const item = this.#lookup.get(String(value));
+				const group = _fr0st_query.default.create("div", { class: classes.multiGroup });
+				const clear = this.#renderClear(item.value);
+				const label = _fr0st_query.default.create("span", { class: classes.multiItem });
+				this.#renderContent(item, label, this.options.renderSelection);
+				_fr0st_query.default.append(group, [clear, label]);
+				_fr0st_query.default.append(this.#toggle, group);
+			}
+			_fr0st_query.default.append(this.#toggle, this.#searchInput);
+		}
 		/** Refreshes the placeholder without interpreting zero or empty-string values as missing. */
 		#refreshPlaceholder() {
 			_fr0st_query.default.remove(_fr0st_query.default.children(this.#toggle, `.${this.constructor.classes.placeholder}`));
@@ -838,54 +883,71 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 				html: this.options.sanitize(this.#placeholderText || "&nbsp;")
 			}));
 		}
+		/** Rebuilds the single selection label and its optional clear button. */
+		#refreshSingle() {
+			_fr0st_query.default.empty(this.#toggle);
+			_fr0st_query.default.remove(_fr0st_query.default.children(this.#container, "[data-ui-action=\"clear\"]"));
+			if (this.#value === null) return;
+			const item = this.#lookup.get(String(this.#value));
+			const label = _fr0st_query.default.create("span", { class: this.constructor.classes.selectionSingle });
+			this.#renderContent(item, label, this.options.renderSelection);
+			_fr0st_query.default.append(this.#toggle, label);
+			if (this.options.allowClear) _fr0st_query.default.append(this.#container, this.#renderClear());
+		}
 		/** Renders the controls and their accessible relationships. */
 		#render() {
 			const classes = this.constructor.classes;
 			const id = (0, _fr0st_ui.generateId)("selectmenu");
-			const inherited = Object.fromEntries([
-				"aria-describedby",
-				"aria-errormessage",
-				"aria-invalid"
-			].filter((name) => this.node.hasAttribute(name)).map((name) => [name, this.node.getAttribute(name)]));
 			const labelledBy = this.node.getAttribute("aria-labelledby");
 			const label = this.node.getAttribute("aria-label") || [...this.node.labels].map((node) => node.textContent.trim()).join(" ");
 			const attributes = {
-				...inherited,
 				"role": "combobox",
 				"aria-haspopup": "listbox",
 				"aria-expanded": false,
 				"aria-controls": id,
 				"aria-activedescendant": ""
 			};
+			for (const name of [
+				"aria-describedby",
+				"aria-errormessage",
+				"aria-invalid"
+			]) if (this.node.hasAttribute(name)) attributes[name] = this.node.getAttribute(name);
 			if (labelledBy) attributes["aria-labelledby"] = labelledBy;
 			else if (label) attributes["aria-label"] = label;
+			let toggleAttributes = {};
+			let searchAttributes = attributes;
+			let searchClass = classes.multiSearchInput;
+			if (!this.#multiple) {
+				toggleAttributes = {
+					...attributes,
+					type: "button"
+				};
+				searchAttributes = {
+					"role": "searchbox",
+					"aria-label": this.options.lang.search,
+					"aria-controls": id,
+					"aria-activedescendant": ""
+				};
+				searchClass = this.options.searchInputStyle === "filled" ? classes.searchInputFilled : classes.searchInputOutline;
+			}
 			this.#container = _fr0st_query.default.create("div", {
 				class: classes.container,
 				attributes: { dir: _fr0st_query.default.css(this.node, "direction") }
 			});
 			this.#toggle = _fr0st_query.default.create(this.#multiple ? "div" : "button", {
 				class: [this.node.className, this.#multiple ? classes.multiToggle : classes.toggle],
-				attributes: this.#multiple ? {} : {
-					...attributes,
-					type: "button"
-				}
+				attributes: toggleAttributes
 			});
-			_fr0st_query.default.append(this.#container, this.#toggle);
-			const searchClass = this.options.searchInputStyle === "filled" ? classes.searchInputFilled : classes.searchInputOutline;
 			this.#searchInput = _fr0st_query.default.create("input", {
-				class: this.#multiple ? classes.multiSearchInput : searchClass,
+				class: searchClass,
 				attributes: {
-					...this.#multiple ? attributes : {
-						"role": "searchbox",
-						"aria-label": this.options.lang.search,
-						"aria-controls": id,
-						"aria-activedescendant": ""
-					},
+					...searchAttributes,
 					"autocomplete": "off",
 					"aria-autocomplete": "list",
 					"type": "text"
 				}
 			});
+			_fr0st_query.default.append(this.#container, this.#toggle);
 			this.#menuNode = _fr0st_query.default.create("div", {
 				class: classes.menu,
 				style: { "--ui-selectmenu-duration": `${Math.max(0, Number(this.options.duration) || 0)}ms` },
@@ -929,11 +991,9 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 					"type": "button",
 					"aria-label": this.options.lang.clear
 				},
-				dataset: {
-					uiAction: "clear",
-					...value === void 0 ? {} : { uiValue: String(value) }
-				}
+				dataset: { uiAction: "clear" }
 			});
+			if (value !== void 0) _fr0st_query.default.setDataset(button, { uiValue: String(value) });
 			if (this.#multiple) _fr0st_query.default.append(button, _fr0st_query.default.create("span", {
 				class: this.constructor.classes.multiClearIcon,
 				attributes: { "aria-hidden": true }
@@ -952,6 +1012,28 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 			else if (_fr0st_query.default._isElement(content) && content !== element) _fr0st_query.default.append(element, content);
 		}
 		/**
+		* Renders a group label and its nested results.
+		* @param {SelectMenuItem} item The group.
+		* @param {Set<string>} selectedValues The selected value keys.
+		* @returns {HTMLLIElement} The group element.
+		*/
+		#renderGroup(item, selectedValues) {
+			const classes = this.constructor.classes;
+			const group = _fr0st_query.default.create("li", { attributes: {
+				"role": "group",
+				"aria-label": item.text
+			} });
+			const label = _fr0st_query.default.create("div", { class: classes.group });
+			const list = _fr0st_query.default.create("ul", {
+				class: classes.groupContainer,
+				attributes: { role: "none" }
+			});
+			this.#renderContent(item, label, this.options.renderResult);
+			_fr0st_query.default.append(group, [label, list]);
+			this.#renderResults(item.children, list, selectedValues);
+			return group;
+		}
+		/**
 		* Appends a sanitized status message to the list.
 		* @param {string} text The message.
 		*/
@@ -963,59 +1045,50 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 			}));
 		}
 		/**
-		* Renders result items and recursively nested groups.
+		* Renders an option and registers it for keyboard navigation when enabled.
+		* @param {SelectMenuItem} item The result item.
+		* @param {boolean} selected Whether the item is selected.
+		* @returns {HTMLLIElement} The option element.
+		*/
+		#renderItem(item, selected) {
+			const classes = this.constructor.classes;
+			const disabled = item.disabled || _fr0st_query.default.is(item.element, ":disabled");
+			const element = _fr0st_query.default.create("li", {
+				class: classes.item,
+				attributes: {
+					"id": (0, _fr0st_ui.generateId)("selectmenu-item"),
+					"role": "option",
+					"aria-label": item.text,
+					"aria-selected": selected,
+					"aria-disabled": disabled
+				}
+			});
+			if (selected) _fr0st_query.default.addClass(element, classes.active);
+			if (disabled) _fr0st_query.default.addClass(element, classes.disabledItem);
+			else {
+				_fr0st_query.default.setDataset(element, {
+					uiAction: "select",
+					uiValue: String(item.value)
+				});
+				this.#activeItems.push(element);
+			}
+			this.#renderContent(item, element, this.options.renderResult);
+			return element;
+		}
+		/**
+		* Renders results and initializes keyboard focus for the top-level list.
 		* @param {SelectMenuItem[]} results The results.
 		* @param {HTMLElement} [container] The destination list.
+		* @param {Set<string>} [selectedValues] The selected value keys, shared by nested groups.
 		*/
-		#renderResults(results, container = this.#itemsList) {
-			const selectedValues = new Set(normalizeValues(this.#value).map(String));
+		#renderResults(results, container = this.#itemsList, selectedValues = new Set(normalizeValues(this.#value).map(String))) {
 			for (const item of results) {
-				if (item.children) {
-					const group = _fr0st_query.default.create("li", { attributes: {
-						"role": "group",
-						"aria-label": item.text
-					} });
-					const label = _fr0st_query.default.create("div", { class: this.constructor.classes.group });
-					const list = _fr0st_query.default.create("ul", {
-						class: this.constructor.classes.groupContainer,
-						attributes: { role: "none" }
-					});
-					this.#renderContent(item, label, this.options.renderResult);
-					_fr0st_query.default.append(group, [label, list]);
-					_fr0st_query.default.append(container, group);
-					this.#renderResults(item.children, list);
-					continue;
-				}
-				const selected = selectedValues.has(String(item.value));
-				const disabled = item.disabled || _fr0st_query.default.is(item.element, ":disabled");
-				const element = _fr0st_query.default.create("li", {
-					class: [
-						this.constructor.classes.item,
-						selected ? this.constructor.classes.active : "",
-						disabled ? this.constructor.classes.disabledItem : ""
-					],
-					attributes: {
-						"id": (0, _fr0st_ui.generateId)("selectmenu-item"),
-						"role": "option",
-						"aria-label": item.text,
-						"aria-selected": selected,
-						"aria-disabled": disabled
-					}
-				});
-				if (!disabled) {
-					_fr0st_query.default.setDataset(element, {
-						uiAction: "select",
-						uiValue: String(item.value)
-					});
-					this.#activeItems.push(element);
-				}
-				this.#renderContent(item, element, this.options.renderResult);
+				const element = item.children ? this.#renderGroup(item, selectedValues) : this.#renderItem(item, selectedValues.has(String(item.value)));
 				_fr0st_query.default.append(container, element);
 			}
-			if (container === this.#itemsList) {
-				if (!this.#itemsList.children.length) this.#renderInfo(this.options.lang.noResults);
-				if (!_fr0st_query.default.findOne("[data-ui-focus]", this.#itemsList)) this.#setActive(this.#activeItems[0] || null);
-			}
+			if (container !== this.#itemsList) return;
+			if (!this.#itemsList.children.length) this.#renderInfo(this.options.lang.noResults);
+			if (!_fr0st_query.default.findOne("[data-ui-focus]", this.#itemsList)) this.#focusItem(this.#activeItems[0] || null);
 		}
 		/**
 		* Applies a user selection and emits change only for an effective change.
@@ -1033,29 +1106,16 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 			this.#refreshPlaceholder();
 			this.#updateSearchWidth();
 			if (this.options.closeOnSelect) this.hide();
-			else if (this.#open) this.#getData();
+			else if (this.#open) this.#load();
 			if (this.node) _fr0st_query.default.focus(this.#multiple || this.#open ? this.#searchInput : this.#toggle);
-		}
-		/**
-		* Updates the active option and its ARIA reference.
-		* @param {HTMLElement|null} element The active option.
-		*/
-		#setActive(element) {
-			const previous = _fr0st_query.default.findOne("[data-ui-focus]", this.#itemsList);
-			_fr0st_query.default.removeClass(previous, this.constructor.classes.focus);
-			_fr0st_query.default.removeDataset(previous, "uiFocus");
-			if (element) {
-				_fr0st_query.default.addClass(element, this.constructor.classes.focus);
-				_fr0st_query.default.setDataset(element, { uiFocus: true });
-			}
-			_fr0st_query.default.setAttribute([this.#toggle, this.#searchInput], { "aria-activedescendant": element?.id || "" });
 		}
 		/**
 		* Updates the combobox expanded state.
 		* @param {boolean} expanded Whether results are expanded.
 		*/
 		#setExpanded(expanded) {
-			(this.#multiple ? this.#searchInput : this.#toggle).setAttribute("aria-expanded", String(expanded));
+			const control = this.#multiple ? this.#searchInput : this.#toggle;
+			_fr0st_query.default.setAttribute(control, { "aria-expanded": expanded });
 		}
 		/**
 		* Normalizes values and synchronizes native and rendered selection.
@@ -1077,7 +1137,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 			for (const option of this.node.options) option.selected = selected.has(option.value);
 			if (!values.length) this.node.selectedIndex = -1;
 			this.#refresh();
-			if (this.#open && !notify) this.#getData();
+			if (this.#open && !notify) this.#load();
 			if (notify && changed) {
 				this.#notifying = true;
 				try {

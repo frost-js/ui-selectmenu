@@ -28,12 +28,12 @@ function flattenItems(items) {
 * @param {HTMLSelectElement|HTMLOptGroupElement} node The select or group.
 * @returns {SelectMenuItem[]} The native data.
 */
-function getDOMData(node) {
+function getDomData(node) {
 	return [...node.children].filter((child) => child.matches("option, optgroup")).map((child) => {
 		if (child.matches("optgroup")) return {
 			text: child.label,
 			disabled: child.disabled,
-			children: getDOMData(child)
+			children: getDomData(child)
 		};
 		return {
 			...$.getDataset(child),
@@ -50,7 +50,16 @@ function getDOMData(node) {
 * @returns {SelectMenuValue[]} Unique non-null values.
 */
 function normalizeValues(value) {
-	return [...new Map((Array.isArray(value) ? value : [value]).filter((entry) => entry !== null && entry !== void 0).map((entry) => [String(entry), entry])).values()];
+	const entries = (Array.isArray(value) ? value : [value]).filter((entry) => entry !== null && entry !== void 0).map((entry) => [String(entry), entry]);
+	return [...new Map(entries).values()];
+}
+/**
+* Normalizes text for case- and accent-insensitive matching and sorting.
+* @param {string} value The text to normalize.
+* @returns {string} The normalized text.
+*/
+function normalizeText(value) {
+	return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 }
 
 //#endregion
@@ -90,18 +99,42 @@ function normalizeValues(value) {
 * @param {HTMLElement} element The rendering destination, which can be filled directly.
 * @returns {string|HTMLElement|void} HTML to sanitize, an element, or nothing.
 */
+/** @typedef {(SelectMenuResults|PromiseLike<SelectMenuResults>) & {cancel?: Function}} SelectMenuPendingResults */
+/**
+* @callback SelectMenuGetResultsCallback
+* @param {SelectMenuRequest} request The search or value request.
+* @returns {SelectMenuPendingResults} Results or a promise, optionally exposing a cancel method.
+*/
+/**
+* @callback SelectMenuSanitizeCallback
+* @param {string} html The rendered HTML.
+* @returns {string} The sanitized HTML.
+*/
+/**
+* @callback SelectMenuMatchCallback
+* @param {SelectMenuItem} item The item to match.
+* @param {string} term The search term.
+* @returns {boolean} Whether the item matches.
+*/
+/**
+* @callback SelectMenuSortCallback
+* @param {SelectMenuItem} a The first item.
+* @param {SelectMenuItem} b The second item.
+* @param {string} term The search term.
+* @returns {number} The relative sort order.
+*/
 /**
 * @typedef {object} SelectMenuOptions
 * @property {string} [placeholder=''] The empty selection label.
 * @property {SelectMenuLanguage} [lang] The translated interface labels.
 * @property {'filled'|'outline'} [searchInputStyle='filled'] The search input style.
 * @property {SelectMenuItem[]|Record<string, string>|null} [data=null] Local data; defaults to native options.
-* @property {((request: SelectMenuRequest) => SelectMenuResults|PromiseLike<SelectMenuResults>)|null} [getResults=null] Loads search results or resolves values. Requests may expose a cancel method.
+* @property {SelectMenuGetResultsCallback|null} [getResults=null] Loads search results or resolves values.
 * @property {SelectMenuRenderer} [renderResult] Renders a result or group label.
 * @property {SelectMenuRenderer} [renderSelection] Renders a selected item.
-* @property {((html: string) => string)} [sanitize] Sanitizes rendered HTML.
-* @property {((item: SelectMenuItem, term: string) => boolean)} [isMatch] Matches a local result.
-* @property {((a: SelectMenuItem, b: SelectMenuItem, term: string) => number)} [sortResults] Sorts local search results.
+* @property {SelectMenuSanitizeCallback} [sanitize] Sanitizes rendered HTML.
+* @property {SelectMenuMatchCallback} [isMatch] Matches a local result.
+* @property {SelectMenuSortCallback} [sortResults] Sorts local search results.
 * @property {number} [maxSelections=0] The selection limit; zero is unlimited.
 * @property {number} [minSearch=0] The minimum search length.
 * @property {boolean} [allowClear=false] Shows a clear button for single selection.
@@ -170,21 +203,13 @@ var SelectMenu = class extends BaseComponent {
 		renderSelection: (data) => data.text,
 		sanitize: (input) => $.sanitize(input),
 		isMatch(data, term) {
-			const value = data.text;
-			const escapedTerm = $._escapeRegExp(term);
-			const regExp = new RegExp(escapedTerm, "i");
-			if (regExp.test(value)) return true;
-			const normalized = value.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-			return regExp.test(normalized);
+			return normalizeText(data.text).includes(normalizeText(term));
 		},
 		sortResults(a, b, term) {
-			const aLower = a.text.toLowerCase();
-			const bLower = b.text.toLowerCase();
-			if (term) {
-				const diff = aLower.indexOf(term.toLowerCase()) - bLower.indexOf(term.toLowerCase());
-				if (diff) return diff;
-			}
-			return aLower.localeCompare(bLower);
+			const aNormalized = normalizeText(a.text);
+			const bNormalized = normalizeText(b.text);
+			const termNormalized = normalizeText(term);
+			return aNormalized.indexOf(termNormalized) - bNormalized.indexOf(termNormalized) || aNormalized.localeCompare(bNormalized);
 		},
 		maxSelections: 0,
 		minSearch: 0,
@@ -203,35 +228,38 @@ var SelectMenu = class extends BaseComponent {
 	};
 	#activeItems = [];
 	#ariaHidden;
-	#container;
+	#changeHandler = null;
+	#container = null;
 	#data = [];
-	#form;
+	#documentHandler = null;
+	#focusHandler = null;
+	#form = null;
 	#generatedOptions = /* @__PURE__ */ new WeakSet();
 	#hidden;
-	#itemsList;
-	#listeners = [];
+	#itemsList = null;
 	#loading = false;
-	#loadResults;
+	#loadResults = null;
 	#lookup = /* @__PURE__ */ new Map();
 	#maxSelections;
-	#menuNode;
+	#menuNode = null;
 	#multiple;
 	#notifying = false;
-	#observer;
+	#observer = null;
 	#open = false;
 	#placeholderText;
-	#popper;
-	#request;
+	#popper = null;
+	#request = null;
 	#requestId = 0;
+	#resetHandler = null;
 	#resetTimer;
-	#scrollHandler;
-	#searchInput;
+	#scrollHandler = null;
+	#searchInput = null;
 	#showMore = false;
 	#tabIndex;
-	#toggle;
+	#toggle = null;
 	#transitionId = 0;
-	#value;
-	#valueRequest;
+	#value = null;
+	#valueRequest = null;
 	#valueRequestId = 0;
 	/**
 	* Creates a SelectMenu.
@@ -254,7 +282,7 @@ var SelectMenu = class extends BaseComponent {
 			value,
 			text
 		})) : this.options.data;
-		this.#data = this.#parseData(data || getDOMData(this.node));
+		this.#data = this.#parseData(data || getDomData(this.node));
 		this.#loadResults = $._debounce((request, id) => this.#fetchResults(request, id), this.options.debounce);
 		this.#render();
 		this.#events();
@@ -284,7 +312,10 @@ var SelectMenu = class extends BaseComponent {
 		this.#scrollHandler?.cancel();
 		this.#observer.disconnect();
 		this.#popper?.dispose();
-		for (const [node, events, callback] of this.#listeners) $.removeEvent(node, events, callback);
+		$.removeEvent(this.node, "focus.ui.selectmenu", this.#focusHandler);
+		$.removeEvent(this.node, "change.ui.selectmenu", this.#changeHandler);
+		$.removeEvent(this.node.ownerDocument, "mousedown.ui.selectmenu", this.#documentHandler);
+		if (this.#form) $.removeEvent(this.#form, "reset.ui.selectmenu", this.#resetHandler);
 		if (this.#hidden) $.addClass(this.node, this.constructor.classes.hide);
 		else $.removeClass(this.node, this.constructor.classes.hide);
 		for (const [name, value] of [["tabindex", this.#tabIndex], ["aria-hidden", this.#ariaHidden]]) if (value === null) this.node.removeAttribute(name);
@@ -294,7 +325,10 @@ var SelectMenu = class extends BaseComponent {
 		this.#activeItems = [];
 		this.#data = [];
 		this.#lookup.clear();
-		this.#listeners = [];
+		this.#changeHandler = null;
+		this.#documentHandler = null;
+		this.#focusHandler = null;
+		this.#resetHandler = null;
 		this.#container = null;
 		this.#form = null;
 		this.#itemsList = null;
@@ -344,7 +378,7 @@ var SelectMenu = class extends BaseComponent {
 		this.#scrollHandler.cancel();
 		this.#searchInput.value = "";
 		this.#updateSearchWidth();
-		this.#setActive(null);
+		this.#focusItem(null);
 		this.#setExpanded(false);
 		this.#refreshPlaceholder();
 		const id = ++this.#transitionId;
@@ -390,18 +424,8 @@ var SelectMenu = class extends BaseComponent {
 		if (this.options.appendTo) $.append(this.options.appendTo, this.#menuNode);
 		else $.after(this.#container, this.#menuNode);
 		$.show(this.#menuNode);
-		this.#getData();
-		this.#popper ??= new Popper(this.#menuNode, {
-			reference: this.#toggle,
-			placement: this.options.placement,
-			position: this.options.position,
-			fixed: this.options.fixed,
-			spacing: this.options.spacing,
-			minContact: this.options.minContact,
-			beforeUpdate: this.options.fullWidth ? (node, reference) => {
-				$.setStyle(node, "width", `${$.width(reference, { boxSize: $.BORDER_BOX })}px`);
-			} : null
-		});
+		this.#load();
+		this.#createPopper();
 		$.css(this.#menuNode, "opacity");
 		$.addClass(this.#menuNode, "show");
 		this.#setExpanded(true);
@@ -440,65 +464,84 @@ var SelectMenu = class extends BaseComponent {
 	}
 	/** Clears result nodes and their active descendant references. */
 	#clearResults() {
-		this.#setActive(null);
+		this.#focusItem(null);
 		this.#activeItems = [];
 		$.empty(this.#itemsList);
 	}
-	/** Attaches owned listeners and native form synchronization. */
+	/** Creates the menu Popper when positioning is first needed. */
+	#createPopper() {
+		if (this.#popper) return;
+		const options = {
+			reference: this.#toggle,
+			placement: this.options.placement,
+			position: this.options.position,
+			fixed: this.options.fixed,
+			spacing: this.options.spacing,
+			minContact: this.options.minContact
+		};
+		if (this.options.fullWidth) options.beforeUpdate = (node, reference) => {
+			const width = $.width(reference, { boxSize: $.BORDER_BOX });
+			$.setStyle(node, "width", `${width}px`);
+		};
+		this.#popper = new Popper(this.#menuNode, options);
+	}
+	/** Attaches control events and native form synchronization. */
 	#events() {
-		this.#listen(this.node, "focus.ui.selectmenu", (_) => {
+		this.#focusHandler = (_) => {
 			$.focus(this.#multiple ? this.#searchInput : this.#toggle);
-		});
-		this.#listen(this.node, "change.ui.selectmenu", (_) => {
+		};
+		this.#changeHandler = (_) => {
 			if (!this.#notifying) this.#loadValue(this.#readNativeValue());
-		});
-		if (this.#form) this.#listen(this.#form, "reset.ui.selectmenu", (event) => {
-			clearTimeout(this.#resetTimer);
-			this.#resetTimer = setTimeout((_) => {
-				if (this.node && !event.defaultPrevented) {
-					const selected = this.node.selectedOptions[0];
-					if (!this.#multiple && this.#generatedOptions.has(selected) && !selected.defaultSelected) this.node.selectedIndex = -1;
-					this.#loadValue(this.#readNativeValue());
-					this.hide();
-				}
-			}, 0);
-		});
-		this.#listen(this.node.ownerDocument, "mousedown.ui.selectmenu", (event) => {
+		};
+		$.addEvent(this.node, "focus.ui.selectmenu", this.#focusHandler);
+		$.addEvent(this.node, "change.ui.selectmenu", this.#changeHandler);
+		if (this.#form) {
+			this.#resetHandler = (event) => {
+				clearTimeout(this.#resetTimer);
+				this.#resetTimer = setTimeout((_) => {
+					if (this.node && !event.defaultPrevented) {
+						const selected = this.node.selectedOptions[0];
+						if (!this.#multiple && this.#generatedOptions.has(selected) && !selected.defaultSelected) this.node.selectedIndex = -1;
+						this.#loadValue(this.#readNativeValue());
+						this.hide();
+					}
+				}, 0);
+			};
+			$.addEvent(this.#form, "reset.ui.selectmenu", this.#resetHandler);
+		}
+		this.#documentHandler = (event) => {
 			if (this.#open && !this.#container.contains(event.target) && !this.#menuNode.contains(event.target)) this.hide();
-		});
-		this.#listen([this.#container, this.#menuNode], "focusin.ui.selectmenu", (_) => this.#refreshFocus());
-		this.#listen([this.#container, this.#menuNode], "focusout.ui.selectmenu", (_) => {
+		};
+		$.addEvent(this.node.ownerDocument, "mousedown.ui.selectmenu", this.#documentHandler);
+		$.addEvent([this.#container, this.#menuNode], "focusin.ui.selectmenu", (_) => this.#refreshFocus());
+		$.addEvent([this.#container, this.#menuNode], "focusout.ui.selectmenu", (_) => {
 			queueMicrotask((_) => {
 				if (this.node && this.#open && !this.#container.contains(this.node.ownerDocument.activeElement) && !this.#menuNode.contains(this.node.ownerDocument.activeElement)) this.hide();
 				if (this.node) this.#refreshFocus();
 			});
 		});
-		this.#listen(this.#menuNode, "mousedown.ui.selectmenu", (event) => {
+		$.addEvent(this.#menuNode, "mousedown.ui.selectmenu", (event) => {
 			if (event.target !== this.#searchInput) event.preventDefault();
 		});
-		this.#listen(this.#menuNode, "click.ui.selectmenu", (event) => {
-			event.stopPropagation();
-			const option = event.target.closest("[data-ui-action=\"select\"]");
-			if (option) this.#selectValue(option.dataset.uiValue);
-		});
-		this.#listen(this.#itemsList, "mouseover.ui.selectmenu", (event) => {
-			const option = event.target.closest("[data-ui-action=\"select\"]");
-			if (option) this.#setActive(option);
-		});
-		this.#listen(this.#container, "click.ui.selectmenu", (event) => {
+		$.addEvent(this.#menuNode, "click.ui.selectmenu", (event) => event.stopPropagation());
+		$.addEventDelegate(this.#menuNode, "click.ui.selectmenu", "[data-ui-action=\"select\"]", (event) => this.#selectValue(event.currentTarget.dataset.uiValue));
+		$.addEventDelegate(this.#itemsList, "mouseover.ui.selectmenu", "[data-ui-action=\"select\"]", (event) => this.#focusItem(event.currentTarget));
+		$.addEventDelegate(this.#container, "click.ui.selectmenu", "[data-ui-action=\"clear\"]", (event) => {
 			if ($.is(this.node, ":disabled")) return;
-			const clear = event.target.closest("[data-ui-action=\"clear\"]");
-			if (clear) {
-				event.preventDefault();
-				event.stopPropagation();
-				const value = this.#multiple ? this.#value.filter((item) => String(item) !== clear.dataset.uiValue) : null;
-				this.#cancelValueRequest();
-				this.#setValue(value, true);
-				if (this.node) {
-					this.hide();
-					$.focus(this.#multiple ? this.#searchInput : this.#toggle);
-				}
-			} else if (this.#multiple) {
+			event.preventDefault();
+			event.stopPropagation();
+			const key = event.currentTarget.dataset.uiValue;
+			const value = this.#multiple ? this.#value.filter((item) => String(item) !== key) : null;
+			this.#cancelValueRequest();
+			this.#setValue(value, true);
+			if (this.node) {
+				this.hide();
+				$.focus(this.#multiple ? this.#searchInput : this.#toggle);
+			}
+		});
+		$.addEvent(this.#container, "click.ui.selectmenu", (event) => {
+			if (!this.node || event.defaultPrevented || $.is(this.node, ":disabled")) return;
+			if (this.#multiple) {
 				$.focus(this.#searchInput);
 				this.show();
 			} else {
@@ -506,15 +549,15 @@ var SelectMenu = class extends BaseComponent {
 				if (this.#open) $.focus(this.#searchInput);
 			}
 		});
-		this.#listen(this.#searchInput, "input.ui.selectmenu", (_) => {
+		$.addEvent(this.#searchInput, "input.ui.selectmenu", (_) => {
 			if ($.is(this.node, ":disabled")) return;
 			this.#updateSearchWidth();
 			if (this.#multiple) this.#refreshPlaceholder();
-			if (this.#open) this.#getData();
+			if (this.#open) this.#load();
 			else this.show();
 		});
-		this.#listen(this.#searchInput, "keydown.ui.selectmenu", (event) => this.#keydown(event));
-		if (!this.#multiple) this.#listen(this.#toggle, "keydown.ui.selectmenu", (event) => {
+		$.addEvent(this.#searchInput, "keydown.ui.selectmenu", (event) => this.#keydown(event));
+		if (!this.#multiple) $.addEvent(this.#toggle, "keydown.ui.selectmenu", (event) => {
 			if ($.is(this.node, ":disabled") || event.ctrlKey || event.altKey || event.metaKey || event.isComposing) return;
 			if ([
 				"ArrowDown",
@@ -531,9 +574,9 @@ var SelectMenu = class extends BaseComponent {
 		this.#scrollHandler = $._throttle((_) => {
 			if (!this.node || !this.#open || this.#loading || !this.#showMore) return;
 			const list = this.#itemsList;
-			if (list.scrollTop >= list.scrollHeight - list.clientHeight * 1.25) this.#getData(this.#data.length);
+			if (list.scrollTop >= list.scrollHeight - list.clientHeight * 1.25) this.#load(this.#data.length);
 		}, 250, { leading: false });
-		this.#listen(this.#itemsList, "scroll.ui.selectmenu", this.#scrollHandler);
+		$.addEvent(this.#itemsList, "scroll.ui.selectmenu", this.#scrollHandler);
 		this.#observer = new MutationObserver((_) => {
 			if (this.node) {
 				this.#refreshDisabled();
@@ -588,35 +631,27 @@ var SelectMenu = class extends BaseComponent {
 		}
 	}
 	/**
-	* Loads local or remote results for the current search input.
-	* @param {number} [offset=0] The remote result offset.
+	* Updates keyboard focus and the active descendant reference.
+	* @param {HTMLElement|null} element The focused option.
 	*/
-	#getData(offset = 0) {
-		this.#cancelSearch();
-		if (!offset) {
-			this.#clearResults();
-			this.#showMore = false;
-		} else $.remove($.children(this.#itemsList, "[role=\"status\"]"));
-		const term = this.#searchInput.value;
-		if (term.length < this.options.minSearch) {
-			if (this.#multiple) $.hide(this.#menuNode);
-			this.update();
-			return;
+	#focusItem(element) {
+		const previous = $.findOne("[data-ui-focus]", this.#itemsList);
+		$.removeClass(previous, this.constructor.classes.focus);
+		$.removeDataset(previous, "uiFocus");
+		if (element) {
+			$.addClass(element, this.constructor.classes.focus);
+			$.setDataset(element, { uiFocus: true });
 		}
-		$.show(this.#menuNode);
-		if (this.#multiple && this.#maxSelections && this.#value.length >= this.#maxSelections) this.#renderInfo(this.options.lang.maxSelections);
-		else if (this.options.getResults) {
-			this.#loading = true;
-			this.#renderInfo(this.options.lang.loading);
-			this.#loadResults(term ? {
-				offset,
-				term
-			} : { offset }, this.#requestId);
-		} else {
-			const results = term ? flattenItems(this.#data).filter((item) => this.options.isMatch.call(this, cloneItem(item), term)).sort((a, b) => this.options.sortResults.call(this, cloneItem(a), cloneItem(b), term)) : this.#data;
-			this.#renderResults(results);
-		}
-		this.update();
+		$.setAttribute([this.#toggle, this.#searchInput], { "aria-activedescendant": element?.id || "" });
+	}
+	/**
+	* Gets local results, retaining groups when there is no search term.
+	* @param {string} term The current search term.
+	* @returns {SelectMenuItem[]} The matching results.
+	*/
+	#getLocalResults(term) {
+		if (!term) return this.#data;
+		return flattenItems(this.#data).filter((item) => this.options.isMatch.call(this, cloneItem(item), term)).sort((a, b) => this.options.sortResults.call(this, cloneItem(a), cloneItem(b), term));
 	}
 	/**
 	* Handles search navigation and selection without submitting a form.
@@ -633,7 +668,8 @@ var SelectMenu = class extends BaseComponent {
 				this.#searchInput.value = item.text;
 				this.#updateSearchWidth();
 				this.#refreshPlaceholder();
-				this.#open ? this.#getData() : this.show();
+				if (this.#open) this.#load();
+				else this.show();
 			}
 		} else if (event.key === "Escape" && this.#open) {
 			event.preventDefault();
@@ -658,25 +694,39 @@ var SelectMenu = class extends BaseComponent {
 				const next = index < 0 ? 0 : index + (event.key === "ArrowDown" ? 1 : -1);
 				const option = this.#activeItems[next];
 				if (option) {
-					this.#setActive(option);
+					this.#focusItem(option);
 					option.scrollIntoView({ block: "nearest" });
 				}
 			}
 		}
 	}
 	/**
-	* Registers a listener whose removal is owned by this instance.
-	* @param {EventTarget|EventTarget[]} node The event targets.
-	* @param {string} events The namespaced event names.
-	* @param {Function} callback The callback.
+	* Loads local or remote results for the current search input.
+	* @param {number} [offset=0] The remote result offset.
 	*/
-	#listen(node, events, callback) {
-		$.addEvent(node, events, callback);
-		this.#listeners.push([
-			node,
-			events,
-			callback
-		]);
+	#load(offset = 0) {
+		this.#cancelSearch();
+		if (!offset) {
+			this.#clearResults();
+			this.#showMore = false;
+		} else $.remove($.children(this.#itemsList, "[role=\"status\"]"));
+		const term = this.#searchInput.value;
+		if (term.length < this.options.minSearch) {
+			if (this.#multiple) $.hide(this.#menuNode);
+			this.update();
+			return;
+		}
+		$.show(this.#menuNode);
+		if (this.#multiple && this.#maxSelections && this.#value.length >= this.#maxSelections) this.#renderInfo(this.options.lang.maxSelections);
+		else if (this.options.getResults) {
+			this.#loading = true;
+			this.#renderInfo(this.options.lang.loading);
+			this.#loadResults(term ? {
+				offset,
+				term
+			} : { offset }, this.#requestId);
+		} else this.#renderResults(this.#getLocalResults(term));
+		this.update();
 	}
 	/**
 	* Resolves unknown selected values without allowing stale responses to win.
@@ -744,36 +794,15 @@ var SelectMenu = class extends BaseComponent {
 	* @returns {string|string[]|null} The native selection.
 	*/
 	#readNativeValue() {
-		for (const item of flattenItems(getDOMData(this.node))) if (!this.#lookup.has(String(item.value))) this.#lookup.set(String(item.value), item);
+		for (const item of flattenItems(getDomData(this.node))) if (!this.#lookup.has(String(item.value))) this.#lookup.set(String(item.value), item);
 		const values = [...this.node.selectedOptions].map((option) => option.value);
 		return this.#multiple ? values : values[0] ?? null;
 	}
 	/** Refreshes selection labels while retaining native options and defaults. */
 	#refresh() {
 		const focused = this.#searchInput === this.node.ownerDocument.activeElement;
-		if (this.#multiple) $.detach(this.#searchInput);
-		$.empty(this.#toggle);
-		const values = this.#multiple ? this.#value : normalizeValues(this.#value);
-		for (const value of values) {
-			const item = this.#lookup.get(String(value));
-			if (this.#multiple) {
-				const group = $.create("div", { class: this.constructor.classes.multiGroup });
-				const clear = this.#renderClear(item.value);
-				const label = $.create("span", { class: this.constructor.classes.multiItem });
-				this.#renderContent(item, label, this.options.renderSelection);
-				$.append(group, [clear, label]);
-				$.append(this.#toggle, group);
-			} else {
-				const label = $.create("span", { class: this.constructor.classes.selectionSingle });
-				this.#renderContent(item, label, this.options.renderSelection);
-				$.append(this.#toggle, label);
-			}
-		}
-		if (this.#multiple) $.append(this.#toggle, this.#searchInput);
-		else {
-			$.remove($.children(this.#container, "[data-ui-action=\"clear\"]"));
-			if (this.options.allowClear && values.length) $.append(this.#container, this.#renderClear());
-		}
+		if (this.#multiple) this.#refreshMultiple();
+		else this.#refreshSingle();
 		this.#refreshPlaceholder();
 		this.#refreshDisabled();
 		this.#updateSearchWidth();
@@ -798,6 +827,22 @@ var SelectMenu = class extends BaseComponent {
 		if (!$.is(this.node, ":disabled") && (this.#open || this.#container.contains(this.node.ownerDocument.activeElement))) $.addClass(this.#toggle, this.constructor.classes.focus);
 		else $.removeClass(this.#toggle, this.constructor.classes.focus);
 	}
+	/** Rebuilds selected chips while retaining the multiple search input. */
+	#refreshMultiple() {
+		const classes = this.constructor.classes;
+		$.detach(this.#searchInput);
+		$.empty(this.#toggle);
+		for (const value of this.#value) {
+			const item = this.#lookup.get(String(value));
+			const group = $.create("div", { class: classes.multiGroup });
+			const clear = this.#renderClear(item.value);
+			const label = $.create("span", { class: classes.multiItem });
+			this.#renderContent(item, label, this.options.renderSelection);
+			$.append(group, [clear, label]);
+			$.append(this.#toggle, group);
+		}
+		$.append(this.#toggle, this.#searchInput);
+	}
 	/** Refreshes the placeholder without interpreting zero or empty-string values as missing. */
 	#refreshPlaceholder() {
 		$.remove($.children(this.#toggle, `.${this.constructor.classes.placeholder}`));
@@ -806,54 +851,71 @@ var SelectMenu = class extends BaseComponent {
 			html: this.options.sanitize(this.#placeholderText || "&nbsp;")
 		}));
 	}
+	/** Rebuilds the single selection label and its optional clear button. */
+	#refreshSingle() {
+		$.empty(this.#toggle);
+		$.remove($.children(this.#container, "[data-ui-action=\"clear\"]"));
+		if (this.#value === null) return;
+		const item = this.#lookup.get(String(this.#value));
+		const label = $.create("span", { class: this.constructor.classes.selectionSingle });
+		this.#renderContent(item, label, this.options.renderSelection);
+		$.append(this.#toggle, label);
+		if (this.options.allowClear) $.append(this.#container, this.#renderClear());
+	}
 	/** Renders the controls and their accessible relationships. */
 	#render() {
 		const classes = this.constructor.classes;
 		const id = generateId("selectmenu");
-		const inherited = Object.fromEntries([
-			"aria-describedby",
-			"aria-errormessage",
-			"aria-invalid"
-		].filter((name) => this.node.hasAttribute(name)).map((name) => [name, this.node.getAttribute(name)]));
 		const labelledBy = this.node.getAttribute("aria-labelledby");
 		const label = this.node.getAttribute("aria-label") || [...this.node.labels].map((node) => node.textContent.trim()).join(" ");
 		const attributes = {
-			...inherited,
 			"role": "combobox",
 			"aria-haspopup": "listbox",
 			"aria-expanded": false,
 			"aria-controls": id,
 			"aria-activedescendant": ""
 		};
+		for (const name of [
+			"aria-describedby",
+			"aria-errormessage",
+			"aria-invalid"
+		]) if (this.node.hasAttribute(name)) attributes[name] = this.node.getAttribute(name);
 		if (labelledBy) attributes["aria-labelledby"] = labelledBy;
 		else if (label) attributes["aria-label"] = label;
+		let toggleAttributes = {};
+		let searchAttributes = attributes;
+		let searchClass = classes.multiSearchInput;
+		if (!this.#multiple) {
+			toggleAttributes = {
+				...attributes,
+				type: "button"
+			};
+			searchAttributes = {
+				"role": "searchbox",
+				"aria-label": this.options.lang.search,
+				"aria-controls": id,
+				"aria-activedescendant": ""
+			};
+			searchClass = this.options.searchInputStyle === "filled" ? classes.searchInputFilled : classes.searchInputOutline;
+		}
 		this.#container = $.create("div", {
 			class: classes.container,
 			attributes: { dir: $.css(this.node, "direction") }
 		});
 		this.#toggle = $.create(this.#multiple ? "div" : "button", {
 			class: [this.node.className, this.#multiple ? classes.multiToggle : classes.toggle],
-			attributes: this.#multiple ? {} : {
-				...attributes,
-				type: "button"
-			}
+			attributes: toggleAttributes
 		});
-		$.append(this.#container, this.#toggle);
-		const searchClass = this.options.searchInputStyle === "filled" ? classes.searchInputFilled : classes.searchInputOutline;
 		this.#searchInput = $.create("input", {
-			class: this.#multiple ? classes.multiSearchInput : searchClass,
+			class: searchClass,
 			attributes: {
-				...this.#multiple ? attributes : {
-					"role": "searchbox",
-					"aria-label": this.options.lang.search,
-					"aria-controls": id,
-					"aria-activedescendant": ""
-				},
+				...searchAttributes,
 				"autocomplete": "off",
 				"aria-autocomplete": "list",
 				"type": "text"
 			}
 		});
+		$.append(this.#container, this.#toggle);
 		this.#menuNode = $.create("div", {
 			class: classes.menu,
 			style: { "--ui-selectmenu-duration": `${Math.max(0, Number(this.options.duration) || 0)}ms` },
@@ -897,11 +959,9 @@ var SelectMenu = class extends BaseComponent {
 				"type": "button",
 				"aria-label": this.options.lang.clear
 			},
-			dataset: {
-				uiAction: "clear",
-				...value === void 0 ? {} : { uiValue: String(value) }
-			}
+			dataset: { uiAction: "clear" }
 		});
+		if (value !== void 0) $.setDataset(button, { uiValue: String(value) });
 		if (this.#multiple) $.append(button, $.create("span", {
 			class: this.constructor.classes.multiClearIcon,
 			attributes: { "aria-hidden": true }
@@ -920,6 +980,28 @@ var SelectMenu = class extends BaseComponent {
 		else if ($._isElement(content) && content !== element) $.append(element, content);
 	}
 	/**
+	* Renders a group label and its nested results.
+	* @param {SelectMenuItem} item The group.
+	* @param {Set<string>} selectedValues The selected value keys.
+	* @returns {HTMLLIElement} The group element.
+	*/
+	#renderGroup(item, selectedValues) {
+		const classes = this.constructor.classes;
+		const group = $.create("li", { attributes: {
+			"role": "group",
+			"aria-label": item.text
+		} });
+		const label = $.create("div", { class: classes.group });
+		const list = $.create("ul", {
+			class: classes.groupContainer,
+			attributes: { role: "none" }
+		});
+		this.#renderContent(item, label, this.options.renderResult);
+		$.append(group, [label, list]);
+		this.#renderResults(item.children, list, selectedValues);
+		return group;
+	}
+	/**
 	* Appends a sanitized status message to the list.
 	* @param {string} text The message.
 	*/
@@ -931,59 +1013,50 @@ var SelectMenu = class extends BaseComponent {
 		}));
 	}
 	/**
-	* Renders result items and recursively nested groups.
+	* Renders an option and registers it for keyboard navigation when enabled.
+	* @param {SelectMenuItem} item The result item.
+	* @param {boolean} selected Whether the item is selected.
+	* @returns {HTMLLIElement} The option element.
+	*/
+	#renderItem(item, selected) {
+		const classes = this.constructor.classes;
+		const disabled = item.disabled || $.is(item.element, ":disabled");
+		const element = $.create("li", {
+			class: classes.item,
+			attributes: {
+				"id": generateId("selectmenu-item"),
+				"role": "option",
+				"aria-label": item.text,
+				"aria-selected": selected,
+				"aria-disabled": disabled
+			}
+		});
+		if (selected) $.addClass(element, classes.active);
+		if (disabled) $.addClass(element, classes.disabledItem);
+		else {
+			$.setDataset(element, {
+				uiAction: "select",
+				uiValue: String(item.value)
+			});
+			this.#activeItems.push(element);
+		}
+		this.#renderContent(item, element, this.options.renderResult);
+		return element;
+	}
+	/**
+	* Renders results and initializes keyboard focus for the top-level list.
 	* @param {SelectMenuItem[]} results The results.
 	* @param {HTMLElement} [container] The destination list.
+	* @param {Set<string>} [selectedValues] The selected value keys, shared by nested groups.
 	*/
-	#renderResults(results, container = this.#itemsList) {
-		const selectedValues = new Set(normalizeValues(this.#value).map(String));
+	#renderResults(results, container = this.#itemsList, selectedValues = new Set(normalizeValues(this.#value).map(String))) {
 		for (const item of results) {
-			if (item.children) {
-				const group = $.create("li", { attributes: {
-					"role": "group",
-					"aria-label": item.text
-				} });
-				const label = $.create("div", { class: this.constructor.classes.group });
-				const list = $.create("ul", {
-					class: this.constructor.classes.groupContainer,
-					attributes: { role: "none" }
-				});
-				this.#renderContent(item, label, this.options.renderResult);
-				$.append(group, [label, list]);
-				$.append(container, group);
-				this.#renderResults(item.children, list);
-				continue;
-			}
-			const selected = selectedValues.has(String(item.value));
-			const disabled = item.disabled || $.is(item.element, ":disabled");
-			const element = $.create("li", {
-				class: [
-					this.constructor.classes.item,
-					selected ? this.constructor.classes.active : "",
-					disabled ? this.constructor.classes.disabledItem : ""
-				],
-				attributes: {
-					"id": generateId("selectmenu-item"),
-					"role": "option",
-					"aria-label": item.text,
-					"aria-selected": selected,
-					"aria-disabled": disabled
-				}
-			});
-			if (!disabled) {
-				$.setDataset(element, {
-					uiAction: "select",
-					uiValue: String(item.value)
-				});
-				this.#activeItems.push(element);
-			}
-			this.#renderContent(item, element, this.options.renderResult);
+			const element = item.children ? this.#renderGroup(item, selectedValues) : this.#renderItem(item, selectedValues.has(String(item.value)));
 			$.append(container, element);
 		}
-		if (container === this.#itemsList) {
-			if (!this.#itemsList.children.length) this.#renderInfo(this.options.lang.noResults);
-			if (!$.findOne("[data-ui-focus]", this.#itemsList)) this.#setActive(this.#activeItems[0] || null);
-		}
+		if (container !== this.#itemsList) return;
+		if (!this.#itemsList.children.length) this.#renderInfo(this.options.lang.noResults);
+		if (!$.findOne("[data-ui-focus]", this.#itemsList)) this.#focusItem(this.#activeItems[0] || null);
 	}
 	/**
 	* Applies a user selection and emits change only for an effective change.
@@ -1001,29 +1074,16 @@ var SelectMenu = class extends BaseComponent {
 		this.#refreshPlaceholder();
 		this.#updateSearchWidth();
 		if (this.options.closeOnSelect) this.hide();
-		else if (this.#open) this.#getData();
+		else if (this.#open) this.#load();
 		if (this.node) $.focus(this.#multiple || this.#open ? this.#searchInput : this.#toggle);
-	}
-	/**
-	* Updates the active option and its ARIA reference.
-	* @param {HTMLElement|null} element The active option.
-	*/
-	#setActive(element) {
-		const previous = $.findOne("[data-ui-focus]", this.#itemsList);
-		$.removeClass(previous, this.constructor.classes.focus);
-		$.removeDataset(previous, "uiFocus");
-		if (element) {
-			$.addClass(element, this.constructor.classes.focus);
-			$.setDataset(element, { uiFocus: true });
-		}
-		$.setAttribute([this.#toggle, this.#searchInput], { "aria-activedescendant": element?.id || "" });
 	}
 	/**
 	* Updates the combobox expanded state.
 	* @param {boolean} expanded Whether results are expanded.
 	*/
 	#setExpanded(expanded) {
-		(this.#multiple ? this.#searchInput : this.#toggle).setAttribute("aria-expanded", String(expanded));
+		const control = this.#multiple ? this.#searchInput : this.#toggle;
+		$.setAttribute(control, { "aria-expanded": expanded });
 	}
 	/**
 	* Normalizes values and synchronizes native and rendered selection.
@@ -1045,7 +1105,7 @@ var SelectMenu = class extends BaseComponent {
 		for (const option of this.node.options) option.selected = selected.has(option.value);
 		if (!values.length) this.node.selectedIndex = -1;
 		this.#refresh();
-		if (this.#open && !notify) this.#getData();
+		if (this.#open && !notify) this.#load();
 		if (notify && changed) {
 			this.#notifying = true;
 			try {

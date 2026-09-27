@@ -143,6 +143,8 @@ test.describe('SelectMenu', () => {
             });
             expect(await page.evaluate((_) => window.changes)).toBe(1);
             await expect(page.getByRole('option', { name: 'Other' })).toBeVisible();
+            await page.locator('#outside').click();
+            await expect(page.locator('.selectmenu-menu')).toHaveCount(0);
         });
     });
 
@@ -490,6 +492,27 @@ test.describe('SelectMenu', () => {
         });
     });
 
+    test.describe('isMatch option', () => {
+        test('normalizes accents and case in both labels and search terms', async ({ page }) => {
+            await page.evaluate((_) => UI.SelectMenu.init(document.querySelector('#select'), {
+                data: { plain: 'Cafe', accented: 'Café', other: 'Tea' },
+            }).show());
+
+            for (const term of ['cafe', 'CAFÉ', 'cafe\u0301']) {
+                await page.getByRole('searchbox').fill(term);
+                await expect(page.getByRole('option')).toHaveText(['Cafe', 'Café']);
+            }
+        });
+
+        test('treats regular expression characters as literal search text', async ({ page }) => {
+            await page.evaluate((_) => UI.SelectMenu.init(document.querySelector('#select'), {
+                data: { literal: 'Fruit (fresh)', other: 'Fruit basket' },
+            }).show());
+            await page.getByRole('searchbox').fill('(');
+            await expect(page.getByRole('option')).toHaveText('Fruit (fresh)');
+        });
+    });
+
     test.describe('sortResults option', () => {
         test('orders prefix matches first, then sorts equally placed matches alphabetically', async ({ page }) => {
             await page.evaluate((_) => UI.SelectMenu.init(document.querySelector('#select'), {
@@ -497,6 +520,14 @@ test.describe('SelectMenu', () => {
             }).show());
             await page.getByRole('searchbox').fill('ban');
             await expect(page.getByRole('option')).toHaveText(['Banana', 'Banana bread', 'Cabana']);
+        });
+
+        test('uses the same accent normalization for matching and sort position', async ({ page }) => {
+            await page.evaluate((_) => UI.SelectMenu.init(document.querySelector('#select'), {
+                data: { suffix: 'Le café', prefix: 'Cafeteria', accented: 'Café noir' },
+            }).show());
+            await page.getByRole('searchbox').fill('CAFÉ');
+            await expect(page.getByRole('option')).toHaveText(['Café noir', 'Cafeteria', 'Le café']);
         });
     });
 
