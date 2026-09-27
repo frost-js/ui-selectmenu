@@ -124,8 +124,8 @@ function normalizeValues(value) {
 var SelectMenu = class extends BaseComponent {
 	static classes = {
 		active: "active",
-		clear: "btn-close mx-2 lh-base",
-		container: "d-flex align-items-center",
+		clear: "btn-close",
+		container: "form-input selectmenu-container",
 		disabled: "disabled",
 		disabledItem: "disabled",
 		focus: "focus",
@@ -138,10 +138,10 @@ var SelectMenu = class extends BaseComponent {
 		menu: "selectmenu-menu",
 		menuSmall: "selectmenu-menu-sm",
 		menuLarge: "selectmenu-menu-lg",
-		multiClear: "btn d-flex",
+		multiClear: "btn",
 		multiClearIcon: "btn-close p-0 my-auto pe-none",
 		multiGroup: "btn-group my-n1",
-		multiItem: "btn",
+		multiItem: "btn selectmenu-selection",
 		multiSearchInput: "selectmenu-multi-input",
 		multiToggle: "selectmenu-multi d-flex flex-wrap position-relative text-start",
 		placeholder: "selectmenu-placeholder",
@@ -149,7 +149,7 @@ var SelectMenu = class extends BaseComponent {
 		searchInputFilled: "input-filled",
 		searchInputOutline: "input-outline",
 		searchOuter: "p-1",
-		selectionSingle: "me-auto",
+		selectionSingle: "selectmenu-selection me-auto",
 		toggle: "selectmenu-toggle d-flex position-relative justify-content-between text-start flex-grow-1"
 	};
 	/** @type {SelectMenuOptions} */
@@ -338,6 +338,7 @@ var SelectMenu = class extends BaseComponent {
 	hide() {
 		if (!this.node || !this.#open || !$.triggerOne(this.node, "hide.ui.selectmenu") || !this.node) return;
 		this.#open = false;
+		this.#refreshFocus();
 		this.#cancelSearch();
 		this.#scrollHandler.cancel();
 		this.#searchInput.value = "";
@@ -382,6 +383,7 @@ var SelectMenu = class extends BaseComponent {
 	show() {
 		if (!this.node || this.#open || $.is(this.node, ":disabled") || !$.triggerOne(this.node, "show.ui.selectmenu") || !this.node) return;
 		this.#open = true;
+		this.#refreshFocus();
 		const id = ++this.#transitionId;
 		if (this.options.appendTo) $.append(this.options.appendTo, this.#menuNode);
 		else $.after(this.#container, this.#menuNode);
@@ -460,9 +462,11 @@ var SelectMenu = class extends BaseComponent {
 		this.#listen(this.node.ownerDocument, "mousedown.ui.selectmenu", (event) => {
 			if (this.#open && !this.#container.contains(event.target) && !this.#menuNode.contains(event.target)) this.hide();
 		});
+		this.#listen([this.#container, this.#menuNode], "focusin.ui.selectmenu", (_) => this.#refreshFocus());
 		this.#listen([this.#container, this.#menuNode], "focusout.ui.selectmenu", (_) => {
 			queueMicrotask((_) => {
 				if (this.node && this.#open && !this.#container.contains(this.node.ownerDocument.activeElement) && !this.#menuNode.contains(this.node.ownerDocument.activeElement)) this.hide();
+				if (this.node) this.#refreshFocus();
 			});
 		});
 		this.#listen(this.#menuNode, "mousedown.ui.selectmenu", (event) => {
@@ -781,6 +785,12 @@ var SelectMenu = class extends BaseComponent {
 		control.tabIndex = disabled ? -1 : Number(this.#tabIndex ?? 0);
 		control.setAttribute("aria-disabled", String(disabled));
 		control.setAttribute("aria-required", String(this.node.required));
+		this.#refreshFocus();
+	}
+	/** Keeps UI input focus styling active for the control and its menu. */
+	#refreshFocus() {
+		if (!$.is(this.node, ":disabled") && (this.#open || this.#container.contains(this.node.ownerDocument.activeElement))) $.addClass(this.#toggle, this.constructor.classes.focus);
+		else $.removeClass(this.#toggle, this.constructor.classes.focus);
 	}
 	/** Refreshes the placeholder without interpreting zero or empty-string values as missing. */
 	#refreshPlaceholder() {
@@ -811,7 +821,10 @@ var SelectMenu = class extends BaseComponent {
 		};
 		if (labelledBy) attributes["aria-labelledby"] = labelledBy;
 		else if (label) attributes["aria-label"] = label;
-		this.#container = $.create("div", { class: classes.container });
+		this.#container = $.create("div", {
+			class: classes.container,
+			attributes: { dir: $.css(this.node, "direction") }
+		});
 		this.#toggle = $.create(this.#multiple ? "div" : "button", {
 			class: [this.node.className, this.#multiple ? classes.multiToggle : classes.toggle],
 			attributes: this.#multiple ? {} : {
@@ -840,8 +853,8 @@ var SelectMenu = class extends BaseComponent {
 			style: { "--ui-selectmenu-duration": `${Math.max(0, Number(this.options.duration) || 0)}ms` },
 			attributes: { dir: $.css(this.node, "direction") }
 		});
-		if ($.is(this.node, ".input-sm")) $.addClass(this.#menuNode, classes.menuSmall);
-		else if ($.is(this.node, ".input-lg")) $.addClass(this.#menuNode, classes.menuLarge);
+		if ($.is(this.node, ".input-sm") || $.closest(this.node, ".input-group-sm").length) $.addClass(this.#menuNode, classes.menuSmall);
+		else if ($.is(this.node, ".input-lg") || $.closest(this.node, ".input-group-lg").length) $.addClass(this.#menuNode, classes.menuLarge);
 		if (!this.#multiple) {
 			const outer = $.create("div", { class: classes.searchOuter });
 			const container = $.create("div", { class: classes.searchContainer });
@@ -872,8 +885,8 @@ var SelectMenu = class extends BaseComponent {
 	* @returns {HTMLButtonElement} The clear button.
 	*/
 	#renderClear(value) {
-		return $.create("button", {
-			class: this.#multiple ? [this.constructor.classes.multiClear, this.constructor.classes.clear] : this.constructor.classes.clear,
+		const button = $.create("button", {
+			class: this.#multiple ? this.constructor.classes.multiClear : this.constructor.classes.clear,
 			attributes: {
 				"type": "button",
 				"aria-label": this.options.lang.clear
@@ -883,6 +896,11 @@ var SelectMenu = class extends BaseComponent {
 				...value === void 0 ? {} : { uiValue: String(value) }
 			}
 		});
+		if (this.#multiple) $.append(button, $.create("span", {
+			class: this.constructor.classes.multiClearIcon,
+			attributes: { "aria-hidden": true }
+		}));
+		return button;
 	}
 	/**
 	* Renders callback output, sanitizing strings but preserving supplied nodes.
@@ -1048,7 +1066,8 @@ var SelectMenu = class extends BaseComponent {
 		const span = $.create("span", {
 			text: this.#searchInput.value,
 			style: {
-				display: "inline-block",
+				position: "absolute",
+				visibility: "hidden",
 				font: $.css(this.#searchInput, "font"),
 				whiteSpace: "pre"
 			}

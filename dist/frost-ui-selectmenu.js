@@ -156,8 +156,8 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 	var SelectMenu = class extends _fr0st_ui.BaseComponent {
 		static classes = {
 			active: "active",
-			clear: "btn-close mx-2 lh-base",
-			container: "d-flex align-items-center",
+			clear: "btn-close",
+			container: "form-input selectmenu-container",
 			disabled: "disabled",
 			disabledItem: "disabled",
 			focus: "focus",
@@ -170,10 +170,10 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 			menu: "selectmenu-menu",
 			menuSmall: "selectmenu-menu-sm",
 			menuLarge: "selectmenu-menu-lg",
-			multiClear: "btn d-flex",
+			multiClear: "btn",
 			multiClearIcon: "btn-close p-0 my-auto pe-none",
 			multiGroup: "btn-group my-n1",
-			multiItem: "btn",
+			multiItem: "btn selectmenu-selection",
 			multiSearchInput: "selectmenu-multi-input",
 			multiToggle: "selectmenu-multi d-flex flex-wrap position-relative text-start",
 			placeholder: "selectmenu-placeholder",
@@ -181,7 +181,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 			searchInputFilled: "input-filled",
 			searchInputOutline: "input-outline",
 			searchOuter: "p-1",
-			selectionSingle: "me-auto",
+			selectionSingle: "selectmenu-selection me-auto",
 			toggle: "selectmenu-toggle d-flex position-relative justify-content-between text-start flex-grow-1"
 		};
 		/** @type {SelectMenuOptions} */
@@ -370,6 +370,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 		hide() {
 			if (!this.node || !this.#open || !_fr0st_query.default.triggerOne(this.node, "hide.ui.selectmenu") || !this.node) return;
 			this.#open = false;
+			this.#refreshFocus();
 			this.#cancelSearch();
 			this.#scrollHandler.cancel();
 			this.#searchInput.value = "";
@@ -414,6 +415,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 		show() {
 			if (!this.node || this.#open || _fr0st_query.default.is(this.node, ":disabled") || !_fr0st_query.default.triggerOne(this.node, "show.ui.selectmenu") || !this.node) return;
 			this.#open = true;
+			this.#refreshFocus();
 			const id = ++this.#transitionId;
 			if (this.options.appendTo) _fr0st_query.default.append(this.options.appendTo, this.#menuNode);
 			else _fr0st_query.default.after(this.#container, this.#menuNode);
@@ -492,9 +494,11 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 			this.#listen(this.node.ownerDocument, "mousedown.ui.selectmenu", (event) => {
 				if (this.#open && !this.#container.contains(event.target) && !this.#menuNode.contains(event.target)) this.hide();
 			});
+			this.#listen([this.#container, this.#menuNode], "focusin.ui.selectmenu", (_) => this.#refreshFocus());
 			this.#listen([this.#container, this.#menuNode], "focusout.ui.selectmenu", (_) => {
 				queueMicrotask((_) => {
 					if (this.node && this.#open && !this.#container.contains(this.node.ownerDocument.activeElement) && !this.#menuNode.contains(this.node.ownerDocument.activeElement)) this.hide();
+					if (this.node) this.#refreshFocus();
 				});
 			});
 			this.#listen(this.#menuNode, "mousedown.ui.selectmenu", (event) => {
@@ -813,6 +817,12 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 			control.tabIndex = disabled ? -1 : Number(this.#tabIndex ?? 0);
 			control.setAttribute("aria-disabled", String(disabled));
 			control.setAttribute("aria-required", String(this.node.required));
+			this.#refreshFocus();
+		}
+		/** Keeps UI input focus styling active for the control and its menu. */
+		#refreshFocus() {
+			if (!_fr0st_query.default.is(this.node, ":disabled") && (this.#open || this.#container.contains(this.node.ownerDocument.activeElement))) _fr0st_query.default.addClass(this.#toggle, this.constructor.classes.focus);
+			else _fr0st_query.default.removeClass(this.#toggle, this.constructor.classes.focus);
 		}
 		/** Refreshes the placeholder without interpreting zero or empty-string values as missing. */
 		#refreshPlaceholder() {
@@ -843,7 +853,10 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 			};
 			if (labelledBy) attributes["aria-labelledby"] = labelledBy;
 			else if (label) attributes["aria-label"] = label;
-			this.#container = _fr0st_query.default.create("div", { class: classes.container });
+			this.#container = _fr0st_query.default.create("div", {
+				class: classes.container,
+				attributes: { dir: _fr0st_query.default.css(this.node, "direction") }
+			});
 			this.#toggle = _fr0st_query.default.create(this.#multiple ? "div" : "button", {
 				class: [this.node.className, this.#multiple ? classes.multiToggle : classes.toggle],
 				attributes: this.#multiple ? {} : {
@@ -872,8 +885,8 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 				style: { "--ui-selectmenu-duration": `${Math.max(0, Number(this.options.duration) || 0)}ms` },
 				attributes: { dir: _fr0st_query.default.css(this.node, "direction") }
 			});
-			if (_fr0st_query.default.is(this.node, ".input-sm")) _fr0st_query.default.addClass(this.#menuNode, classes.menuSmall);
-			else if (_fr0st_query.default.is(this.node, ".input-lg")) _fr0st_query.default.addClass(this.#menuNode, classes.menuLarge);
+			if (_fr0st_query.default.is(this.node, ".input-sm") || _fr0st_query.default.closest(this.node, ".input-group-sm").length) _fr0st_query.default.addClass(this.#menuNode, classes.menuSmall);
+			else if (_fr0st_query.default.is(this.node, ".input-lg") || _fr0st_query.default.closest(this.node, ".input-group-lg").length) _fr0st_query.default.addClass(this.#menuNode, classes.menuLarge);
 			if (!this.#multiple) {
 				const outer = _fr0st_query.default.create("div", { class: classes.searchOuter });
 				const container = _fr0st_query.default.create("div", { class: classes.searchContainer });
@@ -904,8 +917,8 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 		* @returns {HTMLButtonElement} The clear button.
 		*/
 		#renderClear(value) {
-			return _fr0st_query.default.create("button", {
-				class: this.#multiple ? [this.constructor.classes.multiClear, this.constructor.classes.clear] : this.constructor.classes.clear,
+			const button = _fr0st_query.default.create("button", {
+				class: this.#multiple ? this.constructor.classes.multiClear : this.constructor.classes.clear,
 				attributes: {
 					"type": "button",
 					"aria-label": this.options.lang.clear
@@ -915,6 +928,11 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 					...value === void 0 ? {} : { uiValue: String(value) }
 				}
 			});
+			if (this.#multiple) _fr0st_query.default.append(button, _fr0st_query.default.create("span", {
+				class: this.constructor.classes.multiClearIcon,
+				attributes: { "aria-hidden": true }
+			}));
+			return button;
 		}
 		/**
 		* Renders callback output, sanitizing strings but preserving supplied nodes.
@@ -1080,7 +1098,8 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 			const span = _fr0st_query.default.create("span", {
 				text: this.#searchInput.value,
 				style: {
-					display: "inline-block",
+					position: "absolute",
+					visibility: "hidden",
 					font: _fr0st_query.default.css(this.#searchInput, "font"),
 					whiteSpace: "pre"
 				}

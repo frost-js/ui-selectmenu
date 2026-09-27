@@ -73,8 +73,8 @@ export default class SelectMenu extends BaseComponent {
     // SelectMenu classes
     static classes = {
         active: 'active',
-        clear: 'btn-close mx-2 lh-base',
-        container: 'd-flex align-items-center',
+        clear: 'btn-close',
+        container: 'form-input selectmenu-container',
         disabled: 'disabled',
         disabledItem: 'disabled',
         focus: 'focus',
@@ -87,10 +87,10 @@ export default class SelectMenu extends BaseComponent {
         menu: 'selectmenu-menu',
         menuSmall: 'selectmenu-menu-sm',
         menuLarge: 'selectmenu-menu-lg',
-        multiClear: 'btn d-flex',
+        multiClear: 'btn',
         multiClearIcon: 'btn-close p-0 my-auto pe-none',
         multiGroup: 'btn-group my-n1',
-        multiItem: 'btn',
+        multiItem: 'btn selectmenu-selection',
         multiSearchInput: 'selectmenu-multi-input',
         multiToggle: 'selectmenu-multi d-flex flex-wrap position-relative text-start',
         placeholder: 'selectmenu-placeholder',
@@ -98,7 +98,7 @@ export default class SelectMenu extends BaseComponent {
         searchInputFilled: 'input-filled',
         searchInputOutline: 'input-outline',
         searchOuter: 'p-1',
-        selectionSingle: 'me-auto',
+        selectionSingle: 'selectmenu-selection me-auto',
         toggle: 'selectmenu-toggle d-flex position-relative justify-content-between text-start flex-grow-1',
     };
     /** @type {SelectMenuOptions} */
@@ -334,6 +334,7 @@ export default class SelectMenu extends BaseComponent {
         }
 
         this.#open = false;
+        this.#refreshFocus();
         this.#cancelSearch();
         this.#scrollHandler.cancel();
         this.#searchInput.value = '';
@@ -388,6 +389,7 @@ export default class SelectMenu extends BaseComponent {
         }
 
         this.#open = true;
+        this.#refreshFocus();
         const id = ++this.#transitionId;
         if (this.options.appendTo) {
             $.append(this.options.appendTo, this.#menuNode);
@@ -486,11 +488,15 @@ export default class SelectMenu extends BaseComponent {
                 this.hide();
             }
         });
+        this.#listen([this.#container, this.#menuNode], 'focusin.ui.selectmenu', (_) => this.#refreshFocus());
         this.#listen([this.#container, this.#menuNode], 'focusout.ui.selectmenu', (_) => {
             queueMicrotask((_) => {
                 if (this.node && this.#open && !this.#container.contains(this.node.ownerDocument.activeElement) &&
                     !this.#menuNode.contains(this.node.ownerDocument.activeElement)) {
                     this.hide();
+                }
+                if (this.node) {
+                    this.#refreshFocus();
                 }
             });
         });
@@ -864,6 +870,18 @@ export default class SelectMenu extends BaseComponent {
         control.tabIndex = disabled ? -1 : Number(this.#tabIndex ?? 0);
         control.setAttribute('aria-disabled', String(disabled));
         control.setAttribute('aria-required', String(this.node.required));
+        this.#refreshFocus();
+    }
+
+    /** Keeps UI input focus styling active for the control and its menu. */
+    #refreshFocus() {
+        const focused = !$.is(this.node, ':disabled') &&
+            (this.#open || this.#container.contains(this.node.ownerDocument.activeElement));
+        if (focused) {
+            $.addClass(this.#toggle, this.constructor.classes.focus);
+        } else {
+            $.removeClass(this.#toggle, this.constructor.classes.focus);
+        }
     }
 
     /** Refreshes the placeholder without interpreting zero or empty-string values as missing. */
@@ -900,7 +918,10 @@ export default class SelectMenu extends BaseComponent {
         } else if (label) {
             attributes['aria-label'] = label;
         }
-        this.#container = $.create('div', { class: classes.container });
+        this.#container = $.create('div', {
+            class: classes.container,
+            attributes: { dir: $.css(this.node, 'direction') },
+        });
         this.#toggle = $.create(this.#multiple ? 'div' : 'button', {
             class: [this.node.className, this.#multiple ? classes.multiToggle : classes.toggle],
             attributes: this.#multiple ? {} : { ...attributes, type: 'button' },
@@ -926,9 +947,9 @@ export default class SelectMenu extends BaseComponent {
             style: { '--ui-selectmenu-duration': `${Math.max(0, Number(this.options.duration) || 0)}ms` },
             attributes: { dir: $.css(this.node, 'direction') },
         });
-        if ($.is(this.node, '.input-sm')) {
+        if ($.is(this.node, '.input-sm') || $.closest(this.node, '.input-group-sm').length) {
             $.addClass(this.#menuNode, classes.menuSmall);
-        } else if ($.is(this.node, '.input-lg')) {
+        } else if ($.is(this.node, '.input-lg') || $.closest(this.node, '.input-group-lg').length) {
             $.addClass(this.#menuNode, classes.menuLarge);
         }
         if (!this.#multiple) {
@@ -955,11 +976,18 @@ export default class SelectMenu extends BaseComponent {
      * @returns {HTMLButtonElement} The clear button.
      */
     #renderClear(value) {
-        return $.create('button', {
-            class: this.#multiple ? [this.constructor.classes.multiClear, this.constructor.classes.clear] : this.constructor.classes.clear,
+        const button = $.create('button', {
+            class: this.#multiple ? this.constructor.classes.multiClear : this.constructor.classes.clear,
             attributes: { 'type': 'button', 'aria-label': this.options.lang.clear },
             dataset: { uiAction: 'clear', ...(value === undefined ? {} : { uiValue: String(value) }) },
         });
+        if (this.#multiple) {
+            $.append(button, $.create('span', {
+                class: this.constructor.classes.multiClearIcon,
+                attributes: { 'aria-hidden': true },
+            }));
+        }
+        return button;
     }
 
     /**
@@ -1147,7 +1175,7 @@ export default class SelectMenu extends BaseComponent {
         }
         const span = $.create('span', {
             text: this.#searchInput.value,
-            style: { display: 'inline-block', font: $.css(this.#searchInput, 'font'), whiteSpace: 'pre' },
+            style: { position: 'absolute', visibility: 'hidden', font: $.css(this.#searchInput, 'font'), whiteSpace: 'pre' },
         });
         this.node.ownerDocument.body.append(span);
         $.setStyle(this.#searchInput, 'width', `${$.width(span) + 2}px`);

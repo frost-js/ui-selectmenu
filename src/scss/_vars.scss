@@ -1,0 +1,42 @@
+// selectmenu
+$selectmenu-toggle-width: 16px !default;
+$selectmenu-toggle-height: 12px !default;
+$selectmenu-toggle-icon: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%230008' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M2 5l6 6 6-6'/%3e%3c/svg%3e") !default;
+
+$selectmenu-multi-btn-padding-y: .125rem !default;
+$selectmenu-multi-btn-font-size: .875em !default;
+
+$selectmenu-multi-btn-color: var(--ui-primary-contrast) !default;
+$selectmenu-multi-btn-bg: var(--ui-primary) !default;
+$selectmenu-multi-btn-border-color: var(--ui-border-color-translucent) !default;
+$selectmenu-multi-btn-hover-bg: var(--ui-primary-highlight) !default;
+$selectmenu-multi-btn-hover-border-color: var(--ui-btn-border-color) !default;
+$selectmenu-multi-btn-active-border-color: var(--ui-btn-border-color) !default;
+$selectmenu-multi-item-spacing: .25rem !default;
+
+$selectmenu-placeholder-color: var(--ui-tertiary-color) !default;
+
+$selectmenu-z-index: 1000 !default;
+$selectmenu-font-size: var(--ui-font-size) !default;
+$selectmenu-color: var(--ui-body-color) !default;
+$selectmenu-bg: var(--ui-body-bg) !default;
+$selectmenu-border-width: var(--ui-border-width) !default;
+$selectmenu-border-color: var(--ui-border-color) !default;
+
+$selectmenu-sm-font-size: var(--ui-font-size-sm) !default;
+$selectmenu-lg-font-size: var(--ui-font-size-lg) !default;
+
+$selectmenu-item-padding-x: .5rem !default;
+$selectmenu-item-padding-y: .25rem !default;
+$selectmenu-item-font-weight: 400 !default;
+$selectmenu-item-color: var(--ui-body-color) !default;
+
+$selectmenu-item-focus-color: var(--ui-primary-contrast) !default;
+$selectmenu-item-focus-bg: var(--ui-primary) !default;
+$selectmenu-item-active-color: var(--ui-body-color) !default;
+$selectmenu-item-active-bg: var(--ui-secondary-bg) !default;
+
+$selectmenu-group-padding-x: .5rem !default;
+$selectmenu-group-padding-y: .25rem !default;
+$selectmenu-group-font-size: var(--ui-font-size-sm) !default;
+$selectmenu-group-color: var(--ui-secondary-color) !default;

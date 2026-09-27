@@ -1,6 +1,6 @@
 # Frost UI SelectMenu 4 migration proposal
 
-Status: sections 1 (package and tooling), 2 (build migration), 3 (component architecture and behavior), and 5 (testing infrastructure) complete. Sections 4 (styles), 6 (CI), 7 (README/demos), and final release verification remain pending.
+Status: sections 1 (package and tooling), 2 (build migration), 3 (component architecture and behavior), 4 (styles and Sass), and 5 (testing infrastructure) complete. Sections 6 (CI), 7 (README/demos), and final release verification remain pending.
 
 Reviewed: 2026-09-27. Proposed release: `@fr0st/ui-selectmenu@4.0.0`, from `3.1.9`.
 
@@ -29,8 +29,8 @@ Mark a section complete only after its acceptance criteria pass. Add newly disco
 | 1. Package and tooling | Complete | `.npmrc`, `.gitignore`, major version, metadata, exports, scripts, lint configuration, and lockfile updated; `npx sort-package-json` and clean `npm ci` passed. See phase 1 validation below. |
 | 2. Build migration | Complete | Vite produces ESM and UMD, expanded/minified CSS, and source maps; packed bundle loading and UI global extension passed Chromium smoke checks. |
 | 3. Component migration and fixes | Complete | Private class implementation, UI 4 lifecycle, documented API, preserved form behavior, and regression tests pass. |
-| 4. Styles and Sass | Pending | Sass modules, UI 4 input markup/tokens, logical properties, and component styling checks pass. |
-| 5. Test infrastructure | Complete | Local test server, shared fixture, Chromium/Firefox/WebKit smoke checks, and source coverage pass. Behavioral tests accompany section 3; see its validation record and the local startup limitation below. |
+| 4. Styles and Sass | Complete | Sass modules, UI 4 input markup/tokens, logical properties, and component styling checks pass. |
+| 5. Test infrastructure | Complete | Local test server, shared fixture, Chromium/Firefox/WebKit smoke checks, and source coverage pass. Behavioral/style tests accompany sections 3–4; see their validation records and the local startup limitation below. |
 | 6. CI and Codecov | Pending | Reference CI matrix, hosted coverage upload, bundle freshness, and package validation are configured. |
 | 7. README and demos | Pending | Installation/API/migration documentation and consolidated UI-style demo are complete and verified. |
 | 8. Release verification | Pending | Clean install, lint, builds, all browser projects, coverage, packaging, and documentation examples verified; outstanding issues recorded. |
@@ -178,14 +178,40 @@ Breaking changes to document for v4: UI/fQuery peer majors, supported Node/brows
 
 ## 4. Styles and Sass
 
-- [ ] Replace `@import "vars"` with Sass modules. Use `_vars.scss`, namespaced `@use`, and a public `@forward` so consumers can still configure the component's documented variables.
-- [ ] Keep component-only CSS and existing `selectmenu-*` selectors where practical. Reuse UI variables for colors, typography, borders, disabled states, and transitions.
+- [x] Replace `@import "vars"` with Sass modules. Use `_vars.scss`, namespaced `@use`, and a public `@forward` so consumers can still configure the component's documented variables.
+- [x] Keep component-only CSS and existing `selectmenu-*` selectors where practical. Reuse UI variables for colors, typography, borders, disabled states, and transitions.
 - [x] Remove generated `.ripple-line` elements and their class setting: completed with the section 3 render refactor. UI 4 renders filled input focus styling through CSS backgrounds and no longer contains this helper.
-- [ ] Align filled/outline wrappers, small/large inputs, selection chips, close controls, focus/disabled/validation states, and floating/input-group usage with UI 4.
-- [ ] Replace directional declarations such as `margin-right`, `padding-left`, and `text-align: left` with appropriate logical properties and check RTL behavior.
-- [ ] Check menu width/overflow, focus visibility, maximum height, Popper positioning, and custom Sass configuration in the built CSS.
+- [x] Align filled/outline wrappers, small/large inputs, selection chips, close controls, focus/disabled/validation states, and floating/input-group usage with UI 4.
+- [x] Replace directional declarations such as `margin-right`, `padding-left`, and `text-align: left` with appropriate logical properties and check RTL behavior.
+- [x] Check menu width/overflow, focus visibility, maximum height, Popper positioning, and custom Sass configuration in the built CSS.
 
 **Theme scope:** SelectMenu owns CSS, but currently has no separate light/dark selectors or palettes; its colors consume UI tokens. Do not duplicate the full behavioral suite across themes or retest UI's theme engine. Add focused theme assertions only if migration introduces component-owned theme rules or a concrete component-specific theme regression. A demo theme selector can still follow the reference presentation.
+
+### Section 4 implementation and validation — 2026-09-27
+
+- Committed section 3 as `830439b` (`Refactor SelectMenu for UI 4 and fix component behavior`) before beginning styling work.
+- Renamed `vars.scss` to `_vars.scss`; the public `selectmenu.scss` entry forwards its variables and uses them through the `vars` namespace, following UI's Sass module pattern. The existing compiler command and dependencies remain unchanged. The placeholder now consumes UI's tertiary text token, matching UI inputs.
+- Generated controls use UI's `form-input` wrapper, input classes, `.focus` state, button groups, and close icons. A single-select clear button remains a sibling of the combobox, positioned inside its visual boundary; multi-select removal buttons contain a separate close icon instead of combining incompatible `.btn` and `.btn-close` styles on one element.
+- Propagated the native control's direction to its generated wrapper as well as its menu. Spacing, group indentation, and alignment use logical properties; selection chips use a configurable gap. Native input-group sizing also applies to menu/search typography.
+- Added component-specific integration rules for input-group border radii and focus rings, retaining floating labels and UI validation/disabled styling. Long selection labels truncate, long results wrap, and the menu and multi-select search input stay constrained to their available width. Menus use intrinsic width when `fullWidth` is false; `fullWidth` continues to match the reference within the containing block.
+- Visual inspection identified a measurement bug on grid/flex page layouts (B14): the temporary search-width span participated in body layout and could stretch to a grid column. The span is now hidden and absolutely positioned; grid/flex browser regressions pass.
+- Added `select-menu-style.test.js` using locator assertions and geometry checks against actual UI input styles. Coverage includes filled/outline, sizes, selected chips, RTL, floating/input-group integration, focus, disabled/validation styling, long results, scrolling, and use inside a UI modal. No theme-specific selectors were added, so no theme matrix was introduced.
+- Custom Sass configuration compiles with `--fatal-deprecation=import` through `selectmenu.scss` using `@use ... with (...)`. Verified overrides for toggle width, item padding, and background color; a second `@use` emits no duplicate component CSS. All 33 existing variables remain used. No UI framework styles are bundled into SelectMenu's CSS.
+- Lint, the full build, unused-variable checks, and `git diff --check` passed. All 12 distribution files were regenerated; the build no longer reports Sass `@import` deprecations.
+- All **339 browser cases passed**: 113 scenarios each in Chromium, Firefox, and WebKit, including 28 styling cases per browser. The separate Chromium coverage run passed all **113 cases**, without test retries. Visual inspection covered filled/outline single/multiple controls and floating input groups on a grid page.
+- Current LCOV source coverage is **525/540 lines (97.22%)**, **99/100 functions (99.00%)**, and **369/412 branches (89.56%)**. Source filtering remains unchanged and still includes helpers, the component, and registration. The 95% line target is met; hosted upload remains section 6 work.
+- The documented M09 local server startup limitation remains; validation started the unchanged server first and stopped it afterward. No separate theme styling was introduced, and no additional outstanding component styling defect was found in these checks.
+
+For the README migration, consumers should configure the public module, with the npm load path supplied by their build tool (or `--load-path=node_modules`, as documented by UI):
+
+```scss
+@use "@fr0st/ui-selectmenu/src/scss/selectmenu" with (
+    $selectmenu-toggle-width: 24px,
+    $selectmenu-item-padding-x: 1.25rem
+);
+```
+
+The component entry emits only SelectMenu styles; consumers still load UI's stylesheet or Sass entry separately. The variables partial is now `_vars.scss`, resolved by Sass as `vars`; configure defaults before the component module is first loaded.
 
 ## 5. Playwright and coverage
 
@@ -201,6 +227,7 @@ test/support/app/index.html
 test/browser/select-menu.test.js
 test/browser/select-menu-data.test.js
 test/browser/select-menu-form.test.js
+test/browser/select-menu-style.test.js
 ```
 
 - [x] Use Chromium, Firefox, and WebKit projects, `test/browser/**/*.test.js`, the local server on port 3001, reduced motion, and the references' viewport/timeouts.
@@ -285,7 +312,8 @@ The original findings below came from pre-migration source inspection; file refe
 | B11 | **Fixed in section 3:** generated comboboxes do not inherit the original label/description; clear controls are spans/divs with button roles and no complete keyboard activation path. | Establish accessible naming/relationships and keyboard-operable removal controls without invalid nested interactive elements. |
 | B12 | **Fixed in section 3:** Enter in the search handler selects without preventing the form default; disabled controls use class/tabindex/ARIA but event handlers do not consistently enforce disabled state. | Test Enter submission and disabled/fieldset/clear interactions; enforce the intended native behavior. |
 | B13 | **Fixed in section 3:** full-width menu positioning used its old width because width was set after Popper measured it; start placement could be hundreds of pixels away. | Set width in `beforeUpdate`; assert placement/spacing for top, bottom, start, and end and anchoring during scrolling. |
-| M02 | **Confirmed styling mismatch:** obsolete `.ripple-line` markup, Sass `@import`, and physical left/right spacing differ from current UI. | Update styling and verify filled focus, RTL, and custom Sass builds. |
+| B14 | **Fixed in section 4:** search input width measurement participates in body grid/flex layout and can stretch, creating an unnecessary extra row in multiple selections. | Measure with a hidden, absolutely positioned span; check input width on grid and flex pages. |
+| M02 | **Fixed in sections 3–4:** obsolete `.ripple-line` markup, Sass `@import`, and physical left/right spacing differed from current UI. | Sass modules, UI input markup/focus, logical spacing, RTL positioning, and configurable Sass builds are covered by section 4 validation. |
 | M03 | **Partially resolved:** the original package lacked UI/fQuery dependency declarations, compiled ESM, tests, coverage, and CI. | Sections 1, 2, 3, and testing infrastructure in 5 are complete. Implement hosted CI/Codecov in section 6. |
 | M04 | **Confirmed tooling choice:** PostCSS CLI 12 requires Node >=22 while UI supports Node 20; sibling manifests also trail some current patch versions. | Apply the explicit latest-compatible policy above and record the final resolved versions. |
 | M05 | **Fixed in section 3:** fQuery 5 traversal returns arrays (`child`, `parent`, etc.), while some current code treats results as individual nodes/truthy presence. | Audit consumers individually; use `.shift()` or cardinality checks where required, with pagination/removal regressions. |
