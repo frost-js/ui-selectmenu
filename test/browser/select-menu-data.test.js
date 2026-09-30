@@ -21,7 +21,31 @@ test.describe('SelectMenu remote results', () => {
         });
     });
 
+    test.describe('responses', () => {
+        test('shows no results for an empty response', async ({ page }) => {
+            await page.evaluate((_) => UI.SelectMenu.init(document.querySelector('#select'), {
+                debounce: 0, getResults: (_) => ({ results: [] }),
+            }).show());
+            await expect(page.getByRole('status')).toHaveText('No results');
+        });
+    });
+
     test.describe('value resolution', () => {
+        test('resolves numeric multiple values and adds only selected native options', async ({ page }) => {
+            await page.evaluate((_) => {
+                const node = document.querySelector('#select');
+                node.multiple = true;
+                UI.SelectMenu.init(node, { getResults: window.getResults }).setValue([0, 2]);
+                window.requests[0].resolve({ results: [
+                    { value: 0, text: 'Zero' }, { value: 2, text: 'Two' }, { value: 3, text: 'Unused' },
+                ] });
+            });
+            await expect(page.locator('#select')).toHaveValues(['0', '2']);
+            await expect(page.locator('#select option')).toHaveCount(3);
+            expect(await page.evaluate((_) => window.requests[0].request.value)).toEqual([0, 2]);
+            expect(await page.evaluate((_) => $('#select').selectmenu('getValue'))).toEqual([0, 2]);
+        });
+
         test('updates generated disabled state without changing authored options', async ({ page }) => {
             await page.evaluate((_) => {
                 document.querySelector('#select option').disabled = true;
@@ -43,21 +67,6 @@ test.describe('SelectMenu remote results', () => {
             await expect(page.locator('#select option[value="a"]')).toBeDisabled();
         });
 
-        test('resolves numeric multiple values and adds only selected native options', async ({ page }) => {
-            await page.evaluate((_) => {
-                const node = document.querySelector('#select');
-                node.multiple = true;
-                UI.SelectMenu.init(node, { getResults: window.getResults }).setValue([0, 2]);
-                window.requests[0].resolve({ results: [
-                    { value: 0, text: 'Zero' }, { value: 2, text: 'Two' }, { value: 3, text: 'Unused' },
-                ] });
-            });
-            await expect(page.locator('#select')).toHaveValues(['0', '2']);
-            await expect(page.locator('#select option')).toHaveCount(3);
-            expect(await page.evaluate((_) => window.requests[0].request.value)).toEqual([0, 2]);
-            expect(await page.evaluate((_) => $('#select').selectmenu('getValue'))).toEqual([0, 2]);
-        });
-
         for (const failure of ['throw', 'reject']) {
             test(`preserves the previous selection on a value lookup ${failure}`, async ({ page }) => {
                 await page.evaluate((failure) => {
@@ -75,15 +84,6 @@ test.describe('SelectMenu remote results', () => {
                 await expect(page.locator('#select')).toHaveValue('a');
             });
         }
-    });
-
-    test.describe('responses', () => {
-        test('shows no results for an empty response', async ({ page }) => {
-            await page.evaluate((_) => UI.SelectMenu.init(document.querySelector('#select'), {
-                debounce: 0, getResults: (_) => ({ results: [] }),
-            }).show());
-            await expect(page.getByRole('status')).toHaveText('No results');
-        });
     });
 
     test.describe('errors and retry', () => {
@@ -115,6 +115,39 @@ test.describe('SelectMenu remote results', () => {
     });
 
     test.describe('cancellation', () => {
+        test('shows loading and prevents stale search responses from changing the lookup', async ({ page }) => {
+            await page.evaluate((_) => UI.SelectMenu.init(document.querySelector('#select'), {
+                getResults: window.getResults, debounce: 0,
+            }));
+            await page.getByRole('combobox').click();
+            await expect(page.getByRole('status')).toHaveText('Loading..');
+            await expect.poll((_) => page.evaluate((_) => window.requests.length)).toBe(1);
+            await page.getByRole('searchbox').fill('new');
+            await expect.poll((_) => page.evaluate((_) => window.requests.length)).toBe(2);
+            expect(await page.evaluate((_) => window.requests[1].request)).toEqual({ offset: 0, term: 'new' });
+            await page.evaluate((_) => window.requests[1].resolve({ results: [{ value: 'new', text: 'New' }] }));
+            await expect(page.getByRole('option')).toHaveText('New');
+            await page.evaluate((_) => window.requests[0].resolve({ results: [{ value: 'new', text: 'Stale label' }] }));
+            await page.getByRole('option', { name: 'New', exact: true }).click();
+            await expect(page.getByRole('combobox')).toHaveText('New');
+            expect(await page.evaluate((_) => window.requests[0].cancelled)).toBe(true);
+        });
+
+        test('cancels an active search and ignores its result', async ({ page }) => {
+            await page.evaluate((_) => UI.SelectMenu.init(document.querySelector('#select'), {
+                getResults: window.getResults, debounce: 0,
+            }).show());
+            await expect.poll((_) => page.evaluate((_) => window.requests.length)).toBe(1);
+            await page.evaluate((_) => {
+                $('#select').selectmenu('hide');
+                window.requests[0].resolve({ results: [{ value: 'late', text: 'Late' }] });
+            });
+            await expect(page.locator('.selectmenu-menu')).toHaveCount(0);
+            expect(await page.evaluate((_) => window.requests[0].cancelled)).toBe(true);
+            await page.evaluate((_) => $('#select').selectmenu('setValue', 'late'));
+            expect(await page.evaluate((_) => window.requests.length)).toBe(2);
+        });
+
         test('cancels searches and ignores callbacks after disposal', async ({ page }) => {
             const errors = [];
             page.on('pageerror', (error) => errors.push(error));
@@ -132,18 +165,6 @@ test.describe('SelectMenu remote results', () => {
             expect(errors).toHaveLength(0);
         });
 
-        test('cancels a value lookup and leaves the native control reusable', async ({ page }) => {
-            await page.evaluate((_) => {
-                const instance = UI.SelectMenu.init(document.querySelector('#select'), { getResults: window.getResults });
-                instance.setValue('remote');
-                instance.dispose();
-                UI.SelectMenu.init(document.querySelector('#select'));
-                window.requests[0].resolve({ results: [{ value: 'remote', text: 'Remote' }] });
-            });
-            expect(await page.evaluate((_) => window.requests[0].cancelled)).toBe(true);
-            await expect(page.getByRole('combobox')).toHaveText('Apple');
-            await expect(page.locator('#select option')).toHaveCount(1);
-        });
         test('applies only the latest remote value response', async ({ page }) => {
             await page.evaluate((_) => {
                 const instance = UI.SelectMenu.init(document.querySelector('#select'), { getResults: window.getResults });
@@ -171,36 +192,18 @@ test.describe('SelectMenu remote results', () => {
             expect(await page.evaluate((_) => $('#select').selectmenu('getValue'))).toBeNull();
             expect(await page.evaluate((_) => window.requests[0].cancelled)).toBe(true);
         });
-        test('cancels an active search and ignores its result', async ({ page }) => {
-            await page.evaluate((_) => UI.SelectMenu.init(document.querySelector('#select'), {
-                getResults: window.getResults, debounce: 0,
-            }).show());
-            await expect.poll((_) => page.evaluate((_) => window.requests.length)).toBe(1);
+
+        test('cancels a value lookup and leaves the native control reusable', async ({ page }) => {
             await page.evaluate((_) => {
-                $('#select').selectmenu('hide');
-                window.requests[0].resolve({ results: [{ value: 'late', text: 'Late' }] });
+                const instance = UI.SelectMenu.init(document.querySelector('#select'), { getResults: window.getResults });
+                instance.setValue('remote');
+                instance.dispose();
+                UI.SelectMenu.init(document.querySelector('#select'));
+                window.requests[0].resolve({ results: [{ value: 'remote', text: 'Remote' }] });
             });
-            await expect(page.locator('.selectmenu-menu')).toHaveCount(0);
             expect(await page.evaluate((_) => window.requests[0].cancelled)).toBe(true);
-            await page.evaluate((_) => $('#select').selectmenu('setValue', 'late'));
-            expect(await page.evaluate((_) => window.requests.length)).toBe(2);
-        });
-        test('shows loading and prevents stale search responses from changing the lookup', async ({ page }) => {
-            await page.evaluate((_) => UI.SelectMenu.init(document.querySelector('#select'), {
-                getResults: window.getResults, debounce: 0,
-            }));
-            await page.getByRole('combobox').click();
-            await expect(page.getByRole('status')).toHaveText('Loading..');
-            await expect.poll((_) => page.evaluate((_) => window.requests.length)).toBe(1);
-            await page.getByRole('searchbox').fill('new');
-            await expect.poll((_) => page.evaluate((_) => window.requests.length)).toBe(2);
-            expect(await page.evaluate((_) => window.requests[1].request)).toEqual({ offset: 0, term: 'new' });
-            await page.evaluate((_) => window.requests[1].resolve({ results: [{ value: 'new', text: 'New' }] }));
-            await expect(page.getByRole('option')).toHaveText('New');
-            await page.evaluate((_) => window.requests[0].resolve({ results: [{ value: 'new', text: 'Stale label' }] }));
-            await page.getByRole('option', { name: 'New', exact: true }).click();
-            await expect(page.getByRole('combobox')).toHaveText('New');
-            expect(await page.evaluate((_) => window.requests[0].cancelled)).toBe(true);
+            await expect(page.getByRole('combobox')).toHaveText('Apple');
+            await expect(page.locator('#select option')).toHaveCount(1);
         });
     });
 

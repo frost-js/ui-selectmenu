@@ -444,7 +444,98 @@ test.describe('SelectMenu', () => {
         });
     });
 
-    test.describe('renderSelection option', () => {
+    test.describe('matching and sorting', () => {
+        test('normalizes accents and case in both labels and search terms', async ({ page }) => {
+            await page.evaluate((_) => UI.SelectMenu.init(document.querySelector('#select'), {
+                data: { plain: 'Cafe', accented: 'Café', other: 'Tea' },
+            }).show());
+
+            for (const term of ['cafe', 'CAFÉ', 'cafe\u0301']) {
+                await page.getByRole('searchbox').fill(term);
+                await expect(page.getByRole('option')).toHaveText(['Cafe', 'Café']);
+            }
+        });
+
+        test('treats regular expression characters as literal search text', async ({ page }) => {
+            await page.evaluate((_) => UI.SelectMenu.init(document.querySelector('#select'), {
+                data: { literal: 'Fruit (fresh)', other: 'Fruit basket' },
+            }).show());
+            await page.getByRole('searchbox').fill('(');
+            await expect(page.getByRole('option')).toHaveText('Fruit (fresh)');
+        });
+
+        test('orders prefix matches first, then sorts equally placed matches alphabetically', async ({ page }) => {
+            await page.evaluate((_) => UI.SelectMenu.init(document.querySelector('#select'), {
+                data: { bread: 'Banana bread', cabana: 'Cabana', banana: 'Banana' },
+            }).show());
+            await page.getByRole('searchbox').fill('ban');
+            await expect(page.getByRole('option')).toHaveText(['Banana', 'Banana bread', 'Cabana']);
+        });
+
+        test('uses the same accent normalization for matching and sort position', async ({ page }) => {
+            await page.evaluate((_) => UI.SelectMenu.init(document.querySelector('#select'), {
+                data: { suffix: 'Le café', prefix: 'Cafeteria', accented: 'Café noir' },
+            }).show());
+            await page.getByRole('searchbox').fill('CAFÉ');
+            await expect(page.getByRole('option')).toHaveText(['Café noir', 'Cafeteria', 'Le café']);
+        });
+    });
+
+    test.describe('minSearch option', () => {
+        test('waits for the minimum search length before filtering single-select results', async ({ page }) => {
+            await page.evaluate((_) => UI.SelectMenu.init(document.querySelector('#select'), {
+                minSearch: 2,
+                data: { one: 'Café', two: 'Tea' },
+            }).show());
+            await expect(page.getByRole('option')).toHaveCount(0);
+            await page.getByRole('searchbox').fill('cafe');
+            await expect(page.getByRole('option')).toHaveText('Café');
+            await page.getByRole('searchbox').fill('missing');
+            await expect(page.getByRole('status')).toHaveText('No results');
+        });
+
+        test('hides the multiple menu until the minimum search length is met', async ({ page }) => {
+            await page.evaluate((_) => {
+                const node = document.querySelector('#select');
+                node.multiple = true;
+                UI.SelectMenu.init(node, { minSearch: 2 }).show();
+            });
+            await expect(page.locator('.selectmenu-menu')).toBeHidden();
+            await page.getByRole('combobox').fill('ba');
+            await expect(page.getByRole('option')).toHaveText('Banana');
+            await page.getByRole('combobox').fill('b');
+            await expect(page.locator('.selectmenu-menu')).toBeHidden();
+        });
+    });
+
+    test.describe('closeOnSelect option', () => {
+        test('keeps searching and updates selected states after selection', async ({ page }) => {
+            await page.evaluate((_) => UI.SelectMenu.init(document.querySelector('#select'), { closeOnSelect: false }).show());
+            await page.getByRole('option', { name: 'Banana' }).click();
+            await expect(page.getByRole('option', { name: 'Banana' })).toHaveAttribute('aria-selected', 'true');
+            await expect(page.getByRole('searchbox')).toBeFocused();
+        });
+    });
+
+    test.describe('maxSelections option', () => {
+        test('announces the limit and permits another choice after a removal', async ({ page }) => {
+            await page.evaluate((_) => {
+                const node = document.querySelector('#select');
+                node.multiple = true;
+                const instance = UI.SelectMenu.init(node, { maxSelections: 1, closeOnSelect: false });
+                instance.setValue('a');
+                instance.show();
+            });
+            await expect(page.getByRole('status')).toHaveText('Selection limit reached.');
+            await page.getByRole('button', { name: 'Remove selection' }).press('Enter');
+            await page.getByRole('combobox').press('ArrowDown');
+            await page.getByRole('option', { name: 'Banana' }).click();
+            await expect(page.locator('#select')).toHaveValues(['b']);
+            await expect(page.getByRole('status')).toHaveText('Selection limit reached.');
+        });
+    });
+
+    test.describe('rendering and sanitization', () => {
         test('allows rendering directly into the destination without exposing internal data', async ({ page }) => {
             await page.evaluate((_) => UI.SelectMenu.init(document.querySelector('#select'), {
                 renderSelection: (item, element) => {
@@ -471,99 +562,6 @@ test.describe('SelectMenu', () => {
             await expect(page.getByRole('combobox')).toHaveText('Chosen Apple');
             await expect(page.locator('.selectmenu-items [onerror]')).toHaveCount(0);
             await expect(page.getByRole('option', { name: 'Apple' }).locator('strong')).toHaveText('Apple');
-        });
-    });
-
-    test.describe('isMatch option', () => {
-        test('normalizes accents and case in both labels and search terms', async ({ page }) => {
-            await page.evaluate((_) => UI.SelectMenu.init(document.querySelector('#select'), {
-                data: { plain: 'Cafe', accented: 'Café', other: 'Tea' },
-            }).show());
-
-            for (const term of ['cafe', 'CAFÉ', 'cafe\u0301']) {
-                await page.getByRole('searchbox').fill(term);
-                await expect(page.getByRole('option')).toHaveText(['Cafe', 'Café']);
-            }
-        });
-
-        test('treats regular expression characters as literal search text', async ({ page }) => {
-            await page.evaluate((_) => UI.SelectMenu.init(document.querySelector('#select'), {
-                data: { literal: 'Fruit (fresh)', other: 'Fruit basket' },
-            }).show());
-            await page.getByRole('searchbox').fill('(');
-            await expect(page.getByRole('option')).toHaveText('Fruit (fresh)');
-        });
-    });
-
-    test.describe('sortResults option', () => {
-        test('orders prefix matches first, then sorts equally placed matches alphabetically', async ({ page }) => {
-            await page.evaluate((_) => UI.SelectMenu.init(document.querySelector('#select'), {
-                data: { bread: 'Banana bread', cabana: 'Cabana', banana: 'Banana' },
-            }).show());
-            await page.getByRole('searchbox').fill('ban');
-            await expect(page.getByRole('option')).toHaveText(['Banana', 'Banana bread', 'Cabana']);
-        });
-
-        test('uses the same accent normalization for matching and sort position', async ({ page }) => {
-            await page.evaluate((_) => UI.SelectMenu.init(document.querySelector('#select'), {
-                data: { suffix: 'Le café', prefix: 'Cafeteria', accented: 'Café noir' },
-            }).show());
-            await page.getByRole('searchbox').fill('CAFÉ');
-            await expect(page.getByRole('option')).toHaveText(['Café noir', 'Cafeteria', 'Le café']);
-        });
-    });
-
-    test.describe('closeOnSelect option', () => {
-        test('keeps searching and updates selected states after selection', async ({ page }) => {
-            await page.evaluate((_) => UI.SelectMenu.init(document.querySelector('#select'), { closeOnSelect: false }).show());
-            await page.getByRole('option', { name: 'Banana' }).click();
-            await expect(page.getByRole('option', { name: 'Banana' })).toHaveAttribute('aria-selected', 'true');
-            await expect(page.getByRole('searchbox')).toBeFocused();
-        });
-    });
-
-    test.describe('minSearch option', () => {
-        test('filters local results with accent-insensitive matching and reports empty results', async ({ page }) => {
-            await page.evaluate((_) => UI.SelectMenu.init(document.querySelector('#select'), {
-                minSearch: 2,
-                data: { one: 'Café', two: 'Tea' },
-            }).show());
-            await expect(page.getByRole('option')).toHaveCount(0);
-            await page.getByRole('searchbox').fill('cafe');
-            await expect(page.getByRole('option')).toHaveText('Café');
-            await page.getByRole('searchbox').fill('missing');
-            await expect(page.getByRole('status')).toHaveText('No results');
-        });
-
-        test('hides the multiple menu until the minimum search length is met', async ({ page }) => {
-            await page.evaluate((_) => {
-                const node = document.querySelector('#select');
-                node.multiple = true;
-                UI.SelectMenu.init(node, { minSearch: 2 }).show();
-            });
-            await expect(page.locator('.selectmenu-menu')).toBeHidden();
-            await page.getByRole('combobox').fill('ba');
-            await expect(page.getByRole('option')).toHaveText('Banana');
-            await page.getByRole('combobox').fill('b');
-            await expect(page.locator('.selectmenu-menu')).toBeHidden();
-        });
-    });
-
-    test.describe('maxSelections option', () => {
-        test('announces the limit and permits another choice after a removal', async ({ page }) => {
-            await page.evaluate((_) => {
-                const node = document.querySelector('#select');
-                node.multiple = true;
-                const instance = UI.SelectMenu.init(node, { maxSelections: 1, closeOnSelect: false });
-                instance.setValue('a');
-                instance.show();
-            });
-            await expect(page.getByRole('status')).toHaveText('Selection limit reached.');
-            await page.getByRole('button', { name: 'Remove selection' }).press('Enter');
-            await page.getByRole('combobox').press('ArrowDown');
-            await page.getByRole('option', { name: 'Banana' }).click();
-            await expect(page.locator('#select')).toHaveValues(['b']);
-            await expect(page.getByRole('status')).toHaveText('Selection limit reached.');
         });
     });
 });
