@@ -1,22 +1,23 @@
 import process from 'node:process';
 import { test as base, expect } from '@playwright/test';
 import { addCoverageReport } from 'monocart-reporter';
+import { setupClock } from '../setup/browser.js';
 
 const collectCoverage = process.env.FROST_UI_SELECTMENU_COVERAGE === 'true';
 
 const test = base.extend({
+    mockClock: [false, { option: true }],
     uiPage: [
-        async ({ page }, use, testInfo) => {
+        async ({ page, mockClock }, use, testInfo) => {
             if (collectCoverage) {
-                await page.coverage.startJSCoverage({
-                    resetOnNavigation: false,
-                });
+                await page.coverage.startJSCoverage({ resetOnNavigation: false });
             }
 
-            await page.goto('/', {
-                waitUntil: 'domcontentloaded',
-            });
+            if (mockClock) {
+                await setupClock(page);
+            }
 
+            await page.goto('/', { waitUntil: 'domcontentloaded' });
             await page.evaluate((_) => {
                 if (!window.fQuery || !window.UI?.SelectMenu ||
                     typeof window.fQuery.QuerySet.prototype.selectmenu !== 'function') {
@@ -28,14 +29,14 @@ const test = base.extend({
 
             await page.waitForFunction((_) => {
                 const node = document.createElement('div');
-                node.className = 'text-center';
-                const menu = document.createElement('div');
-                menu.className = 'selectmenu-menu';
-                document.body.append(node, menu);
-                const ready = getComputedStyle(node).textAlign === 'center' &&
-                    getComputedStyle(menu).position === 'absolute';
+                node.className = 'selectmenu-menu text-center';
+                document.body.append(node);
+
+                const style = getComputedStyle(node);
+                const ready = style.position === 'absolute' &&
+                    style.textAlign === 'center';
+
                 node.remove();
-                menu.remove();
                 return ready;
             });
 

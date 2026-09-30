@@ -10,49 +10,96 @@ test.describe('SelectMenu styles', () => {
         });
     });
 
-    test.describe('#init', () => {
+    test.describe('#hide', () => {
+        test('restores the multiple control size after clearing a long search', async ({ page }) => {
+            await page.evaluate((_) => {
+                const node = document.querySelector('#select');
+                node.multiple = true;
+                node.selectedIndex = -1;
+                UI.SelectMenu.init(node, { placeholder: 'Choose fruit' });
+            });
+            const control = page.locator('.selectmenu-multi');
+            const search = page.getByRole('combobox');
+            const height = await control.evaluate((node) => getComputedStyle(node).height);
+            const width = await search.evaluate((node) => getComputedStyle(node).width);
+            await search.fill('A long search phrase that does not match any fruit');
+            await search.press('Escape');
+            await expect(search).toHaveValue('');
+            await expect(search).toHaveCSS('width', width);
+            await expect(control).toHaveCSS('height', height);
+            await expect(control).toHaveText('Choose fruit');
+        });
+    });
+
+    test.describe('control sizing', () => {
         for (const style of ['filled', 'outline']) {
-            for (const multiple of [false, true]) {
-                for (const size of ['', 'sm', 'lg']) {
-                    test(`uses UI input sizing (${style}, multiple=${multiple}, size=${size || 'default'})`, async ({ page }) => {
-                        await page.evaluate(({ style, multiple, size }) => {
+            for (const { size, fontSize } of [
+                { size: '', fontSize: '16px' },
+                { size: 'sm', fontSize: '14px' },
+                { size: 'lg', fontSize: '20px' },
+            ]) {
+                test.describe(`${style}, size=${size || 'default'}`, () => {
+                    test.beforeEach(async ({ page }) => {
+                        await page.evaluate(({ style, size }) => {
                             const node = document.querySelector('#select');
                             node.className = `input-${style}${size ? ` input-${size}` : ''}`;
-                            node.multiple = multiple;
                             node.selectedIndex = -1;
                             const reference = document.createElement('input');
                             reference.id = 'reference';
                             reference.className = node.className;
                             document.querySelector('#host').append(reference);
-                            UI.SelectMenu.init(node, { placeholder: 'Choose fruit' });
-                        }, { style, multiple, size });
-                        const toggle = page.locator('.selectmenu-toggle, .selectmenu-multi');
-                        const reference = page.locator('#reference');
-                        for (const property of ['fontSize', 'paddingTop', 'paddingBottom', 'minHeight', 'borderTopWidth', 'borderRadius']) {
-                            const value = await reference.evaluate((node, property) => getComputedStyle(node)[property], property);
-                            const cssProperty = property.replaceAll(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`);
-                            await expect(toggle).toHaveCSS(cssProperty, value);
-                        }
-                        await expect(toggle).toHaveCSS('width', '260px');
-                        await expect(page.locator('.ripple-line')).toHaveCount(0);
-                        await page.getByRole('combobox').click();
-                        const sizes = { '': '16px', 'sm': '14px', 'lg': '20px' };
-                        await expect(page.locator('.selectmenu-menu')).toHaveCSS('font-size', sizes[size]);
-                        if (!multiple) {
-                            const fontSize = await toggle.evaluate((node) => getComputedStyle(node).fontSize);
-                            await expect(page.getByRole('searchbox')).toHaveCSS('font-size', fontSize);
-                        } else {
-                            await page.evaluate((_) => $('#select').selectmenu('setValue', ['a']));
-                            const height = await reference.evaluate((node) => getComputedStyle(node).height);
-                            await expect(toggle).toHaveCSS('height', height);
-                        }
+                        }, { style, size });
                     });
-                }
+
+                    for (const multiple of [false, true]) {
+                        test(`matches UI control and menu sizing (multiple=${multiple})`, async ({ page }) => {
+                            await page.evaluate((multiple) => {
+                                const node = document.querySelector('#select');
+                                node.multiple = multiple;
+                                UI.SelectMenu.init(node, { placeholder: 'Choose fruit' });
+                            }, multiple);
+
+                            const toggle = page.locator('.selectmenu-toggle, .selectmenu-multi');
+                            const reference = page.locator('#reference');
+                            for (const property of ['font-size', 'padding-top', 'padding-bottom', 'min-height', 'border-top-width', 'border-radius']) {
+                                const value = await reference.evaluate((node, property) => getComputedStyle(node).getPropertyValue(property), property);
+                                await expect(toggle).toHaveCSS(property, value);
+                            }
+                            await expect(toggle).toHaveCSS('width', '260px');
+                            await expect(page.locator('.ripple-line')).toHaveCount(0);
+
+                            await page.getByRole('combobox').click();
+                            await expect(page.locator('.selectmenu-menu')).toHaveCSS('font-size', fontSize);
+                        });
+                    }
+
+                    test('matches the single-select search font size', async ({ page }) => {
+                        await page.evaluate((_) => UI.SelectMenu.init(document.querySelector('#select')));
+                        await page.getByRole('combobox').click();
+
+                        await expect(page.getByRole('searchbox')).toHaveCSS('font-size', fontSize);
+                    });
+
+                    test('keeps a multiple selection at the UI input height', async ({ page }) => {
+                        await page.evaluate((_) => {
+                            const node = document.querySelector('#select');
+                            node.multiple = true;
+                            UI.SelectMenu.init(node, { placeholder: 'Choose fruit' });
+                        });
+                        await page.getByRole('combobox').click();
+                        await page.evaluate((_) => $('#select').selectmenu('setValue', ['a']));
+
+                        const height = await page.locator('#reference').evaluate((node) => getComputedStyle(node).height);
+                        await expect(page.locator('.selectmenu-multi')).toHaveCSS('height', height);
+                    });
+                });
             }
         }
+    });
 
+    test.describe('selection overflow', () => {
         for (const direction of ['ltr', 'rtl']) {
-            test(`keeps clear controls and chips inside narrow controls (${direction})`, async ({ page }) => {
+            test(`keeps the clear control beside a long selection (${direction})`, async ({ page }) => {
                 await page.evaluate((direction) => {
                     const node = document.querySelector('#select');
                     node.dir = direction;
@@ -74,12 +121,16 @@ test.describe('SelectMenu styles', () => {
                 }
                 await clear.press('Enter');
                 await expect(control).toBeFocused();
-                await page.evaluate((_) => {
-                    $('#select').selectmenu('dispose');
+            });
+
+            test(`keeps multiple-selection chips inside narrow controls (${direction})`, async ({ page }) => {
+                await page.evaluate((direction) => {
                     const node = document.querySelector('#select');
+                    node.dir = direction;
+                    node.options[0].text = 'An extremely long selected label that must fit inside the control';
                     node.multiple = true;
                     UI.SelectMenu.init(node).setValue(['a', 'b']);
-                });
+                }, direction);
                 await expect(page.locator('.selectmenu-multi')).toHaveCSS('direction', direction);
                 expect(await page.locator('.selectmenu-multi').evaluate((node) => node.scrollWidth <= node.clientWidth)).toBe(true);
                 await expect(page.locator('.selectmenu-multi button.btn-close')).toHaveCount(0);
@@ -87,7 +138,28 @@ test.describe('SelectMenu styles', () => {
                 await expect(page.locator('.selectmenu-multi')).toHaveCSS('column-gap', '4px');
             });
         }
+    });
 
+    test.describe('search sizing', () => {
+        for (const display of ['grid', 'flex']) {
+            test(`measures search text independently of a ${display} page layout`, async ({ page }) => {
+                await page.evaluate((display) => {
+                    document.body.style.cssText = `display:${display};grid-template-columns:320px`;
+                    const node = document.querySelector('#select');
+                    node.multiple = true;
+                    UI.SelectMenu.init(node).setValue('a');
+                }, display);
+                await expect(page.getByRole('combobox')).toHaveCSS('width', '20px');
+                await expect(page.locator('.selectmenu-multi')).toHaveCSS('height', '42px');
+                await page.getByRole('combobox').fill('Banana');
+                const input = await page.getByRole('combobox').boundingBox();
+                expect(input.width).toBeGreaterThan(20);
+                expect(input.width).toBeLessThan(100);
+            });
+        }
+    });
+
+    test.describe('input groups', () => {
         for (const [style, nested] of [['outline', false], ['outline', true], ['filled', false], ['filled', true]]) {
             test(`fits UI input groups with floating labels (${style}, nested=${nested})`, async ({ page }) => {
                 await page.evaluate(({ style, nested }) => {
@@ -132,7 +204,9 @@ test.describe('SelectMenu styles', () => {
             await expect(page.getByRole('combobox')).toHaveCSS('border-top-left-radius', radius);
             await expect(page.getByRole('combobox')).toHaveCSS('border-top-right-radius', '0px');
         });
+    });
 
+    test.describe('floating labels', () => {
         for (const style of ['outline', 'filled']) {
             for (const direction of ['ltr', 'rtl']) {
                 test(`preserves floating labels and input-group geometry during interaction (${style}, ${direction})`, async ({ page }) => {
@@ -147,22 +221,13 @@ test.describe('SelectMenu styles', () => {
                     const label = page.locator('.label-floating');
                     const bounds = await control.boundingBox();
                     const radius = await control.evaluate((node) => getComputedStyle(node).borderRadius);
-                    for (const state of ['hover', 'focus', 'open', 'closed']) {
-                        if (state === 'hover') {
-                            await control.hover();
-                        } else if (state === 'focus') {
-                            await control.focus();
-                        } else if (state === 'open') {
-                            await control.click();
-                            await expect(page.getByRole('listbox')).toBeVisible();
-                        } else {
-                            await page.getByRole('searchbox').press('Escape');
-                            await expect(page.locator('.selectmenu-menu')).toHaveCount(0);
-                        }
+
+                    const expectFieldUnchanged = async () => {
                         await expect(control).toHaveCSS('border-radius', radius);
                         const current = await control.boundingBox();
                         expect(current.x).toBe(bounds.x);
                         expect(current.width).toBe(bounds.width);
+
                         // Include the label in hit testing to detect whether the control paints over it.
                         expect(await label.evaluate((node) => {
                             const range = document.createRange();
@@ -173,53 +238,27 @@ test.describe('SelectMenu styles', () => {
                             node.style.removeProperty('pointer-events');
                             return visible;
                         })).toBe(true);
-                    }
+                    };
+
+                    await control.hover();
+                    await expectFieldUnchanged();
+
+                    await control.focus();
+                    await expectFieldUnchanged();
+
+                    await control.click();
+                    await expect(page.getByRole('listbox')).toBeVisible();
+                    await expectFieldUnchanged();
+
+                    await page.getByRole('searchbox').press('Escape');
+                    await expect(page.locator('.selectmenu-menu')).toHaveCount(0);
+                    await expectFieldUnchanged();
                 });
             }
         }
-
-        for (const display of ['grid', 'flex']) {
-            test(`measures search text independently of a ${display} page layout`, async ({ page }) => {
-                await page.evaluate((display) => {
-                    document.body.style.cssText = `display:${display};grid-template-columns:320px`;
-                    const node = document.querySelector('#select');
-                    node.multiple = true;
-                    UI.SelectMenu.init(node).setValue('a');
-                }, display);
-                await expect(page.getByRole('combobox')).toHaveCSS('width', '20px');
-                await expect(page.locator('.selectmenu-multi')).toHaveCSS('height', '42px');
-                await page.getByRole('combobox').fill('Banana');
-                const input = await page.getByRole('combobox').boundingBox();
-                expect(input.width).toBeGreaterThan(20);
-                expect(input.width).toBeLessThan(100);
-            });
-        }
     });
 
-    test.describe('user events', () => {
-        test('keeps the menu usable inside a UI modal', async ({ page }) => {
-            await page.evaluate(async (_) => {
-                const host = document.querySelector('#host');
-                const modal = document.createElement('div');
-                modal.id = 'modal';
-                modal.className = 'modal';
-                modal.innerHTML = '<div class="modal-dialog"><div class="modal-content"><div class="modal-body"></div></div></div>';
-                modal.querySelector('.modal-body').append(host);
-                document.body.append(modal);
-                UI.SelectMenu.init(document.querySelector('#select'));
-                await new Promise((resolve) => {
-                    $.addEventOnce(modal, 'shown.ui.modal', resolve);
-                    UI.Modal.init(modal).show();
-                });
-            });
-            await page.getByRole('combobox').click();
-            await expect(page.locator('#modal .selectmenu-menu')).toBeVisible();
-            await page.getByRole('option', { name: 'Banana' }).click();
-            await expect(page.getByRole('combobox')).toHaveText('Banana');
-            await expect(page.getByRole('combobox')).toBeFocused();
-            await expect(page.locator('#modal')).toHaveAttribute('aria-hidden', 'false');
-        });
-
+    test.describe('focus, disabled, and validation styling', () => {
         test('shows the UI focus ring when the clear control receives keyboard focus', async ({ page }) => {
             await page.evaluate((_) => UI.SelectMenu.init(document.querySelector('#select'), { allowClear: true }));
             await page.getByRole('combobox').focus();
@@ -268,28 +307,32 @@ test.describe('SelectMenu styles', () => {
         }
     });
 
-    test.describe('#hide', () => {
-        test('restores the multiple control size after clearing a long search', async ({ page }) => {
-            await page.evaluate((_) => {
-                const node = document.querySelector('#select');
-                node.multiple = true;
-                node.selectedIndex = -1;
-                UI.SelectMenu.init(node, { placeholder: 'Choose fruit' });
+    test.describe('modal integration', () => {
+        test('keeps the menu usable inside a UI modal', async ({ page }) => {
+            await page.evaluate(async (_) => {
+                const host = document.querySelector('#host');
+                const modal = document.createElement('div');
+                modal.id = 'modal';
+                modal.className = 'modal';
+                modal.innerHTML = '<div class="modal-dialog"><div class="modal-content"><div class="modal-body"></div></div></div>';
+                modal.querySelector('.modal-body').append(host);
+                document.body.append(modal);
+                UI.SelectMenu.init(document.querySelector('#select'));
+                await new Promise((resolve) => {
+                    $.addEventOnce(modal, 'shown.ui.modal', resolve);
+                    UI.Modal.init(modal).show();
+                });
             });
-            const control = page.locator('.selectmenu-multi');
-            const search = page.getByRole('combobox');
-            const height = await control.evaluate((node) => getComputedStyle(node).height);
-            const width = await search.evaluate((node) => getComputedStyle(node).width);
-            await search.fill('A long search phrase that does not match any fruit');
-            await search.press('Escape');
-            await expect(search).toHaveValue('');
-            await expect(search).toHaveCSS('width', width);
-            await expect(control).toHaveCSS('height', height);
-            await expect(control).toHaveText('Choose fruit');
+            await page.getByRole('combobox').click();
+            await expect(page.locator('#modal .selectmenu-menu')).toBeVisible();
+            await page.getByRole('option', { name: 'Banana' }).click();
+            await expect(page.getByRole('combobox')).toHaveText('Banana');
+            await expect(page.getByRole('combobox')).toBeFocused();
+            await expect(page.locator('#modal')).toHaveAttribute('aria-hidden', 'false');
         });
     });
 
-    test.describe('fullWidth option', () => {
+    test.describe('menu sizing and overflow', () => {
         test('wraps long results and constrains the scrollable menu', async ({ page }) => {
             await page.evaluate((_) => UI.SelectMenu.init(document.querySelector('#select'), {
                 fullWidth: true, maxHeight: '70px',
@@ -302,7 +345,7 @@ test.describe('SelectMenu styles', () => {
         });
     });
 
-    test.describe('appendTo option', () => {
+    test.describe('attachment and positioning', () => {
         test('preserves RTL grouping and fits within the viewport when appended to body', async ({ page }) => {
             await page.evaluate((_) => {
                 document.querySelector('#select').dir = 'rtl';
@@ -316,9 +359,6 @@ test.describe('SelectMenu styles', () => {
             const bounds = await menu.boundingBox();
             expect(bounds.width).toBeLessThanOrEqual(page.viewportSize().width);
         });
-    });
-
-    test.describe('placement option', () => {
         test('positions logical start on the right of an RTL control', async ({ page }) => {
             await page.evaluate((_) => {
                 document.querySelector('#host').style.cssText = 'position:absolute;left:250px;top:200px;width:200px';

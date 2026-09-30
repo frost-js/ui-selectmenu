@@ -181,17 +181,20 @@ test.describe('SelectMenu', () => {
     });
 
     test.describe('#setValue', () => {
-        for (const value of [null, 'a', ['a', 'b'], ['a', 'a', 'missing']]) {
-            test(`normalizes multiple values ${JSON.stringify(value)}`, async ({ page }) => {
+        for (const { name, value, expected } of [
+            { name: 'null clears the selection', value: null, expected: [] },
+            { name: 'a scalar selects one option', value: 'a', expected: ['a'] },
+            { name: 'an array selects multiple options', value: ['a', 'b'], expected: ['a', 'b'] },
+            { name: 'duplicates and unknown values are ignored', value: ['a', 'a', 'missing'], expected: ['a'] },
+        ]) {
+            test(`normalizes multiple values (${name})`, async ({ page }) => {
                 await page.evaluate((value) => {
                     const node = document.querySelector('#select');
                     node.multiple = true;
                     const instance = UI.SelectMenu.init(node);
                     instance.setValue(value);
                 }, value);
-                const input = value === null ? [] : [value].flat();
-                const values = [...new Set(input)].filter((item) => item !== 'missing');
-                await expect(page.locator('#select')).toHaveValues(values);
+                await expect(page.locator('#select')).toHaveValues(expected);
             });
         }
 
