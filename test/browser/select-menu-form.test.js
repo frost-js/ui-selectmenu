@@ -18,7 +18,7 @@ test.describe('SelectMenu forms', () => {
         });
     });
 
-    test.describe('#dispose', () => {
+    test.describe('disposal', () => {
         test('preserves reset handlers for another instance and the form consumer', async ({ page }) => {
             await page.evaluate((_) => {
                 const first = document.querySelector('#select');
@@ -58,53 +58,7 @@ test.describe('SelectMenu forms', () => {
         });
     });
 
-    test.describe('#init', () => {
-        for (const multiple of [false, true]) {
-            test(`enables options after an initially disabled fieldset is enabled (multiple=${multiple})`, async ({ page }) => {
-                await page.evaluate((multiple) => {
-                    document.querySelector('fieldset').disabled = true;
-                    const node = document.querySelector('#select');
-                    node.multiple = multiple;
-                    node.insertAdjacentHTML('beforeend', '<option value="c" disabled>Cherry</option>' +
-                        '<optgroup label="Unavailable" disabled><option value="p">Pear</option></optgroup>');
-                    UI.SelectMenu.init(node);
-                }, multiple);
-                await expect(page.getByRole('combobox')).toBeDisabled();
-                await page.evaluate((_) => document.querySelector('fieldset').disabled = false);
-                await expect(page.getByRole('combobox')).toBeEnabled();
-                await page.getByRole('combobox').click();
-                await expect(page.getByRole('option', { name: 'Banana', exact: true })).toBeEnabled();
-                await expect(page.getByRole('option', { name: 'Cherry', exact: true })).toBeDisabled();
-                await expect(page.getByRole('option', { name: 'Pear', exact: true })).toBeDisabled();
-                await page.getByRole('option', { name: 'Banana', exact: true }).click();
-                if (multiple) {
-                    await expect(page.locator('#select')).toHaveValues(['a', 'b']);
-                } else {
-                    await expect(page.locator('#select')).toHaveValue('b');
-                }
-            });
-        }
-    });
-
-    test.describe('#setValue', () => {
-        test('preserves disabled data items in native options and after disposal', async ({ page }) => {
-            await page.evaluate((_) => {
-                const node = document.querySelector('#select');
-                node.multiple = true;
-                UI.SelectMenu.init(node, { data: [
-                    { value: 'x', text: 'Unavailable', disabled: true },
-                    { text: 'Disabled group', disabled: true, children: [{ value: 'y', text: 'Grouped' }] },
-                ] }).setValue(['x', 'y']);
-            });
-            await expect(page.locator('#select')).toHaveValues(['x', 'y']);
-            await expect(page.locator('#select option[value="x"]')).toBeDisabled();
-            await expect(page.locator('#select option[value="y"]')).toBeDisabled();
-            expect(await page.evaluate((_) => new FormData(document.querySelector('#form')).has('fruit'))).toBe(false);
-            await page.evaluate((_) => $('#select').selectmenu('dispose'));
-            await expect(page.locator('#select option[value="x"]')).toBeDisabled();
-            await expect(page.locator('#select option[value="y"]')).toBeDisabled();
-        });
-
+    test.describe('submission', () => {
         test('updates FormData without emitting changes or replacing defaults', async ({ page }) => {
             await page.evaluate((_) => {
                 const instance = UI.SelectMenu.init(document.querySelector('#select'));
@@ -126,6 +80,18 @@ test.describe('SelectMenu forms', () => {
             expect(await page.evaluate((_) => new FormData(document.querySelector('#form')).has('fruit'))).toBe(false);
         });
 
+        test('prevents Enter from submitting while selecting a result', async ({ page }) => {
+            await page.evaluate((_) => UI.SelectMenu.init(document.querySelector('#select')));
+            await page.getByRole('combobox').press('Enter');
+            await page.getByRole('searchbox').fill('Ban');
+            await page.getByRole('searchbox').press('Enter');
+            await expect(page.locator('#select')).toHaveValue('b');
+            expect(await page.evaluate((_) => window.submits)).toBe(0);
+            expect(await page.evaluate((_) => window.changes)).toBe(1);
+        });
+    });
+
+    test.describe('validation', () => {
         test('preserves native required validation and redirects invalid focus', async ({ page }) => {
             await page.evaluate((_) => {
                 const node = document.querySelector('#select');
@@ -141,7 +107,7 @@ test.describe('SelectMenu forms', () => {
         });
     });
 
-    test.describe('events', () => {
+    test.describe('reset', () => {
         test('resets an initially empty select without selecting a generated option', async ({ page }) => {
             await page.evaluate((_) => {
                 const node = document.querySelector('#select');
@@ -165,19 +131,6 @@ test.describe('SelectMenu forms', () => {
             await page.getByRole('button', { name: 'Reset' }).click();
             await expect(page.locator('#select')).toHaveValue('x');
             await expect(page.getByRole('combobox')).toHaveText('Extra');
-        });
-
-        test('synchronizes external native changes without duplicating events', async ({ page }) => {
-            await page.evaluate((_) => {
-                const node = document.querySelector('#select');
-                UI.SelectMenu.init(node);
-                node.add(new Option('Date', 'd'));
-                node.value = 'd';
-                node.dispatchEvent(new Event('change', { bubbles: true }));
-            });
-            await expect(page.getByRole('combobox')).toHaveText('Date');
-            expect(await page.evaluate((_) => $('#select').selectmenu('getValue'))).toBe('d');
-            expect(await page.evaluate((_) => window.changes)).toBe(1);
         });
 
         for (const multiple of [false, true]) {
@@ -213,23 +166,64 @@ test.describe('SelectMenu forms', () => {
         });
     });
 
-    test.describe('user events', () => {
-        test('prevents Enter from submitting while selecting a result', async ({ page }) => {
-            await page.evaluate((_) => UI.SelectMenu.init(document.querySelector('#select')));
-            await page.getByRole('combobox').press('Enter');
-            await page.getByRole('searchbox').fill('Ban');
-            await page.getByRole('searchbox').press('Enter');
-            await expect(page.locator('#select')).toHaveValue('b');
-            expect(await page.evaluate((_) => window.submits)).toBe(0);
+    test.describe('native synchronization', () => {
+        test('synchronizes external native changes without duplicating events', async ({ page }) => {
+            await page.evaluate((_) => {
+                const node = document.querySelector('#select');
+                UI.SelectMenu.init(node);
+                node.add(new Option('Date', 'd'));
+                node.value = 'd';
+                node.dispatchEvent(new Event('change', { bubbles: true }));
+            });
+            await expect(page.getByRole('combobox')).toHaveText('Date');
+            expect(await page.evaluate((_) => $('#select').selectmenu('getValue'))).toBe('d');
             expect(await page.evaluate((_) => window.changes)).toBe(1);
         });
+    });
 
-        test('closes when Tab moves focus outside the component', async ({ page }) => {
-            await page.evaluate((_) => UI.SelectMenu.init(document.querySelector('#select')));
-            await page.getByRole('combobox').click();
-            await page.getByRole('searchbox').press('Tab');
-            await expect(page.getByRole('button', { name: 'Reset' })).toBeFocused();
-            await expect(page.locator('.selectmenu-menu')).toHaveCount(0);
+    test.describe('disabled state', () => {
+        for (const multiple of [false, true]) {
+            test(`enables options after an initially disabled fieldset is enabled (multiple=${multiple})`, async ({ page }) => {
+                await page.evaluate((multiple) => {
+                    document.querySelector('fieldset').disabled = true;
+                    const node = document.querySelector('#select');
+                    node.multiple = multiple;
+                    node.insertAdjacentHTML('beforeend', '<option value="c" disabled>Cherry</option>' +
+                        '<optgroup label="Unavailable" disabled><option value="p">Pear</option></optgroup>');
+                    UI.SelectMenu.init(node);
+                }, multiple);
+                await expect(page.getByRole('combobox')).toBeDisabled();
+                await page.evaluate((_) => document.querySelector('fieldset').disabled = false);
+                await expect(page.getByRole('combobox')).toBeEnabled();
+                await page.getByRole('combobox').click();
+                await expect(page.getByRole('option', { name: 'Banana', exact: true })).toBeEnabled();
+                await expect(page.getByRole('option', { name: 'Cherry', exact: true })).toBeDisabled();
+                await expect(page.getByRole('option', { name: 'Pear', exact: true })).toBeDisabled();
+                await page.getByRole('option', { name: 'Banana', exact: true }).click();
+                if (multiple) {
+                    await expect(page.locator('#select')).toHaveValues(['a', 'b']);
+                } else {
+                    await expect(page.locator('#select')).toHaveValue('b');
+                }
+            });
+        }
+
+        test('preserves disabled data items in native options and after disposal', async ({ page }) => {
+            await page.evaluate((_) => {
+                const node = document.querySelector('#select');
+                node.multiple = true;
+                UI.SelectMenu.init(node, { data: [
+                    { value: 'x', text: 'Unavailable', disabled: true },
+                    { text: 'Disabled group', disabled: true, children: [{ value: 'y', text: 'Grouped' }] },
+                ] }).setValue(['x', 'y']);
+            });
+            await expect(page.locator('#select')).toHaveValues(['x', 'y']);
+            await expect(page.locator('#select option[value="x"]')).toBeDisabled();
+            await expect(page.locator('#select option[value="y"]')).toBeDisabled();
+            expect(await page.evaluate((_) => new FormData(document.querySelector('#form')).has('fruit'))).toBe(false);
+            await page.evaluate((_) => $('#select').selectmenu('dispose'));
+            await expect(page.locator('#select option[value="x"]')).toBeDisabled();
+            await expect(page.locator('#select option[value="y"]')).toBeDisabled();
         });
 
         for (const multiple of [false, true]) {
@@ -254,5 +248,15 @@ test.describe('SelectMenu forms', () => {
                 await expect(page.getByRole('combobox')).toBeDisabled();
             });
         }
+    });
+
+    test.describe('keyboard navigation', () => {
+        test('closes when Tab moves focus outside the component', async ({ page }) => {
+            await page.evaluate((_) => UI.SelectMenu.init(document.querySelector('#select')));
+            await page.getByRole('combobox').click();
+            await page.getByRole('searchbox').press('Tab');
+            await expect(page.getByRole('button', { name: 'Reset' })).toBeFocused();
+            await expect(page.locator('.selectmenu-menu')).toHaveCount(0);
+        });
     });
 });

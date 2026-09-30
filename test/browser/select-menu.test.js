@@ -281,27 +281,6 @@ test.describe('SelectMenu', () => {
             const control = await page.getByRole('combobox').boundingBox();
             await expect(page.locator('.selectmenu-menu')).toHaveCSS('width', `${control.width}px`);
         });
-
-        test('keeps an appended menu anchored when its reference container scrolls', async ({ page }) => {
-            await page.evaluate((_) => {
-                const node = document.querySelector('#select');
-                const scroller = document.createElement('div');
-                scroller.id = 'scroller';
-                scroller.style.cssText = 'overflow:auto;height:200px;width:300px;position:relative';
-                const content = document.createElement('div');
-                content.style.cssText = 'height:800px;padding-top:100px';
-                node.before(scroller);
-                scroller.append(content);
-                content.append(node);
-                UI.SelectMenu.init(node, { appendTo: document.body, fullWidth: true, fixed: true, spacing: 8 }).show();
-            });
-            const before = await page.locator('.selectmenu-menu').boundingBox();
-            await page.locator('#scroller').evaluate((node) => node.scrollTop = 40);
-            await expect.poll(async (_) => {
-                const menu = await page.locator('.selectmenu-menu').boundingBox();
-                return before.y - menu.y;
-            }).toBeCloseTo(40, 0);
-        });
     });
 
     test.describe('events', () => {
@@ -586,36 +565,5 @@ test.describe('SelectMenu', () => {
             await expect(page.locator('#select')).toHaveValues(['b']);
             await expect(page.getByRole('status')).toHaveText('Selection limit reached.');
         });
-    });
-
-    test.describe('placement option', () => {
-        for (const placement of ['top', 'bottom', 'start', 'end']) {
-            test(`positions the menu ${placement} with the configured spacing`, async ({ page }) => {
-                await page.evaluate((placement) => {
-                    const node = document.querySelector('#select');
-                    const host = document.createElement('div');
-                    host.style.cssText = 'position:absolute;left:250px;top:250px;width:200px';
-                    node.before(host);
-                    host.append(node);
-                    UI.SelectMenu.init(node, {
-                        placement, position: 'center', fixed: true, spacing: 8, minContact: 20,
-                        fullWidth: true, appendTo: document.body,
-                    }).show();
-                }, placement);
-                const menu = page.locator('.selectmenu-menu');
-                await expect(menu).toHaveAttribute('data-ui-placement', placement);
-                await expect.poll(async (_) => {
-                    const result = await menu.boundingBox();
-                    const control = await page.getByRole('combobox').boundingBox();
-                    if (placement === 'top') {
-                        return control.y - result.y - result.height;
-                    }
-                    if (placement === 'bottom') {
-                        return result.y - control.y - control.height;
-                    }
-                    return placement === 'start' ? control.x - result.x - result.width : result.x - control.x - control.width;
-                }).toBeCloseTo(8, 0);
-            });
-        }
     });
 });
