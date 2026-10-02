@@ -8,8 +8,8 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fr0st/ui@4/dist/frost-ui.min.css">
     <link rel="stylesheet" href="../dist/frost-ui-selectmenu.css">
     <link rel="stylesheet" href="assets/demo.css">
-    <script src="https://cdn.jsdelivr.net/npm/@fr0st/ui@4/dist/frost-ui-bundle.min.js"></script>
-    <script src="../dist/frost-ui-selectmenu.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@fr0st/ui@4/dist/frost-ui-bundle.min.js" defer></script>
+    <script src="../dist/frost-ui-selectmenu.js" defer></script>
     <script src="assets/demo.js" defer></script>
 </head>
 
@@ -36,7 +36,7 @@
             <div class="row g-0 align-items-stretch">
                 <div class="col-lg-7 d-flex align-items-center bg-ambient">
                     <div class="p-4 p-md-5">
-                        <span class="badge bg-primary-subtle text-primary-subtle mb-3">SelectMenu v4 · Frost UI v4</span>
+                        <span class="badge bg-primary-subtle text-primary-subtle mb-3">Frost UI component</span>
                         <h1 class="display-2 mb-4">Find your <span class="text-gradient">selection.</span></h1>
                         <p class="lead text-body-secondary mb-4">Search, group, and select. Try single choices, removable chips, asynchronous results, and native forms.</p>
                         <nav class="d-flex flex-wrap gap-2" aria-label="Demo sections">
@@ -450,8 +450,8 @@
                             <option value="pear">Pear</option>
                         </select>
                         <div class="d-flex flex-wrap gap-2 mt-4 mb-3">
-                            <button class="btn btn-secondary" data-demo-method="init" type="button">Init</button>
-                            <button class="btn btn-secondary" data-demo-method="dispose" type="button">Dispose</button>
+                            <button class="btn btn-primary ripple" data-demo-method="init" type="button">Init</button>
+                            <button class="btn btn-outline-danger ripple" data-demo-method="dispose" type="button">Dispose</button>
                             <button class="btn btn-secondary" data-demo-method="enable" type="button">Enable</button>
                             <button class="btn btn-secondary" data-demo-method="disable" type="button">Disable</button>
                             <button class="btn btn-secondary" data-demo-method="show" type="button">Show</button>
@@ -474,9 +474,9 @@
                     <div class="card card-body h-100 p-4">
                         <h3 class="h5">Event log</h3>
                         <p class="text-body-secondary">Observe change, show, shown, hide, and hidden events from the API example.</p>
-                        <div class="demo-event-log overflow-y-auto" id="event-log" role="log" aria-live="polite" aria-label="SelectMenu events">
+                        <div class="demo-event-log" id="event-log" role="log" aria-label="SelectMenu events" aria-live="polite" aria-relevant="additions">
                         </div>
-                        <button class="btn btn-outline-secondary mt-3" id="clear-log" type="button">Clear log</button>
+                        <button class="btn btn-outline-secondary btn-sm ripple mt-3" id="clear-log" type="button">Clear log</button>
                     </div>
                 </div>
             </div>
@@ -506,7 +506,7 @@
 
     <footer class="border-top bg-glass">
         <div class="container py-4 d-flex flex-wrap justify-content-between gap-2">
-            <span class="text-body-secondary">Frost UI SelectMenu v4</span>
+            <span class="text-body-secondary">Frost UI SelectMenu</span>
             <a href="https://github.com/elusivecodes/FrostUI-SelectMenu">View the repository</a>
         </div>
     </footer>

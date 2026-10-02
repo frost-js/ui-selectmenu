@@ -1,7 +1,13 @@
-.demo-event-log {
-    height: 18rem;
+section[id],
+.demo-anchor {
+    scroll-margin-top: 6rem;
 }
 
-section[id] {
-    scroll-margin-top: 6rem;
+.demo-event-log {
+    height: 18rem;
+    overflow-y: auto;
+}
+
+.demo-event-log > :last-child {
+    margin-block-end: 0;
 }
