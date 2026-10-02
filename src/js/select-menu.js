@@ -217,30 +217,36 @@ export default class SelectMenu extends BaseComponent {
 
         super(node, options);
 
-        this.#multiple = this.node.multiple;
-        this.#value = this.#multiple ? [] : null;
-        this.#maxSelections = Math.max(0, Number(this.options.maxSelections) || 0);
-        this.#placeholderText = this.options.placeholder;
+        try {
+            this.#tabIndex = this.node.getAttribute('tabindex');
+            this.#hidden = $.hasClass(this.node, this.constructor.classes.hide);
+            this.#ariaHidden = this.node.getAttribute('aria-hidden');
 
-        this.#form = this.node.form;
-        this.#tabIndex = this.node.getAttribute('tabindex');
-        this.#hidden = $.hasClass(this.node, this.constructor.classes.hide);
-        this.#ariaHidden = this.node.getAttribute('aria-hidden');
+            this.#multiple = this.node.multiple;
+            this.#value = this.#multiple ? [] : null;
+            this.#maxSelections = Math.max(0, Number(this.options.maxSelections) || 0);
+            this.#placeholderText = this.options.placeholder;
 
-        const initialValue = this.#readNativeValue();
-        const data = $._isPlainObject(this.options.data) ?
-            Object.entries(this.options.data).map(([value, text]) => ({ value, text })) :
-            this.options.data;
-        this.#data = this.#parseData(data || getDomData(this.node));
+            this.#form = this.node.form;
 
-        this.#loadResults = $._debounce(
-            (request, id) => this.#fetchResults(request, id),
-            this.options.debounce,
-        );
+            const initialValue = this.#readNativeValue();
+            const data = $._isPlainObject(this.options.data) ?
+                Object.entries(this.options.data).map(([value, text]) => ({ value, text })) :
+                this.options.data;
+            this.#data = this.#parseData(data || getDomData(this.node));
 
-        this.#render();
-        this.#events();
-        this.#loadValue(initialValue);
+            this.#loadResults = $._debounce(
+                (request, id) => this.#fetchResults(request, id),
+                this.options.debounce,
+            );
+
+            this.#render();
+            this.#events();
+            this.#loadValue(initialValue);
+        } catch (error) {
+            this.dispose();
+            throw error;
+        }
     }
 
     /**
@@ -278,14 +284,20 @@ export default class SelectMenu extends BaseComponent {
         clearTimeout(this.#resetTimer);
         this.#scrollHandler?.cancel();
 
-        this.#observer.disconnect();
+        this.#observer?.disconnect();
         this.#popper?.dispose();
 
-        $.removeEvent(this.node, 'focus.ui.selectmenu', this.#focusHandler);
-        $.removeEvent(this.node, 'change.ui.selectmenu', this.#changeHandler);
-        $.removeEvent(this.node.ownerDocument, 'mousedown.ui.selectmenu', this.#documentHandler);
+        if (this.#focusHandler) {
+            $.removeEvent(this.node, 'focus.ui.selectmenu', this.#focusHandler);
+        }
+        if (this.#changeHandler) {
+            $.removeEvent(this.node, 'change.ui.selectmenu', this.#changeHandler);
+        }
+        if (this.#documentHandler) {
+            $.removeEvent(this.node.ownerDocument, 'mousedown.ui.selectmenu', this.#documentHandler);
+        }
 
-        if (this.#form) {
+        if (this.#form && this.#resetHandler) {
             $.removeEvent(this.#form, 'reset.ui.selectmenu', this.#resetHandler);
         }
 
@@ -837,6 +849,40 @@ export default class SelectMenu extends BaseComponent {
     }
 
     /**
+     * Fetches an unknown selection while containing remote lookup failures.
+     * @param {SelectMenuValue|SelectMenuValue[]|null} value The requested selection.
+     * @param {number} id The value request generation.
+     * @returns {Promise<void>} Resolves when the lookup settles.
+     */
+    async #fetchValue(value, id) {
+        try {
+            const result = this.options.getResults({ value });
+
+            if (!this.node || id !== this.#valueRequestId) {
+                result?.cancel?.();
+
+                return;
+            }
+
+            this.#valueRequest = result;
+            this.#refresh();
+
+            const response = await result;
+
+            if (this.node && id === this.#valueRequestId) {
+                this.#parseData(response.results);
+                this.#setValue(value);
+            }
+        } catch {
+            // A failed value lookup preserves the previous selection.
+        } finally {
+            if (this.node && id === this.#valueRequestId) {
+                this.#valueRequest = null;
+            }
+        }
+    }
+
+    /**
      * Updates keyboard focus and the active descendant reference.
      * @param {HTMLElement|null} element The focused option.
      */
@@ -983,11 +1029,10 @@ export default class SelectMenu extends BaseComponent {
     }
 
     /**
-     * Resolves unknown selected values without allowing stale responses to win.
+     * Applies known selections immediately and starts lookups for unknown values.
      * @param {SelectMenuValue|SelectMenuValue[]|null} value The requested selection.
-     * @returns {Promise<void>} Resolves when the value is applied or its lookup settles.
      */
-    async #loadValue(value) {
+    #loadValue(value) {
         this.#cancelValueRequest();
 
         const values = normalizeValues(value);
@@ -1001,31 +1046,7 @@ export default class SelectMenu extends BaseComponent {
         const id = this.#valueRequestId;
         const requested = this.#multiple ? values : values[0] ?? null;
 
-        try {
-            const result = this.options.getResults({ value: requested });
-
-            if (!this.node || id !== this.#valueRequestId) {
-                result?.cancel?.();
-
-                return;
-            }
-
-            this.#valueRequest = result;
-            this.#refresh();
-
-            const response = await result;
-
-            if (this.node && id === this.#valueRequestId) {
-                this.#parseData(response.results);
-                this.#setValue(requested);
-            }
-        } catch {
-            // A failed value lookup preserves the previous selection.
-        } finally {
-            if (this.node && id === this.#valueRequestId) {
-                this.#valueRequest = null;
-            }
-        }
+        this.#fetchValue(requested, id);
     }
 
     /**
