@@ -29,16 +29,16 @@ function flattenItems(items) {
 * @returns {SelectMenuItem[]} The native data.
 */
 function getDomData(node) {
-	return [...node.children].filter((child) => child.matches("option, optgroup")).map((child) => {
-		if (child.matches("optgroup")) return {
+	return [...node.children].filter((child) => $.is(child, "option, optgroup")).map((child) => {
+		if ($.is(child, "optgroup")) return {
 			text: child.label,
 			disabled: child.disabled,
 			children: getDomData(child)
 		};
 		return {
 			...$.getDataset(child),
-			text: child.textContent,
-			value: child.value,
+			text: $.getText(child),
+			value: $.getValue(child),
 			disabled: child.disabled,
 			element: child
 		};
@@ -270,9 +270,9 @@ var SelectMenu = class extends BaseComponent {
 		if (!$.is(node, "select")) throw new Error("SelectMenu must be created on a select element");
 		super(node, options);
 		try {
-			this.#tabIndex = this.node.getAttribute("tabindex");
+			this.#tabIndex = $.getAttribute(this.node, "tabindex");
 			this.#hidden = $.hasClass(this.node, this.constructor.classes.hide);
-			this.#ariaHidden = this.node.getAttribute("aria-hidden");
+			this.#ariaHidden = $.getAttribute(this.node, "aria-hidden");
 			this.#multiple = this.node.multiple;
 			this.#value = this.#multiple ? [] : null;
 			this.#maxSelections = Math.max(0, Number(this.options.maxSelections) || 0);
@@ -305,7 +305,7 @@ var SelectMenu = class extends BaseComponent {
 	* Disables the SelectMenu.
 	*/
 	disable() {
-		this.node.disabled = true;
+		$.setProperty(this.node, { disabled: true });
 		this.#refreshDisabled();
 		this.hide();
 	}
@@ -325,8 +325,8 @@ var SelectMenu = class extends BaseComponent {
 		if (this.#form && this.#resetHandler) $.removeEvent(this.#form, "reset.ui.selectmenu", this.#resetHandler);
 		if (this.#hidden) $.addClass(this.node, this.constructor.classes.hide);
 		else $.removeClass(this.node, this.constructor.classes.hide);
-		for (const [name, value] of [["tabindex", this.#tabIndex], ["aria-hidden", this.#ariaHidden]]) if (value === null) this.node.removeAttribute(name);
-		else this.node.setAttribute(name, value);
+		for (const [name, value] of [["tabindex", this.#tabIndex], ["aria-hidden", this.#ariaHidden]]) if (value === null) $.removeAttribute(this.node, name);
+		else $.setAttribute(this.node, { [name]: value });
 		$.remove(this.#menuNode);
 		$.remove(this.#container);
 		this.#activeItems = [];
@@ -354,7 +354,7 @@ var SelectMenu = class extends BaseComponent {
 	* Enables the SelectMenu.
 	*/
 	enable() {
-		this.node.disabled = false;
+		$.setProperty(this.node, { disabled: false });
 		this.#refreshDisabled();
 	}
 	/**
@@ -387,14 +387,14 @@ var SelectMenu = class extends BaseComponent {
 		this.#refreshFocus();
 		this.#cancelSearch();
 		this.#scrollHandler.cancel();
-		this.#searchInput.value = "";
+		$.setValue(this.#searchInput, "");
 		this.#updateSearchWidth();
 		this.#focusItem(null);
 		$.setAttribute(this.#multiple ? this.#searchInput : this.#toggle, { "aria-expanded": false });
 		this.#refreshPlaceholder();
 		const id = ++this.#transitionId;
 		$.removeClass(this.#menuNode, "show");
-		waitForTransition(this.#menuNode, ["opacity"]).then((_) => {
+		waitForTransition(this.#menuNode, ["opacity"]).then(() => {
 			if (!this.node || id !== this.#transitionId) return;
 			this.#popper?.dispose();
 			this.#popper = null;
@@ -442,7 +442,7 @@ var SelectMenu = class extends BaseComponent {
 		$.css(this.#menuNode, "opacity");
 		$.addClass(this.#menuNode, "show");
 		$.setAttribute(this.#multiple ? this.#searchInput : this.#toggle, { "aria-expanded": true });
-		waitForTransition(this.#menuNode, ["opacity"]).then((_) => {
+		waitForTransition(this.#menuNode, ["opacity"]).then(() => {
 			if (this.node && id === this.#transitionId) $.triggerEvent(this.node, "shown.ui.selectmenu");
 		});
 	}
@@ -512,10 +512,10 @@ var SelectMenu = class extends BaseComponent {
 	* Attaches control events and native form synchronization.
 	*/
 	#events() {
-		this.#focusHandler = (_) => {
+		this.#focusHandler = () => {
 			$.focus(this.#multiple ? this.#searchInput : this.#toggle);
 		};
-		this.#changeHandler = (_) => {
+		this.#changeHandler = () => {
 			if (!this.#notifying) this.#loadValue(this.#readNativeValue());
 		};
 		$.addEvent(this.node, "focus.ui.selectmenu", this.#focusHandler);
@@ -523,7 +523,7 @@ var SelectMenu = class extends BaseComponent {
 		if (this.#form) {
 			this.#resetHandler = (event) => {
 				clearTimeout(this.#resetTimer);
-				this.#resetTimer = setTimeout((_) => {
+				this.#resetTimer = setTimeout(() => {
 					if (this.node && !event.defaultPrevented) {
 						const selected = this.node.selectedOptions[0];
 						if (!this.#multiple && this.#generatedOptions.has(selected) && !selected.defaultSelected) this.node.selectedIndex = -1;
@@ -538,9 +538,9 @@ var SelectMenu = class extends BaseComponent {
 			if (this.#open && !this.#container.contains(event.target) && !this.#menuNode.contains(event.target)) this.hide();
 		};
 		$.addEvent(this.node.ownerDocument, "mousedown.ui.selectmenu", this.#documentHandler);
-		$.addEvent([this.#container, this.#menuNode], "focusin.ui.selectmenu", (_) => this.#refreshFocus());
-		$.addEvent([this.#container, this.#menuNode], "focusout.ui.selectmenu", (_) => {
-			queueMicrotask((_) => {
+		$.addEvent([this.#container, this.#menuNode], "focusin.ui.selectmenu", () => this.#refreshFocus());
+		$.addEvent([this.#container, this.#menuNode], "focusout.ui.selectmenu", () => {
+			queueMicrotask(() => {
 				if (this.node && this.#open && !this.#container.contains(this.node.ownerDocument.activeElement) && !this.#menuNode.contains(this.node.ownerDocument.activeElement)) this.hide();
 				if (this.node) this.#refreshFocus();
 			});
@@ -549,13 +549,13 @@ var SelectMenu = class extends BaseComponent {
 			if (event.target !== this.#searchInput) event.preventDefault();
 		});
 		$.addEvent(this.#menuNode, "click.ui.selectmenu", (event) => event.stopPropagation());
-		$.addEventDelegate(this.#menuNode, "click.ui.selectmenu", "[data-ui-action=\"select\"]", (event) => this.#selectValue(event.currentTarget.dataset.uiValue));
+		$.addEventDelegate(this.#menuNode, "click.ui.selectmenu", "[data-ui-action=\"select\"]", (event) => this.#selectValue($.getAttribute(event.currentTarget, "data-ui-value")));
 		$.addEventDelegate(this.#itemsList, "mouseover.ui.selectmenu", "[data-ui-action=\"select\"]", (event) => this.#focusItem(event.currentTarget));
 		$.addEventDelegate(this.#container, "click.ui.selectmenu", "[data-ui-action=\"clear\"]", (event) => {
 			if ($.is(this.node, ":disabled")) return;
 			event.preventDefault();
 			event.stopPropagation();
-			const key = event.currentTarget.dataset.uiValue;
+			const key = $.getAttribute(event.currentTarget, "data-ui-value");
 			const value = this.#multiple ? this.#value.filter((item) => String(item) !== key) : null;
 			this.#cancelValueRequest();
 			this.#setValue(value, true);
@@ -574,7 +574,7 @@ var SelectMenu = class extends BaseComponent {
 				if (this.#open) $.focus(this.#searchInput);
 			}
 		});
-		$.addEvent(this.#searchInput, "input.ui.selectmenu", (_) => {
+		$.addEvent(this.#searchInput, "input.ui.selectmenu", () => {
 			if ($.is(this.node, ":disabled")) return;
 			this.#updateSearchWidth();
 			if (this.#multiple) this.#refreshPlaceholder();
@@ -591,18 +591,18 @@ var SelectMenu = class extends BaseComponent {
 				" "
 			].includes(event.key) || event.key.length === 1) {
 				event.preventDefault();
-				if (event.key.length === 1 && event.key !== " ") this.#searchInput.value = event.key;
+				if (event.key.length === 1 && event.key !== " ") $.setValue(this.#searchInput, event.key);
 				this.show();
 				if (this.#open) $.focus(this.#searchInput);
 			}
 		});
-		this.#scrollHandler = $._throttle((_) => {
+		this.#scrollHandler = $._throttle(() => {
 			if (!this.node || !this.#open || this.#loading || !this.#showMore) return;
 			const list = this.#itemsList;
 			if (list.scrollTop >= list.scrollHeight - list.clientHeight * 1.25) this.#load(this.#data.length);
 		}, 250, { leading: false });
 		$.addEvent(this.#itemsList, "scroll.ui.selectmenu", this.#scrollHandler);
-		this.#observer = new MutationObserver((_) => {
+		this.#observer = new MutationObserver(() => {
 			if (this.node) {
 				this.#refreshDisabled();
 				if ($.is(this.node, ":disabled")) this.hide();
@@ -711,13 +711,13 @@ var SelectMenu = class extends BaseComponent {
 	*/
 	#keydown(event) {
 		if ($.is(this.node, ":disabled") || event.isComposing) return;
-		if (event.key === "Backspace" && this.#multiple && !this.#searchInput.value && this.#value.length) {
+		if (event.key === "Backspace" && this.#multiple && !$.getValue(this.#searchInput) && this.#value.length) {
 			event.preventDefault();
 			const item = this.#lookup.get(String(this.#value.at(-1)));
 			this.#cancelValueRequest();
 			this.#setValue(this.#value.slice(0, -1), true);
 			if (this.node) {
-				this.#searchInput.value = item.text;
+				$.setValue(this.#searchInput, item.text);
 				this.#updateSearchWidth();
 				this.#refreshPlaceholder();
 				if (this.#open) this.#load();
@@ -740,7 +740,7 @@ var SelectMenu = class extends BaseComponent {
 			}
 			const active = $.findOne("[data-ui-focus]", this.#itemsList);
 			if (event.key === "Enter") {
-				if (active) this.#selectValue(active.dataset.uiValue);
+				if (active) this.#selectValue($.getAttribute(active, "data-ui-value"));
 			} else {
 				const index = this.#activeItems.indexOf(active);
 				const next = index < 0 ? 0 : index + (event.key === "ArrowDown" ? 1 : -1);
@@ -762,7 +762,7 @@ var SelectMenu = class extends BaseComponent {
 			this.#clearResults();
 			this.#showMore = false;
 		} else $.remove($.children(this.#itemsList, "[role=\"status\"]"));
-		const term = this.#searchInput.value;
+		const term = $.getValue(this.#searchInput);
 		if (term.length < this.options.minSearch) {
 			if (this.#multiple) $.hide(this.#menuNode);
 			this.update();
@@ -811,7 +811,7 @@ var SelectMenu = class extends BaseComponent {
 			if (Array.isArray(source.children)) item.children = this.#parseData(source.children, item.disabled);
 			else {
 				const key = String(item.value);
-				item.element = source.element || this.#lookup.get(key)?.element || [...this.node.options].find((option) => option.value === key);
+				item.element = source.element || this.#lookup.get(key)?.element || [...this.node.options].find((option) => $.getValue(option) === key);
 				if (!item.element) {
 					item.element = $.create("option", {
 						text: item.text,
@@ -819,7 +819,7 @@ var SelectMenu = class extends BaseComponent {
 					});
 					this.#generatedOptions.add(item.element);
 				}
-				if (this.#generatedOptions.has(item.element)) item.element.disabled = item.disabled;
+				if (this.#generatedOptions.has(item.element)) $.setProperty(item.element, { disabled: item.disabled });
 				this.#lookup.set(key, item);
 			}
 			return item;
@@ -831,7 +831,7 @@ var SelectMenu = class extends BaseComponent {
 	*/
 	#readNativeValue() {
 		for (const item of flattenItems(getDomData(this.node))) if (!this.#lookup.has(String(item.value))) this.#lookup.set(String(item.value), item);
-		const values = [...this.node.selectedOptions].map((option) => option.value);
+		const values = [...this.node.selectedOptions].map((option) => $.getValue(option));
 		return this.#multiple ? values : values[0] ?? null;
 	}
 	/**
@@ -853,13 +853,13 @@ var SelectMenu = class extends BaseComponent {
 		const disabled = $.is(this.node, ":disabled");
 		if (disabled) $.addClass(this.#toggle, this.constructor.classes.disabled);
 		else $.removeClass(this.#toggle, this.constructor.classes.disabled);
-		this.#searchInput.disabled = disabled;
-		if (!this.#multiple) this.#toggle.disabled = disabled;
-		for (const button of this.#container.querySelectorAll("[data-ui-action=\"clear\"]")) button.disabled = disabled;
+		$.setProperty(this.#searchInput, { disabled });
+		if (!this.#multiple) $.setProperty(this.#toggle, { disabled });
+		for (const button of $.find("[data-ui-action=\"clear\"]", this.#container)) $.setProperty(button, { disabled });
 		const control = this.#multiple ? this.#searchInput : this.#toggle;
 		control.tabIndex = disabled ? -1 : Number(this.#tabIndex ?? 0);
-		control.setAttribute("aria-disabled", String(disabled));
-		control.setAttribute("aria-required", String(this.node.required));
+		$.setAttribute(control, { "aria-disabled": String(disabled) });
+		$.setAttribute(control, { "aria-required": String(this.node.required) });
 		this.#refreshFocus();
 	}
 	/**
@@ -892,7 +892,7 @@ var SelectMenu = class extends BaseComponent {
 	*/
 	#refreshPlaceholder() {
 		$.remove($.children(this.#toggle, `.${this.constructor.classes.placeholder}`));
-		if ((this.#multiple ? !this.#value.length : this.#value === null) && !this.#searchInput.value) $.prepend(this.#toggle, $.create("span", {
+		if ((this.#multiple ? !this.#value.length : this.#value === null) && !$.getValue(this.#searchInput)) $.prepend(this.#toggle, $.create("span", {
 			class: this.constructor.classes.placeholder,
 			html: this.options.sanitize(this.#placeholderText || "&nbsp;")
 		}));
@@ -916,8 +916,8 @@ var SelectMenu = class extends BaseComponent {
 	#render() {
 		const classes = this.constructor.classes;
 		const id = generateId("selectmenu");
-		const labelledBy = this.node.getAttribute("aria-labelledby");
-		const label = this.node.getAttribute("aria-label") || [...this.node.labels].map((node) => node.textContent.trim()).join(" ");
+		const labelledBy = $.getAttribute(this.node, "aria-labelledby");
+		const label = $.getAttribute(this.node, "aria-label") || [...this.node.labels].map((node) => $.getText(node).trim()).join(" ");
 		const attributes = {
 			"role": "combobox",
 			"aria-haspopup": "listbox",
@@ -929,7 +929,7 @@ var SelectMenu = class extends BaseComponent {
 			"aria-describedby",
 			"aria-errormessage",
 			"aria-invalid"
-		]) if (this.node.hasAttribute(name)) attributes[name] = this.node.getAttribute(name);
+		]) if ($.hasAttribute(this.node, name)) attributes[name] = $.getAttribute(this.node, name);
 		if (labelledBy) attributes["aria-labelledby"] = labelledBy;
 		else if (label) attributes["aria-label"] = label;
 		let toggleAttributes = {};
@@ -1120,7 +1120,7 @@ var SelectMenu = class extends BaseComponent {
 		if (this.#multiple) value = this.#value.some((entry) => String(entry) === key) ? this.#value.filter((entry) => String(entry) !== key) : [...this.#value, item.value];
 		this.#setValue(value, true);
 		if (!this.node) return;
-		this.#searchInput.value = "";
+		$.setValue(this.#searchInput, "");
 		this.#refreshPlaceholder();
 		this.#updateSearchWidth();
 		if (this.options.closeOnSelect) this.hide();
@@ -1144,7 +1144,7 @@ var SelectMenu = class extends BaseComponent {
 			if (!this.node.contains(element)) this.node.append(element);
 		}
 		const selected = new Set(values.map(String));
-		for (const option of this.node.options) option.selected = selected.has(option.value);
+		for (const option of this.node.options) $.setProperty(option, { selected: selected.has($.getValue(option)) });
 		if (!values.length) this.node.selectedIndex = -1;
 		this.#refresh();
 		if (this.#open && !notify) this.#load();
@@ -1163,7 +1163,7 @@ var SelectMenu = class extends BaseComponent {
 	#updateSearchWidth() {
 		if (!this.#multiple) return;
 		const span = $.create("span", {
-			text: this.#searchInput.value,
+			text: $.getValue(this.#searchInput),
 			style: {
 				position: "absolute",
 				visibility: "hidden",

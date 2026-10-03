@@ -38,9 +38,9 @@ export function flattenItems(items) {
  */
 export function getDomData(node) {
     return [...node.children]
-        .filter((child) => child.matches('option, optgroup'))
+        .filter((child) => $.is(child, 'option, optgroup'))
         .map((child) => {
-            if (child.matches('optgroup')) {
+            if ($.is(child, 'optgroup')) {
                 return {
                     text: child.label,
                     disabled: child.disabled,
@@ -50,8 +50,8 @@ export function getDomData(node) {
 
             return {
                 ...$.getDataset(child),
-                text: child.textContent,
-                value: child.value,
+                text: $.getText(child),
+                value: $.getValue(child),
                 disabled: child.disabled,
                 element: child,
             };

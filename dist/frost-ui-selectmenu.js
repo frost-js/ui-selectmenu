@@ -61,16 +61,16 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 	* @returns {SelectMenuItem[]} The native data.
 	*/
 	function getDomData(node) {
-		return [...node.children].filter((child) => child.matches("option, optgroup")).map((child) => {
-			if (child.matches("optgroup")) return {
+		return [...node.children].filter((child) => _fr0st_query.default.is(child, "option, optgroup")).map((child) => {
+			if (_fr0st_query.default.is(child, "optgroup")) return {
 				text: child.label,
 				disabled: child.disabled,
 				children: getDomData(child)
 			};
 			return {
 				..._fr0st_query.default.getDataset(child),
-				text: child.textContent,
-				value: child.value,
+				text: _fr0st_query.default.getText(child),
+				value: _fr0st_query.default.getValue(child),
 				disabled: child.disabled,
 				element: child
 			};
@@ -302,9 +302,9 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 			if (!_fr0st_query.default.is(node, "select")) throw new Error("SelectMenu must be created on a select element");
 			super(node, options);
 			try {
-				this.#tabIndex = this.node.getAttribute("tabindex");
+				this.#tabIndex = _fr0st_query.default.getAttribute(this.node, "tabindex");
 				this.#hidden = _fr0st_query.default.hasClass(this.node, this.constructor.classes.hide);
-				this.#ariaHidden = this.node.getAttribute("aria-hidden");
+				this.#ariaHidden = _fr0st_query.default.getAttribute(this.node, "aria-hidden");
 				this.#multiple = this.node.multiple;
 				this.#value = this.#multiple ? [] : null;
 				this.#maxSelections = Math.max(0, Number(this.options.maxSelections) || 0);
@@ -337,7 +337,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 		* Disables the SelectMenu.
 		*/
 		disable() {
-			this.node.disabled = true;
+			_fr0st_query.default.setProperty(this.node, { disabled: true });
 			this.#refreshDisabled();
 			this.hide();
 		}
@@ -357,8 +357,8 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 			if (this.#form && this.#resetHandler) _fr0st_query.default.removeEvent(this.#form, "reset.ui.selectmenu", this.#resetHandler);
 			if (this.#hidden) _fr0st_query.default.addClass(this.node, this.constructor.classes.hide);
 			else _fr0st_query.default.removeClass(this.node, this.constructor.classes.hide);
-			for (const [name, value] of [["tabindex", this.#tabIndex], ["aria-hidden", this.#ariaHidden]]) if (value === null) this.node.removeAttribute(name);
-			else this.node.setAttribute(name, value);
+			for (const [name, value] of [["tabindex", this.#tabIndex], ["aria-hidden", this.#ariaHidden]]) if (value === null) _fr0st_query.default.removeAttribute(this.node, name);
+			else _fr0st_query.default.setAttribute(this.node, { [name]: value });
 			_fr0st_query.default.remove(this.#menuNode);
 			_fr0st_query.default.remove(this.#container);
 			this.#activeItems = [];
@@ -386,7 +386,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 		* Enables the SelectMenu.
 		*/
 		enable() {
-			this.node.disabled = false;
+			_fr0st_query.default.setProperty(this.node, { disabled: false });
 			this.#refreshDisabled();
 		}
 		/**
@@ -419,14 +419,14 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 			this.#refreshFocus();
 			this.#cancelSearch();
 			this.#scrollHandler.cancel();
-			this.#searchInput.value = "";
+			_fr0st_query.default.setValue(this.#searchInput, "");
 			this.#updateSearchWidth();
 			this.#focusItem(null);
 			_fr0st_query.default.setAttribute(this.#multiple ? this.#searchInput : this.#toggle, { "aria-expanded": false });
 			this.#refreshPlaceholder();
 			const id = ++this.#transitionId;
 			_fr0st_query.default.removeClass(this.#menuNode, "show");
-			(0, _fr0st_ui.waitForTransition)(this.#menuNode, ["opacity"]).then((_) => {
+			(0, _fr0st_ui.waitForTransition)(this.#menuNode, ["opacity"]).then(() => {
 				if (!this.node || id !== this.#transitionId) return;
 				this.#popper?.dispose();
 				this.#popper = null;
@@ -474,7 +474,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 			_fr0st_query.default.css(this.#menuNode, "opacity");
 			_fr0st_query.default.addClass(this.#menuNode, "show");
 			_fr0st_query.default.setAttribute(this.#multiple ? this.#searchInput : this.#toggle, { "aria-expanded": true });
-			(0, _fr0st_ui.waitForTransition)(this.#menuNode, ["opacity"]).then((_) => {
+			(0, _fr0st_ui.waitForTransition)(this.#menuNode, ["opacity"]).then(() => {
 				if (this.node && id === this.#transitionId) _fr0st_query.default.triggerEvent(this.node, "shown.ui.selectmenu");
 			});
 		}
@@ -544,10 +544,10 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 		* Attaches control events and native form synchronization.
 		*/
 		#events() {
-			this.#focusHandler = (_) => {
+			this.#focusHandler = () => {
 				_fr0st_query.default.focus(this.#multiple ? this.#searchInput : this.#toggle);
 			};
-			this.#changeHandler = (_) => {
+			this.#changeHandler = () => {
 				if (!this.#notifying) this.#loadValue(this.#readNativeValue());
 			};
 			_fr0st_query.default.addEvent(this.node, "focus.ui.selectmenu", this.#focusHandler);
@@ -555,7 +555,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 			if (this.#form) {
 				this.#resetHandler = (event) => {
 					clearTimeout(this.#resetTimer);
-					this.#resetTimer = setTimeout((_) => {
+					this.#resetTimer = setTimeout(() => {
 						if (this.node && !event.defaultPrevented) {
 							const selected = this.node.selectedOptions[0];
 							if (!this.#multiple && this.#generatedOptions.has(selected) && !selected.defaultSelected) this.node.selectedIndex = -1;
@@ -570,9 +570,9 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 				if (this.#open && !this.#container.contains(event.target) && !this.#menuNode.contains(event.target)) this.hide();
 			};
 			_fr0st_query.default.addEvent(this.node.ownerDocument, "mousedown.ui.selectmenu", this.#documentHandler);
-			_fr0st_query.default.addEvent([this.#container, this.#menuNode], "focusin.ui.selectmenu", (_) => this.#refreshFocus());
-			_fr0st_query.default.addEvent([this.#container, this.#menuNode], "focusout.ui.selectmenu", (_) => {
-				queueMicrotask((_) => {
+			_fr0st_query.default.addEvent([this.#container, this.#menuNode], "focusin.ui.selectmenu", () => this.#refreshFocus());
+			_fr0st_query.default.addEvent([this.#container, this.#menuNode], "focusout.ui.selectmenu", () => {
+				queueMicrotask(() => {
 					if (this.node && this.#open && !this.#container.contains(this.node.ownerDocument.activeElement) && !this.#menuNode.contains(this.node.ownerDocument.activeElement)) this.hide();
 					if (this.node) this.#refreshFocus();
 				});
@@ -581,13 +581,13 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 				if (event.target !== this.#searchInput) event.preventDefault();
 			});
 			_fr0st_query.default.addEvent(this.#menuNode, "click.ui.selectmenu", (event) => event.stopPropagation());
-			_fr0st_query.default.addEventDelegate(this.#menuNode, "click.ui.selectmenu", "[data-ui-action=\"select\"]", (event) => this.#selectValue(event.currentTarget.dataset.uiValue));
+			_fr0st_query.default.addEventDelegate(this.#menuNode, "click.ui.selectmenu", "[data-ui-action=\"select\"]", (event) => this.#selectValue(_fr0st_query.default.getAttribute(event.currentTarget, "data-ui-value")));
 			_fr0st_query.default.addEventDelegate(this.#itemsList, "mouseover.ui.selectmenu", "[data-ui-action=\"select\"]", (event) => this.#focusItem(event.currentTarget));
 			_fr0st_query.default.addEventDelegate(this.#container, "click.ui.selectmenu", "[data-ui-action=\"clear\"]", (event) => {
 				if (_fr0st_query.default.is(this.node, ":disabled")) return;
 				event.preventDefault();
 				event.stopPropagation();
-				const key = event.currentTarget.dataset.uiValue;
+				const key = _fr0st_query.default.getAttribute(event.currentTarget, "data-ui-value");
 				const value = this.#multiple ? this.#value.filter((item) => String(item) !== key) : null;
 				this.#cancelValueRequest();
 				this.#setValue(value, true);
@@ -606,7 +606,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 					if (this.#open) _fr0st_query.default.focus(this.#searchInput);
 				}
 			});
-			_fr0st_query.default.addEvent(this.#searchInput, "input.ui.selectmenu", (_) => {
+			_fr0st_query.default.addEvent(this.#searchInput, "input.ui.selectmenu", () => {
 				if (_fr0st_query.default.is(this.node, ":disabled")) return;
 				this.#updateSearchWidth();
 				if (this.#multiple) this.#refreshPlaceholder();
@@ -623,18 +623,18 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 					" "
 				].includes(event.key) || event.key.length === 1) {
 					event.preventDefault();
-					if (event.key.length === 1 && event.key !== " ") this.#searchInput.value = event.key;
+					if (event.key.length === 1 && event.key !== " ") _fr0st_query.default.setValue(this.#searchInput, event.key);
 					this.show();
 					if (this.#open) _fr0st_query.default.focus(this.#searchInput);
 				}
 			});
-			this.#scrollHandler = _fr0st_query.default._throttle((_) => {
+			this.#scrollHandler = _fr0st_query.default._throttle(() => {
 				if (!this.node || !this.#open || this.#loading || !this.#showMore) return;
 				const list = this.#itemsList;
 				if (list.scrollTop >= list.scrollHeight - list.clientHeight * 1.25) this.#load(this.#data.length);
 			}, 250, { leading: false });
 			_fr0st_query.default.addEvent(this.#itemsList, "scroll.ui.selectmenu", this.#scrollHandler);
-			this.#observer = new MutationObserver((_) => {
+			this.#observer = new MutationObserver(() => {
 				if (this.node) {
 					this.#refreshDisabled();
 					if (_fr0st_query.default.is(this.node, ":disabled")) this.hide();
@@ -743,13 +743,13 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 		*/
 		#keydown(event) {
 			if (_fr0st_query.default.is(this.node, ":disabled") || event.isComposing) return;
-			if (event.key === "Backspace" && this.#multiple && !this.#searchInput.value && this.#value.length) {
+			if (event.key === "Backspace" && this.#multiple && !_fr0st_query.default.getValue(this.#searchInput) && this.#value.length) {
 				event.preventDefault();
 				const item = this.#lookup.get(String(this.#value.at(-1)));
 				this.#cancelValueRequest();
 				this.#setValue(this.#value.slice(0, -1), true);
 				if (this.node) {
-					this.#searchInput.value = item.text;
+					_fr0st_query.default.setValue(this.#searchInput, item.text);
 					this.#updateSearchWidth();
 					this.#refreshPlaceholder();
 					if (this.#open) this.#load();
@@ -772,7 +772,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 				}
 				const active = _fr0st_query.default.findOne("[data-ui-focus]", this.#itemsList);
 				if (event.key === "Enter") {
-					if (active) this.#selectValue(active.dataset.uiValue);
+					if (active) this.#selectValue(_fr0st_query.default.getAttribute(active, "data-ui-value"));
 				} else {
 					const index = this.#activeItems.indexOf(active);
 					const next = index < 0 ? 0 : index + (event.key === "ArrowDown" ? 1 : -1);
@@ -794,7 +794,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 				this.#clearResults();
 				this.#showMore = false;
 			} else _fr0st_query.default.remove(_fr0st_query.default.children(this.#itemsList, "[role=\"status\"]"));
-			const term = this.#searchInput.value;
+			const term = _fr0st_query.default.getValue(this.#searchInput);
 			if (term.length < this.options.minSearch) {
 				if (this.#multiple) _fr0st_query.default.hide(this.#menuNode);
 				this.update();
@@ -843,7 +843,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 				if (Array.isArray(source.children)) item.children = this.#parseData(source.children, item.disabled);
 				else {
 					const key = String(item.value);
-					item.element = source.element || this.#lookup.get(key)?.element || [...this.node.options].find((option) => option.value === key);
+					item.element = source.element || this.#lookup.get(key)?.element || [...this.node.options].find((option) => _fr0st_query.default.getValue(option) === key);
 					if (!item.element) {
 						item.element = _fr0st_query.default.create("option", {
 							text: item.text,
@@ -851,7 +851,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 						});
 						this.#generatedOptions.add(item.element);
 					}
-					if (this.#generatedOptions.has(item.element)) item.element.disabled = item.disabled;
+					if (this.#generatedOptions.has(item.element)) _fr0st_query.default.setProperty(item.element, { disabled: item.disabled });
 					this.#lookup.set(key, item);
 				}
 				return item;
@@ -863,7 +863,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 		*/
 		#readNativeValue() {
 			for (const item of flattenItems(getDomData(this.node))) if (!this.#lookup.has(String(item.value))) this.#lookup.set(String(item.value), item);
-			const values = [...this.node.selectedOptions].map((option) => option.value);
+			const values = [...this.node.selectedOptions].map((option) => _fr0st_query.default.getValue(option));
 			return this.#multiple ? values : values[0] ?? null;
 		}
 		/**
@@ -885,13 +885,13 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 			const disabled = _fr0st_query.default.is(this.node, ":disabled");
 			if (disabled) _fr0st_query.default.addClass(this.#toggle, this.constructor.classes.disabled);
 			else _fr0st_query.default.removeClass(this.#toggle, this.constructor.classes.disabled);
-			this.#searchInput.disabled = disabled;
-			if (!this.#multiple) this.#toggle.disabled = disabled;
-			for (const button of this.#container.querySelectorAll("[data-ui-action=\"clear\"]")) button.disabled = disabled;
+			_fr0st_query.default.setProperty(this.#searchInput, { disabled });
+			if (!this.#multiple) _fr0st_query.default.setProperty(this.#toggle, { disabled });
+			for (const button of _fr0st_query.default.find("[data-ui-action=\"clear\"]", this.#container)) _fr0st_query.default.setProperty(button, { disabled });
 			const control = this.#multiple ? this.#searchInput : this.#toggle;
 			control.tabIndex = disabled ? -1 : Number(this.#tabIndex ?? 0);
-			control.setAttribute("aria-disabled", String(disabled));
-			control.setAttribute("aria-required", String(this.node.required));
+			_fr0st_query.default.setAttribute(control, { "aria-disabled": String(disabled) });
+			_fr0st_query.default.setAttribute(control, { "aria-required": String(this.node.required) });
 			this.#refreshFocus();
 		}
 		/**
@@ -924,7 +924,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 		*/
 		#refreshPlaceholder() {
 			_fr0st_query.default.remove(_fr0st_query.default.children(this.#toggle, `.${this.constructor.classes.placeholder}`));
-			if ((this.#multiple ? !this.#value.length : this.#value === null) && !this.#searchInput.value) _fr0st_query.default.prepend(this.#toggle, _fr0st_query.default.create("span", {
+			if ((this.#multiple ? !this.#value.length : this.#value === null) && !_fr0st_query.default.getValue(this.#searchInput)) _fr0st_query.default.prepend(this.#toggle, _fr0st_query.default.create("span", {
 				class: this.constructor.classes.placeholder,
 				html: this.options.sanitize(this.#placeholderText || "&nbsp;")
 			}));
@@ -948,8 +948,8 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 		#render() {
 			const classes = this.constructor.classes;
 			const id = (0, _fr0st_ui.generateId)("selectmenu");
-			const labelledBy = this.node.getAttribute("aria-labelledby");
-			const label = this.node.getAttribute("aria-label") || [...this.node.labels].map((node) => node.textContent.trim()).join(" ");
+			const labelledBy = _fr0st_query.default.getAttribute(this.node, "aria-labelledby");
+			const label = _fr0st_query.default.getAttribute(this.node, "aria-label") || [...this.node.labels].map((node) => _fr0st_query.default.getText(node).trim()).join(" ");
 			const attributes = {
 				"role": "combobox",
 				"aria-haspopup": "listbox",
@@ -961,7 +961,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 				"aria-describedby",
 				"aria-errormessage",
 				"aria-invalid"
-			]) if (this.node.hasAttribute(name)) attributes[name] = this.node.getAttribute(name);
+			]) if (_fr0st_query.default.hasAttribute(this.node, name)) attributes[name] = _fr0st_query.default.getAttribute(this.node, name);
 			if (labelledBy) attributes["aria-labelledby"] = labelledBy;
 			else if (label) attributes["aria-label"] = label;
 			let toggleAttributes = {};
@@ -1152,7 +1152,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 			if (this.#multiple) value = this.#value.some((entry) => String(entry) === key) ? this.#value.filter((entry) => String(entry) !== key) : [...this.#value, item.value];
 			this.#setValue(value, true);
 			if (!this.node) return;
-			this.#searchInput.value = "";
+			_fr0st_query.default.setValue(this.#searchInput, "");
 			this.#refreshPlaceholder();
 			this.#updateSearchWidth();
 			if (this.options.closeOnSelect) this.hide();
@@ -1176,7 +1176,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 				if (!this.node.contains(element)) this.node.append(element);
 			}
 			const selected = new Set(values.map(String));
-			for (const option of this.node.options) option.selected = selected.has(option.value);
+			for (const option of this.node.options) _fr0st_query.default.setProperty(option, { selected: selected.has(_fr0st_query.default.getValue(option)) });
 			if (!values.length) this.node.selectedIndex = -1;
 			this.#refresh();
 			if (this.#open && !notify) this.#load();
@@ -1195,7 +1195,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 		#updateSearchWidth() {
 			if (!this.#multiple) return;
 			const span = _fr0st_query.default.create("span", {
-				text: this.#searchInput.value,
+				text: _fr0st_query.default.getValue(this.#searchInput),
 				style: {
 					position: "absolute",
 					visibility: "hidden",
