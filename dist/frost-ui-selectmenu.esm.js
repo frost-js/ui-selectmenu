@@ -642,7 +642,7 @@ var SelectMenu = class extends BaseComponent {
 				$.remove($.children(this.#itemsList, "[role=\"status\"]"));
 				this.#data.push(...data);
 			}
-			this.#showMore = !!response.showMore && data.length > 0;
+			this.#showMore = Boolean(response.showMore) && data.length > 0;
 			this.#renderResults(data);
 			if (this.#showMore && this.#itemsList.scrollHeight <= this.#itemsList.clientHeight) this.#scrollHandler();
 		} catch {
@@ -806,7 +806,7 @@ var SelectMenu = class extends BaseComponent {
 			const item = {
 				...source,
 				text: String(source.text ?? source.value ?? ""),
-				disabled: disabled || !!source.disabled
+				disabled: disabled || Boolean(source.disabled)
 			};
 			if (Array.isArray(source.children)) item.children = this.#parseData(source.children, item.disabled);
 			else {
