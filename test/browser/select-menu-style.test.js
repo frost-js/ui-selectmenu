@@ -2,11 +2,13 @@ import { expect, test } from '#test';
 
 test.describe('SelectMenu styles', () => {
     test.beforeEach(async ({ page }) => {
-        await page.evaluate((_) => {
-            document.body.innerHTML = '<button id="outside">Outside</button><div id="host" style="width:260px">' +
+        await page.evaluate(() => {
+            $.setHtml(document.body,
+                '<button id="outside">Outside</button><div id="host" style="width:260px">' +
                 '<label for="select">Fruit</label><select id="select" class="input-outline">' +
                 '<optgroup label="Fruit"><option value="a">Apple</option><option value="b">Banana</option>' +
-                '</optgroup></select></div>';
+                '</optgroup></select></div>',
+            );
         });
     });
 
@@ -20,21 +22,21 @@ test.describe('SelectMenu styles', () => {
                 test.describe(`${style}, size=${size || 'default'}`, () => {
                     test.beforeEach(async ({ page }) => {
                         await page.evaluate(({ style, size }) => {
-                            const node = document.querySelector('#select');
-                            node.className = `input-${style}${size ? ` input-${size}` : ''}`;
+                            const node = $.findOne('#select');
+                            $.setAttribute(node, 'class', `input-${style}${size ? ` input-${size}` : ''}`);
                             node.selectedIndex = -1;
-                            const reference = document.createElement('input');
-                            reference.id = 'reference';
-                            reference.className = node.className;
-                            document.querySelector('#host').append(reference);
+                            const reference = $.create('input');
+                            $.setProperty(reference, 'id', 'reference');
+                            $.setAttribute(reference, 'class', $.getProperty(node, 'className'));
+                            $.append($.findOne('#host'), reference);
                         }, { style, size });
                     });
 
                     for (const multiple of [false, true]) {
                         test(`matches UI control and menu sizing (multiple=${multiple})`, async ({ page }) => {
                             await page.evaluate((multiple) => {
-                                const node = document.querySelector('#select');
-                                node.multiple = multiple;
+                                const node = $.findOne('#select');
+                                $.setProperty(node, 'multiple', multiple);
                                 UI.SelectMenu.init(node, { placeholder: 'Choose fruit' });
                             }, multiple);
 
@@ -53,20 +55,20 @@ test.describe('SelectMenu styles', () => {
                     }
 
                     test('matches the single-select search font size', async ({ page }) => {
-                        await page.evaluate((_) => UI.SelectMenu.init(document.querySelector('#select')));
+                        await page.evaluate(() => UI.SelectMenu.init($.findOne('#select')));
                         await page.getByRole('combobox').click();
 
                         await expect(page.getByRole('searchbox')).toHaveCSS('font-size', fontSize);
                     });
 
                     test('keeps a multiple selection at the UI input height', async ({ page }) => {
-                        await page.evaluate((_) => {
-                            const node = document.querySelector('#select');
-                            node.multiple = true;
+                        await page.evaluate(() => {
+                            const node = $.findOne('#select');
+                            $.setProperty(node, 'multiple', true);
                             UI.SelectMenu.init(node, { placeholder: 'Choose fruit' });
                         });
                         await page.getByRole('combobox').click();
-                        await page.evaluate((_) => $('#select').selectmenu('setValue', ['a']));
+                        await page.evaluate(() => $('#select').selectmenu('setValue', ['a']));
 
                         const height = await page.locator('#reference').evaluate((node) => getComputedStyle(node).height);
                         await expect(page.locator('.selectmenu-multi')).toHaveCSS('height', height);
@@ -80,8 +82,8 @@ test.describe('SelectMenu styles', () => {
         for (const direction of ['ltr', 'rtl']) {
             test(`keeps the clear control beside a long selection (${direction})`, async ({ page }) => {
                 await page.evaluate((direction) => {
-                    const node = document.querySelector('#select');
-                    node.dir = direction;
+                    const node = $.findOne('#select');
+                    $.setProperty(node, 'dir', direction);
                     node.options[0].text = 'An extremely long selected label that must fit inside the control';
                     UI.SelectMenu.init(node, { allowClear: true });
                 }, direction);
@@ -104,10 +106,10 @@ test.describe('SelectMenu styles', () => {
 
             test(`keeps multiple-selection chips inside narrow controls (${direction})`, async ({ page }) => {
                 await page.evaluate((direction) => {
-                    const node = document.querySelector('#select');
-                    node.dir = direction;
+                    const node = $.findOne('#select');
+                    $.setProperty(node, 'dir', direction);
                     node.options[0].text = 'An extremely long selected label that must fit inside the control';
-                    node.multiple = true;
+                    $.setProperty(node, 'multiple', true);
                     UI.SelectMenu.init(node).setValue(['a', 'b']);
                 }, direction);
                 await expect(page.locator('.selectmenu-multi')).toHaveCSS('direction', direction);
@@ -123,9 +125,9 @@ test.describe('SelectMenu styles', () => {
         for (const display of ['grid', 'flex']) {
             test(`measures search text independently of a ${display} page layout`, async ({ page }) => {
                 await page.evaluate((display) => {
-                    document.body.style.cssText = `display:${display};grid-template-columns:320px`;
-                    const node = document.querySelector('#select');
-                    node.multiple = true;
+                    $.setAttribute(document.body, 'style', `display:${display};grid-template-columns:320px`);
+                    const node = $.findOne('#select');
+                    $.setProperty(node, 'multiple', true);
                     UI.SelectMenu.init(node).setValue('a');
                 }, display);
                 await expect(page.getByRole('combobox')).toHaveCSS('width', '20px');
@@ -138,9 +140,9 @@ test.describe('SelectMenu styles', () => {
         }
 
         test('restores the multiple control size after clearing a long search', async ({ page }) => {
-            await page.evaluate((_) => {
-                const node = document.querySelector('#select');
-                node.multiple = true;
+            await page.evaluate(() => {
+                const node = $.findOne('#select');
+                $.setProperty(node, 'multiple', true);
                 node.selectedIndex = -1;
                 UI.SelectMenu.init(node, { placeholder: 'Choose fruit' });
             });
@@ -159,7 +161,7 @@ test.describe('SelectMenu styles', () => {
 
     test.describe('menu sizing and overflow', () => {
         test('wraps long results and constrains the scrollable menu', async ({ page }) => {
-            await page.evaluate((_) => UI.SelectMenu.init(document.querySelector('#select'), {
+            await page.evaluate(() => UI.SelectMenu.init($.findOne('#select'), {
                 fullWidth: true, maxHeight: '70px',
                 data: Array.from({ length: 10 }, (_, value) => ({ value, text: `An unbroken label ${'x'.repeat(200)}` })),
             }).show());
@@ -175,11 +177,11 @@ test.describe('SelectMenu styles', () => {
             test.describe(`${style}, nested=${nested}`, () => {
                 test.beforeEach(async ({ page }) => {
                     await page.evaluate(({ style, nested }) => {
-                        const host = document.querySelector('#host');
+                        const host = $.findOne('#host');
                         const select = `<select id="select" class="input-${style} input-floating"><option>Apple</option></select>`;
                         const field = nested ? `<div class="form-input">${select}<label for="select" class="label-floating">Fruit</label></div>` : select;
-                        host.innerHTML = `<div class="input-group input-group-sm"><span class="input-group-text">@</span>${field}<button class="btn">Go</button></div>`;
-                        UI.SelectMenu.init(document.querySelector('#select'), { allowClear: true });
+                        $.setHtml(host, `<div class="input-group input-group-sm"><span class="input-group-text">@</span>${field}<button class="btn">Go</button></div>`);
+                        UI.SelectMenu.init($.findOne('#select'), { allowClear: true });
                     }, { style, nested });
                 });
 
@@ -223,10 +225,12 @@ test.describe('SelectMenu styles', () => {
         }
 
         test('retains the starting radius when the native select is the first input-group child', async ({ page }) => {
-            await page.evaluate((_) => {
-                document.querySelector('#host').innerHTML = '<div class="input-group"><select id="select" class="input-outline">' +
-                    '<option>Apple</option></select><button class="btn">Go</button></div>';
-                UI.SelectMenu.init(document.querySelector('#select'));
+            await page.evaluate(() => {
+                $.setHtml($.findOne('#host'),
+                    '<div class="input-group"><select id="select" class="input-outline">' +
+                    '<option>Apple</option></select><button class="btn">Go</button></div>',
+                );
+                UI.SelectMenu.init($.findOne('#select'));
             });
             const radius = await page.locator('.input-group').evaluate((node) => getComputedStyle(node).borderTopLeftRadius);
             await expect(page.getByRole('combobox')).toHaveCSS('border-top-left-radius', radius);
@@ -239,11 +243,11 @@ test.describe('SelectMenu styles', () => {
             for (const direction of ['ltr', 'rtl']) {
                 test(`preserves floating labels and input-group geometry during interaction (${style}, ${direction})`, async ({ page }) => {
                     await page.evaluate(({ style, direction }) => {
-                        document.querySelector('#host').innerHTML = `<div class="input-group" dir="${direction}">` +
+                        $.setHtml($.findOne('#host'), `<div class="input-group" dir="${direction}">` +
                             '<span class="input-group-text">Fruit</span><div class="form-input">' +
                             `<select id="select" class="input-${style} input-floating"><option>Apple</option></select>` +
-                            '<label for="select" class="label-floating">Favorite fruit</label></div></div>';
-                        UI.SelectMenu.init(document.querySelector('#select'));
+                            '<label for="select" class="label-floating">Favorite fruit</label></div></div>');
+                        UI.SelectMenu.init($.findOne('#select'));
                     }, { style, direction });
                     const control = page.getByRole('combobox');
                     const label = page.locator('.label-floating');
@@ -261,9 +265,9 @@ test.describe('SelectMenu styles', () => {
                             const range = document.createRange();
                             range.selectNodeContents(node);
                             const text = range.getBoundingClientRect();
-                            node.style.pointerEvents = 'auto';
+                            $.setStyle(node, 'pointerEvents', 'auto');
                             const visible = document.elementFromPoint(text.x + text.width / 2, text.y + text.height / 2) === node;
-                            node.style.removeProperty('pointer-events');
+                            $.removeStyle(node, 'pointer-events');
                             return visible;
                         })).toBe(true);
                     };
@@ -288,7 +292,7 @@ test.describe('SelectMenu styles', () => {
 
     test.describe('focus, disabled, and validation styling', () => {
         test('shows the UI focus ring when the clear control receives keyboard focus', async ({ page }) => {
-            await page.evaluate((_) => UI.SelectMenu.init(document.querySelector('#select'), { allowClear: true }));
+            await page.evaluate(() => UI.SelectMenu.init($.findOne('#select'), { allowClear: true }));
             await page.getByRole('combobox').focus();
             await page.keyboard.press('Tab');
             const clear = page.getByRole('button', { name: 'Remove selection' });
@@ -303,19 +307,19 @@ test.describe('SelectMenu styles', () => {
             test.describe(style, () => {
                 test.beforeEach(async ({ page }) => {
                     await page.evaluate((style) => {
-                        const node = document.querySelector('#select');
-                        node.className = `input-${style}`;
-                        node.multiple = true;
+                        const node = $.findOne('#select');
+                        $.setAttribute(node, 'class', `input-${style}`);
+                        $.setProperty(node, 'multiple', true);
                         UI.SelectMenu.init(node);
-                        const reference = document.createElement('input');
-                        reference.id = 'reference';
-                        reference.className = `input-${style}`;
-                        document.querySelector('#host').append(reference);
+                        const reference = $.create('input');
+                        $.setProperty(reference, 'id', 'reference');
+                        $.setAttribute(reference, 'class', `input-${style}`);
+                        $.append($.findOne('#host'), reference);
                     }, style);
                 });
 
                 test('matches UI focus styling and clears focus on blur', async ({ page }) => {
-                    await page.evaluate((_) => document.querySelector('#reference').classList.add('focus'));
+                    await page.evaluate(() => $.addClass($.findOne('#reference'), 'focus'));
                     await page.getByRole('combobox').focus();
 
                     const toggle = page.locator('.selectmenu-multi');
@@ -328,7 +332,7 @@ test.describe('SelectMenu styles', () => {
                 });
 
                 test('matches UI validation styling', async ({ page }) => {
-                    await page.evaluate((_) => document.querySelector('#host').classList.add('form-error'));
+                    await page.evaluate(() => $.addClass($.findOne('#host'), 'form-error'));
 
                     for (const property of ['background-color', 'border-color']) {
                         const value = await page.locator('#reference').evaluate((node, property) => getComputedStyle(node).getPropertyValue(property), property);
@@ -339,9 +343,9 @@ test.describe('SelectMenu styles', () => {
                 for (const invalid of [false, true]) {
                     test(`matches UI disabled styling (invalid=${invalid})`, async ({ page }) => {
                         await page.evaluate((invalid) => {
-                            document.querySelector('#host').classList.toggle('form-error', invalid);
+                            $.findOne('#host').classList.toggle('form-error', invalid);
                             $('#select').selectmenu('disable');
-                            document.querySelector('#reference').disabled = true;
+                            $.setProperty($.findOne('#reference'), 'disabled', true);
                         }, invalid);
 
                         await expect(page.getByRole('combobox')).toBeDisabled();
@@ -355,21 +359,21 @@ test.describe('SelectMenu styles', () => {
 
     test.describe('attachment and positioning', () => {
         test('keeps an appended menu anchored when its reference container scrolls', async ({ page }) => {
-            await page.evaluate((_) => {
-                const node = document.querySelector('#select');
-                const scroller = document.createElement('div');
-                scroller.id = 'scroller';
-                scroller.style.cssText = 'overflow:auto;height:200px;width:300px;position:relative';
-                const content = document.createElement('div');
-                content.style.cssText = 'height:800px;padding-top:100px';
-                node.before(scroller);
-                scroller.append(content);
-                content.append(node);
+            await page.evaluate(() => {
+                const node = $.findOne('#select');
+                const scroller = $.create('div');
+                $.setProperty(scroller, 'id', 'scroller');
+                $.setAttribute(scroller, 'style', 'overflow:auto;height:200px;width:300px;position:relative');
+                const content = $.create('div');
+                $.setAttribute(content, 'style', 'height:800px;padding-top:100px');
+                $.before(node, scroller);
+                $.append(scroller, content);
+                $.append(content, node);
                 UI.SelectMenu.init(node, { appendTo: document.body, fullWidth: true, fixed: true, spacing: 8 }).show();
             });
             const before = await page.locator('.selectmenu-menu').boundingBox();
             await page.locator('#scroller').evaluate((node) => node.scrollTop = 40);
-            await expect.poll(async (_) => {
+            await expect.poll(async () => {
                 const menu = await page.locator('.selectmenu-menu').boundingBox();
                 return before.y - menu.y;
             }).toBeCloseTo(40, 0);
@@ -378,11 +382,11 @@ test.describe('SelectMenu styles', () => {
         for (const placement of ['top', 'bottom', 'start', 'end']) {
             test(`positions the menu ${placement} with the configured spacing`, async ({ page }) => {
                 await page.evaluate((placement) => {
-                    const node = document.querySelector('#select');
-                    const host = document.createElement('div');
-                    host.style.cssText = 'position:absolute;left:250px;top:250px;width:200px';
-                    node.before(host);
-                    host.append(node);
+                    const node = $.findOne('#select');
+                    const host = $.create('div');
+                    $.setAttribute(host, 'style', 'position:absolute;left:250px;top:250px;width:200px');
+                    $.before(node, host);
+                    $.append(host, node);
                     UI.SelectMenu.init(node, {
                         placement, position: 'center', fixed: true, spacing: 8, minContact: 20,
                         fullWidth: true, appendTo: document.body,
@@ -390,7 +394,7 @@ test.describe('SelectMenu styles', () => {
                 }, placement);
                 const menu = page.locator('.selectmenu-menu');
                 await expect(menu).toHaveAttribute('data-ui-placement', placement);
-                await expect.poll(async (_) => {
+                await expect.poll(async () => {
                     const result = await menu.boundingBox();
                     const control = await page.getByRole('combobox').boundingBox();
                     if (placement === 'top') {
@@ -405,9 +409,9 @@ test.describe('SelectMenu styles', () => {
         }
 
         test('preserves RTL grouping and fits within the viewport when appended to body', async ({ page }) => {
-            await page.evaluate((_) => {
-                document.querySelector('#select').dir = 'rtl';
-                UI.SelectMenu.init(document.querySelector('#select'), { appendTo: document.body }).show();
+            await page.evaluate(() => {
+                $.setProperty($.findOne('#select'), 'dir', 'rtl');
+                UI.SelectMenu.init($.findOne('#select'), { appendTo: document.body }).show();
             });
             const menu = page.locator('body > .selectmenu-menu');
             await expect(menu).toHaveCSS('direction', 'rtl');
@@ -419,10 +423,10 @@ test.describe('SelectMenu styles', () => {
         });
 
         test('positions logical start on the right of an RTL control', async ({ page }) => {
-            await page.evaluate((_) => {
-                document.querySelector('#host').style.cssText = 'position:absolute;left:250px;top:200px;width:200px';
-                const node = document.querySelector('#select');
-                node.dir = 'rtl';
+            await page.evaluate(() => {
+                $.setAttribute($.findOne('#host'), 'style', 'position:absolute;left:250px;top:200px;width:200px');
+                const node = $.findOne('#select');
+                $.setProperty(node, 'dir', 'rtl');
                 UI.SelectMenu.init(node, {
                     placement: 'start', fixed: true, spacing: 8, fullWidth: true, appendTo: document.body,
                 }).show();
@@ -435,15 +439,15 @@ test.describe('SelectMenu styles', () => {
 
     test.describe('modal integration', () => {
         test('keeps the menu usable inside a UI modal', async ({ page }) => {
-            await page.evaluate(async (_) => {
-                const host = document.querySelector('#host');
-                const modal = document.createElement('div');
-                modal.id = 'modal';
-                modal.className = 'modal';
-                modal.innerHTML = '<div class="modal-dialog"><div class="modal-content"><div class="modal-body"></div></div></div>';
-                modal.querySelector('.modal-body').append(host);
-                document.body.append(modal);
-                UI.SelectMenu.init(document.querySelector('#select'));
+            await page.evaluate(async () => {
+                const host = $.findOne('#host');
+                const modal = $.create('div');
+                $.setProperty(modal, 'id', 'modal');
+                $.setAttribute(modal, 'class', 'modal');
+                $.setHtml(modal, '<div class="modal-dialog"><div class="modal-content"><div class="modal-body"></div></div></div>');
+                $.append($.findOne('.modal-body', modal), host);
+                $.append(document.body, modal);
+                UI.SelectMenu.init($.findOne('#select'));
                 await new Promise((resolve) => {
                     $.addEventOnce(modal, 'shown.ui.modal', resolve);
                     UI.Modal.init(modal).show();
