@@ -528,8 +528,12 @@ var SelectMenu = class extends BaseComponent {
 			minContact: this.options.minContact
 		};
 		if (this.options.fullWidth) options.beforeUpdate = (node, reference) => {
-			const width = $.width(reference, { boxSize: $.BORDER_BOX });
-			$.setStyle(node, "width", `${width}px`);
+			const width = `${$.width(reference, { boxSize: $.BORDER_BOX })}px`;
+			$.setStyle(node, {
+				width,
+				minWidth: width,
+				maxWidth: width
+			});
 		};
 		this.#popper = new Popper(this.#menuNode, options);
 	}

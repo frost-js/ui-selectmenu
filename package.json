@@ -13,14 +13,14 @@
         "select",
         "ui"
     ],
-    "homepage": "https://github.com/elusivecodes/FrostUI-SelectMenu",
+    "homepage": "https://github.com/frost-js/ui-selectmenu",
     "bugs": {
-        "url": "https://github.com/elusivecodes/FrostUI-SelectMenu/issues",
+        "url": "https://github.com/frost-js/ui-selectmenu/issues",
         "email": "elusivecodes@gmail.com"
     },
     "repository": {
         "type": "git",
-        "url": "git+https://github.com/elusivecodes/FrostUI-SelectMenu.git"
+        "url": "git+https://github.com/frost-js/ui-selectmenu.git"
     },
     "license": "MIT",
     "author": "Elusive <elusivecodes@gmail.com>",

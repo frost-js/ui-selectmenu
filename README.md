@@ -1,12 +1,12 @@
 # Frost UI SelectMenu
 
-[![CI](https://github.com/elusivecodes/FrostUI-SelectMenu/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/elusivecodes/FrostUI-SelectMenu/actions/workflows/ci.yml)
-[![codecov](https://codecov.io/gh/elusivecodes/FrostUI-SelectMenu/branch/main/graph/badge.svg)](https://codecov.io/gh/elusivecodes/FrostUI-SelectMenu)
+[![CI](https://github.com/frost-js/ui-selectmenu/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/frost-js/ui-selectmenu/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/frost-js/ui-selectmenu/branch/main/graph/badge.svg)](https://codecov.io/gh/frost-js/ui-selectmenu)
 [![npm version](https://img.shields.io/npm/v/%40fr0st%2Fui-selectmenu?style=flat-square)](https://www.npmjs.com/package/@fr0st/ui-selectmenu)
 [![npm downloads](https://img.shields.io/npm/dm/%40fr0st%2Fui-selectmenu?style=flat-square)](https://www.npmjs.com/package/@fr0st/ui-selectmenu)
-[![JS gzip size](https://img.badgesize.io/elusivecodes/FrostUI-SelectMenu/main/dist/frost-ui-selectmenu.min.js?compression=gzip&label=JS%20gzip%20size&style=flat-square)](https://github.com/elusivecodes/FrostUI-SelectMenu/blob/main/dist/frost-ui-selectmenu.min.js)
-[![CSS gzip size](https://img.badgesize.io/elusivecodes/FrostUI-SelectMenu/main/dist/frost-ui-selectmenu.min.css?compression=gzip&label=CSS%20gzip%20size&style=flat-square)](https://github.com/elusivecodes/FrostUI-SelectMenu/blob/main/dist/frost-ui-selectmenu.min.css)
-[![license](https://img.shields.io/github/license/elusivecodes/FrostUI-SelectMenu?style=flat-square)](./LICENSE)
+[![JS gzip size](https://img.badgesize.io/frost-js/ui-selectmenu/main/dist/frost-ui-selectmenu.min.js?compression=gzip&label=JS%20gzip%20size&style=flat-square)](https://github.com/frost-js/ui-selectmenu/blob/main/dist/frost-ui-selectmenu.min.js)
+[![CSS gzip size](https://img.badgesize.io/frost-js/ui-selectmenu/main/dist/frost-ui-selectmenu.min.css?compression=gzip&label=CSS%20gzip%20size&style=flat-square)](https://github.com/frost-js/ui-selectmenu/blob/main/dist/frost-ui-selectmenu.min.css)
+[![license](https://img.shields.io/github/license/frost-js/ui-selectmenu?style=flat-square)](./LICENSE)
 
 Searchable single and multiple selects for Frost UI, with grouped options, asynchronous results, custom rendering, and native form integration.
 
@@ -459,12 +459,15 @@ Frost UI follows the user's preferred color scheme by default. Set `data-ui-them
 
 Load UI CSS before SelectMenu CSS. Apply `input-filled` or `input-outline` to the select, with optional `input-sm` / `input-lg`. Multiple mode uses the same classes. Floating labels, input groups, and modal-contained menus are demonstrated in [the demo](./demo/index.html).
 
+Menus size to their content with a default minimum width of `10rem`, bounded by the available width. Use `fullWidth: true` or `data-ui-full-width="true"` to match the control's width, overriding the minimum.
+
 The component uses UI theme tokens. UI follows the system theme unless `data-ui-theme="light"` or `data-ui-theme="dark"` is set on the document or an ancestor. Menus appended outside a scoped theme need that theme on their destination too.
 
 Customize the menu's CSS properties, for example:
 
 ```css
 .selectmenu-menu {
+    --ui-selectmenu-min-width: 12rem;
     --ui-selectmenu-item-padding-y: .5rem;
     --ui-selectmenu-group-color: var(--ui-primary);
 }

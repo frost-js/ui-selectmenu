@@ -160,6 +160,51 @@ test.describe('SelectMenu styles', () => {
     });
 
     test.describe('menu sizing and overflow', () => {
+        test('gives short multiple results a customizable minimum width', async ({ page }) => {
+            await page.evaluate(() => {
+                $.setProperty('#select', 'multiple', true);
+                $.setHtml('#select', '<option value="a">A</option>');
+                UI.SelectMenu.init($.findOne('#select')).show();
+            });
+            const menu = page.locator('.selectmenu-menu');
+            await expect(menu).toHaveCSS('width', '160px');
+            await page.evaluate(() => $.setStyle('.selectmenu-menu', '--ui-selectmenu-min-width', '200px'));
+            await expect(menu).toHaveCSS('width', '200px');
+        });
+
+        test('constrains the minimum width to the available space', async ({ page }) => {
+            await page.evaluate(() => {
+                $.setStyle('#host', { width: '100px', position: 'relative' });
+                $.setProperty('#select', 'multiple', true);
+                UI.SelectMenu.init($.findOne('#select')).show();
+            });
+            await expect(page.locator('.selectmenu-menu')).toHaveCSS('width', '100px');
+            await expect(page.getByRole('listbox')).toBeVisible();
+        });
+
+        for (const multiple of [false, true]) {
+            for (const appended of [false, true]) {
+                test(`matches narrow controls and resizing with fullWidth (multiple=${multiple}, appended=${appended})`, async ({ page }) => {
+                    await page.evaluate(({ multiple, appended }) => {
+                        $.setStyle('#host', 'width', '100px');
+                        $.setProperty('#select', 'multiple', multiple);
+                        UI.SelectMenu.init($.findOne('#select'), {
+                            fullWidth: true, appendTo: appended ? document.body : null,
+                        }).show();
+                    }, { multiple, appended });
+                    const menu = page.locator('.selectmenu-menu');
+                    await expect(menu).toHaveCSS('width', '100px');
+                    await page.evaluate(() => {
+                        $.setStyle('.selectmenu-menu', '--ui-selectmenu-min-width', '400px');
+                        $.setStyle('#host', 'width', '220px');
+                        $('#select').selectmenu('update');
+                    });
+                    await expect(menu).toHaveCSS('width', '220px');
+                    await expect(page.locator('.selectmenu-toggle, .selectmenu-multi')).toHaveCSS('width', '220px');
+                });
+            }
+        }
+
         test('wraps long results and constrains the scrollable menu', async ({ page }) => {
             await page.evaluate(() => UI.SelectMenu.init($.findOne('#select'), {
                 fullWidth: true, maxHeight: '70px',

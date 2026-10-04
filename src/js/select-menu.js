@@ -598,8 +598,9 @@ export default class SelectMenu extends BaseComponent {
 
         if (this.options.fullWidth) {
             options.beforeUpdate = (node, reference) => {
-                const width = $.width(reference, { boxSize: $.BORDER_BOX });
-                $.setStyle(node, 'width', `${width}px`);
+                const width = `${$.width(reference, { boxSize: $.BORDER_BOX })}px`;
+
+                $.setStyle(node, { width, minWidth: width, maxWidth: width });
             };
         }
 

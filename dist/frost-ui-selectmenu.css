@@ -90,6 +90,7 @@
 
 .selectmenu-menu {
   --ui-selectmenu-z-index: 1000;
+  --ui-selectmenu-min-width: 10rem;
   --ui-selectmenu-color: var(--ui-body-color);
   --ui-selectmenu-bg: var(--ui-body-bg);
   --ui-selectmenu-border-width: var(--ui-border-width);
@@ -107,6 +108,7 @@
   position: absolute;
   z-index: var(--ui-selectmenu-z-index);
   width: max-content;
+  min-width: min(var(--ui-selectmenu-min-width), 100%);
   max-width: 100%;
   padding: 0;
   margin: 0;
