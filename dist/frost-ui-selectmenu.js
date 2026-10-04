@@ -626,7 +626,48 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 				if (this.#open) this.#load();
 				else this.show();
 			});
-			_fr0st_query.default.addEvent(this.#searchInput, "keydown.ui.selectmenu", (event) => this.#keydown(event));
+			_fr0st_query.default.addEvent(this.#searchInput, "keydown.ui.selectmenu", (event) => {
+				if (_fr0st_query.default.is(this.node, ":disabled") || event.isComposing) return;
+				if (event.key === "Backspace" && this.#multiple && !_fr0st_query.default.getValue(this.#searchInput) && this.#value.length) {
+					event.preventDefault();
+					const item = this.#lookup.get(String(this.#value.at(-1)));
+					this.#cancelValueRequest();
+					this.#setValue(this.#value.slice(0, -1), true);
+					if (this.node) {
+						_fr0st_query.default.setValue(this.#searchInput, item.text);
+						this.#updateSearchWidth();
+						this.#refreshPlaceholder();
+						if (this.#open) this.#load();
+						else this.show();
+					}
+				} else if (event.key === "Escape" && this.#open) {
+					event.preventDefault();
+					event.stopPropagation();
+					this.hide();
+					if (this.node) _fr0st_query.default.focus(this.#multiple ? this.#searchInput : this.#toggle);
+				} else if ([
+					"ArrowDown",
+					"ArrowUp",
+					"Enter"
+				].includes(event.key)) {
+					event.preventDefault();
+					if (!this.#open) {
+						this.show();
+						return;
+					}
+					if (event.key === "Enter") {
+						if (this.#focusedItem) this.#selectValue(_fr0st_query.default.getAttribute(this.#focusedItem, "data-ui-value"));
+					} else {
+						const index = this.#activeItems.indexOf(this.#focusedItem);
+						const next = index < 0 ? 0 : index + (event.key === "ArrowDown" ? 1 : -1);
+						const option = this.#activeItems[next];
+						if (option) {
+							this.#focusItem(option);
+							_fr0st_query.default._callDomMethod(option, "scrollIntoView", { block: "nearest" });
+						}
+					}
+				}
+			});
 			if (!this.#multiple) _fr0st_query.default.addEvent(this.#toggle, "keydown.ui.selectmenu", (event) => {
 				if (_fr0st_query.default.is(this.node, ":disabled") || event.ctrlKey || event.altKey || event.metaKey || event.isComposing) return;
 				if ([
@@ -745,52 +786,6 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 		#getLocalResults(term) {
 			if (!term) return this.#data;
 			return flattenItems(this.#data).filter((item) => this.options.isMatch.call(this, cloneItem(item), term)).sort((a, b) => this.options.sortResults.call(this, cloneItem(a), cloneItem(b), term));
-		}
-		/**
-		* Handles search navigation and selection without submitting a form.
-		* @param {KeyboardEvent} event The keyboard event.
-		*/
-		#keydown(event) {
-			if (_fr0st_query.default.is(this.node, ":disabled") || event.isComposing) return;
-			if (event.key === "Backspace" && this.#multiple && !_fr0st_query.default.getValue(this.#searchInput) && this.#value.length) {
-				event.preventDefault();
-				const item = this.#lookup.get(String(this.#value.at(-1)));
-				this.#cancelValueRequest();
-				this.#setValue(this.#value.slice(0, -1), true);
-				if (this.node) {
-					_fr0st_query.default.setValue(this.#searchInput, item.text);
-					this.#updateSearchWidth();
-					this.#refreshPlaceholder();
-					if (this.#open) this.#load();
-					else this.show();
-				}
-			} else if (event.key === "Escape" && this.#open) {
-				event.preventDefault();
-				event.stopPropagation();
-				this.hide();
-				if (this.node) _fr0st_query.default.focus(this.#multiple ? this.#searchInput : this.#toggle);
-			} else if ([
-				"ArrowDown",
-				"ArrowUp",
-				"Enter"
-			].includes(event.key)) {
-				event.preventDefault();
-				if (!this.#open) {
-					this.show();
-					return;
-				}
-				if (event.key === "Enter") {
-					if (this.#focusedItem) this.#selectValue(_fr0st_query.default.getAttribute(this.#focusedItem, "data-ui-value"));
-				} else {
-					const index = this.#activeItems.indexOf(this.#focusedItem);
-					const next = index < 0 ? 0 : index + (event.key === "ArrowDown" ? 1 : -1);
-					const option = this.#activeItems[next];
-					if (option) {
-						this.#focusItem(option);
-						_fr0st_query.default._callDomMethod(option, "scrollIntoView", { block: "nearest" });
-					}
-				}
-			}
 		}
 		/**
 		* Loads local or remote results for the current search input.

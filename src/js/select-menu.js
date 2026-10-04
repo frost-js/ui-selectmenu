@@ -731,7 +731,68 @@ export default class SelectMenu extends BaseComponent {
             }
         });
 
-        $.addEvent(this.#searchInput, 'keydown.ui.selectmenu', (event) => this.#keydown(event));
+        $.addEvent(this.#searchInput, 'keydown.ui.selectmenu', (event) => {
+            if ($.is(this.node, ':disabled') || event.isComposing) {
+                return;
+            }
+
+            if (
+                event.key === 'Backspace' &&
+                this.#multiple &&
+                !$.getValue(this.#searchInput) &&
+                this.#value.length
+            ) {
+                event.preventDefault();
+
+                const item = this.#lookup.get(String(this.#value.at(-1)));
+
+                this.#cancelValueRequest();
+                this.#setValue(this.#value.slice(0, -1), true);
+
+                if (this.node) {
+                    $.setValue(this.#searchInput, item.text);
+                    this.#updateSearchWidth();
+                    this.#refreshPlaceholder();
+
+                    if (this.#open) {
+                        this.#load();
+                    } else {
+                        this.show();
+                    }
+                }
+            } else if (event.key === 'Escape' && this.#open) {
+                event.preventDefault();
+                event.stopPropagation();
+                this.hide();
+
+                if (this.node) {
+                    $.focus(this.#multiple ? this.#searchInput : this.#toggle);
+                }
+            } else if (['ArrowDown', 'ArrowUp', 'Enter'].includes(event.key)) {
+                event.preventDefault();
+
+                if (!this.#open) {
+                    this.show();
+
+                    return;
+                }
+
+                if (event.key === 'Enter') {
+                    if (this.#focusedItem) {
+                        this.#selectValue($.getAttribute(this.#focusedItem, 'data-ui-value'));
+                    }
+                } else {
+                    const index = this.#activeItems.indexOf(this.#focusedItem);
+                    const next = index < 0 ? 0 : index + (event.key === 'ArrowDown' ? 1 : -1);
+                    const option = this.#activeItems[next];
+
+                    if (option) {
+                        this.#focusItem(option);
+                        $._callDomMethod(option, 'scrollIntoView', { block: 'nearest' });
+                    }
+                }
+            }
+        });
 
         if (!this.#multiple) {
             $.addEvent(this.#toggle, 'keydown.ui.selectmenu', (event) => {
@@ -923,73 +984,6 @@ export default class SelectMenu extends BaseComponent {
         return results.sort((a, b) =>
             this.options.sortResults.call(this, cloneItem(a), cloneItem(b), term),
         );
-    }
-
-    /**
-     * Handles search navigation and selection without submitting a form.
-     * @param {KeyboardEvent} event The keyboard event.
-     */
-    #keydown(event) {
-        if ($.is(this.node, ':disabled') || event.isComposing) {
-            return;
-        }
-
-        if (
-            event.key === 'Backspace' &&
-            this.#multiple &&
-            !$.getValue(this.#searchInput) &&
-            this.#value.length
-        ) {
-            event.preventDefault();
-
-            const item = this.#lookup.get(String(this.#value.at(-1)));
-
-            this.#cancelValueRequest();
-            this.#setValue(this.#value.slice(0, -1), true);
-
-            if (this.node) {
-                $.setValue(this.#searchInput, item.text);
-                this.#updateSearchWidth();
-                this.#refreshPlaceholder();
-
-                if (this.#open) {
-                    this.#load();
-                } else {
-                    this.show();
-                }
-            }
-        } else if (event.key === 'Escape' && this.#open) {
-            event.preventDefault();
-            event.stopPropagation();
-            this.hide();
-
-            if (this.node) {
-                $.focus(this.#multiple ? this.#searchInput : this.#toggle);
-            }
-        } else if (['ArrowDown', 'ArrowUp', 'Enter'].includes(event.key)) {
-            event.preventDefault();
-
-            if (!this.#open) {
-                this.show();
-
-                return;
-            }
-
-            if (event.key === 'Enter') {
-                if (this.#focusedItem) {
-                    this.#selectValue($.getAttribute(this.#focusedItem, 'data-ui-value'));
-                }
-            } else {
-                const index = this.#activeItems.indexOf(this.#focusedItem);
-                const next = index < 0 ? 0 : index + (event.key === 'ArrowDown' ? 1 : -1);
-                const option = this.#activeItems[next];
-
-                if (option) {
-                    this.#focusItem(option);
-                    $._callDomMethod(option, 'scrollIntoView', { block: 'nearest' });
-                }
-            }
-        }
     }
 
     /**
