@@ -238,6 +238,8 @@ export default class SelectMenu extends BaseComponent {
             this.#form = $.getProperty(this.node, 'form');
 
             const nativeData = getDomData(this.node);
+
+            // Keep native values available even when configured data omits them.
             for (const item of flattenItems(nativeData)) {
                 if (!this.#lookup.has(String(item.value))) {
                     this.#lookup.set(String(item.value), item);
@@ -248,6 +250,7 @@ export default class SelectMenu extends BaseComponent {
             const data = $._isPlainObject(this.options.data) ?
                 Object.entries(this.options.data).map(([value, text]) => ({ value, text })) :
                 this.options.data;
+
             this.#data = this.#parseData(data || nativeData);
 
             this.#loadResults = $._debounce(
@@ -311,9 +314,11 @@ export default class SelectMenu extends BaseComponent {
         if (this.#focusHandler) {
             $.removeEvent(this.node, 'focus.ui.selectmenu', this.#focusHandler);
         }
+
         if (this.#changeHandler) {
             $.removeEvent(this.node, 'change.ui.selectmenu', this.#changeHandler);
         }
+
         if (this.#documentHandler) {
             $.removeEvent(this.node.ownerDocument, 'mousedown.ui.selectmenu', this.#documentHandler);
         }
@@ -863,16 +868,19 @@ export default class SelectMenu extends BaseComponent {
         $.addEvent(this.#itemsList, 'scroll.ui.selectmenu', this.#scrollHandler);
 
         const nativeData = !this.options.data && !this.options.getResults;
+
         this.#observer = new MutationObserver((records) => {
             if (!this.node) {
                 return;
             }
 
             if (this.#refreshData(records)) {
+                // Rebuilding results replaces nodes, so restore focus using the option value.
                 const focusedValue = $.getAttribute(this.#focusedItem, 'data-ui-value');
                 this.#loadValue(this.#readNativeValue());
 
                 const focusedItem = this.#activeItems.find((item) => $.getAttribute(item, 'data-ui-value') === focusedValue);
+
                 if (focusedItem) {
                     this.#focusItem(focusedItem);
                 }
@@ -884,13 +892,19 @@ export default class SelectMenu extends BaseComponent {
                 this.hide();
             }
         });
+
         this.#observer.observe(this.node, {
             attributes: true,
-            attributeFilter: ['disabled', 'required', 'aria-label', 'aria-labelledby', ...ariaAttributes, 'value', 'label', 'selected'],
+            attributeFilter: [
+                'disabled', 'required', 'aria-label', 'aria-labelledby',
+                ...ariaAttributes,
+                'value', 'label', 'selected',
+            ],
             childList: nativeData,
             characterData: nativeData,
             subtree: nativeData,
         });
+
         for (const fieldset of $.parents(this.node, 'fieldset')) {
             this.#observer.observe(fieldset, {
                 attributes: true,
@@ -938,6 +952,7 @@ export default class SelectMenu extends BaseComponent {
                 this.#data.push(...data);
             }
 
+            // Responses can update labels for values that are already selected.
             this.#refresh();
 
             if (!this.node || id !== this.#requestId) {
@@ -1107,7 +1122,11 @@ export default class SelectMenu extends BaseComponent {
      * @param {HTMLOptionElement[]} [nativeOptions] The native options, shared by nested groups.
      * @returns {SelectMenuItem[]} The internal data.
      */
-    #parseData(data, disabled = false, nativeOptions = [...$.getProperty(this.node, 'options')]) {
+    #parseData(
+        data,
+        disabled = false,
+        nativeOptions = [...$.getProperty(this.node, 'options')],
+    ) {
         return data.map((source) => {
             const item = {
                 ...source,
@@ -1119,6 +1138,7 @@ export default class SelectMenu extends BaseComponent {
                 item.children = this.#parseData(source.children, item.disabled, nativeOptions);
             } else {
                 const key = String(item.value);
+
                 item.element = source.element ||
                     this.#lookup.get(key)?.element ||
                     nativeOptions.find((option) => $.getValue(option) === key);
@@ -1128,6 +1148,7 @@ export default class SelectMenu extends BaseComponent {
                     this.#generatedOptions.add(item.element);
                 }
 
+                // Generated options inherit data's disabled state; authored options keep their native state.
                 if (this.#generatedOptions.has(item.element)) {
                     $.setProperty(item.element, { disabled: item.disabled });
                 }
@@ -1660,6 +1681,7 @@ export default class SelectMenu extends BaseComponent {
      * @param {boolean} [notify=false] Whether to emit a change event.
      */
     #setValue(value, notify = false) {
+        // Apply queued option mutations before resolving the requested values.
         const records = this.#observer?.takeRecords() ?? [];
         this.#refreshData(records);
 
