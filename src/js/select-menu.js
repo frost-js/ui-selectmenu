@@ -254,7 +254,7 @@ export default class SelectMenu extends BaseComponent {
             this.#data = this.#parseData(data || nativeData);
 
             this.#loadResults = $._debounce(
-                (request, id) => this.#fetchResults(request, id),
+                (request, id, focusedValue) => this.#fetchResults(request, id, focusedValue),
                 this.options.debounce,
             );
 
@@ -879,12 +879,7 @@ export default class SelectMenu extends BaseComponent {
                 // Rebuilding results replaces nodes, so restore focus using the option value.
                 const focusedValue = $.getAttribute(this.#focusedItem, 'data-ui-value');
                 this.#loadValue(this.#readNativeValue());
-
-                const focusedItem = this.#activeItems.find((item) => $.getAttribute(item, 'data-ui-value') === focusedValue);
-
-                if (focusedItem) {
-                    this.#focusItem(focusedItem);
-                }
+                this.#restoreFocus(focusedValue);
             } else {
                 this.#refreshState();
             }
@@ -918,9 +913,10 @@ export default class SelectMenu extends BaseComponent {
      * Loads a remote result page, catching synchronous and asynchronous errors.
      * @param {SelectMenuRequest} request The search request.
      * @param {number} id The request generation.
+     * @param {string|null} focusedValue The option to keep active after rendering.
      * @returns {Promise<void>} Resolves when the request settles.
      */
-    async #fetchResults(request, id) {
+    async #fetchResults(request, id, focusedValue) {
         if (!this.node || id !== this.#requestId) {
             return;
         }
@@ -966,6 +962,8 @@ export default class SelectMenu extends BaseComponent {
             if (!this.node || id !== this.#requestId) {
                 return;
             }
+
+            this.#restoreFocus(focusedValue);
 
             if (this.#showMore && $.height(this.#itemsList, { boxSize: $.SCROLL_BOX }) <= $.height(this.#itemsList)) {
                 this.#scrollHandler();
@@ -1054,8 +1052,9 @@ export default class SelectMenu extends BaseComponent {
     /**
      * Loads local or remote results for the current search input.
      * @param {number} [offset=0] The remote result offset.
+     * @param {string|null} [focusedValue=null] The option to keep active after rendering.
      */
-    #load(offset = 0) {
+    #load(offset = 0, focusedValue = null) {
         this.#cancelSearch();
 
         if (!offset) {
@@ -1087,9 +1086,10 @@ export default class SelectMenu extends BaseComponent {
         } else if (this.options.getResults) {
             this.#loading = true;
             this.#renderInfo(this.options.lang.loading);
-            this.#loadResults(term ? { offset, term } : { offset }, this.#requestId);
+            this.#loadResults(term ? { offset, term } : { offset }, this.#requestId, focusedValue);
         } else {
             this.#renderResults(this.#getLocalResults(term));
+            this.#restoreFocus(focusedValue);
         }
 
         this.update();
@@ -1630,6 +1630,19 @@ export default class SelectMenu extends BaseComponent {
     }
 
     /**
+     * Restores an option's focus and visibility after replacing result nodes.
+     * @param {string|null} value The option value key.
+     */
+    #restoreFocus(value) {
+        const element = this.#activeItems.find((item) => $.getAttribute(item, 'data-ui-value') === value);
+
+        if (element) {
+            this.#focusItem(element);
+            $._callDomMethod(element, 'scrollIntoView', { block: 'nearest' });
+        }
+    }
+
+    /**
      * Applies a user selection and emits change only for an effective change.
      * @param {string} key The lookup key.
      */
@@ -1668,7 +1681,7 @@ export default class SelectMenu extends BaseComponent {
         if (this.options.closeOnSelect) {
             this.hide();
         } else if (this.#open) {
-            this.#load();
+            this.#load(0, key);
         }
 
         if (this.node) {

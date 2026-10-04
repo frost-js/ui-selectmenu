@@ -334,7 +334,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 					text
 				})) : this.options.data;
 				this.#data = this.#parseData(data || nativeData);
-				this.#loadResults = _fr0st_query.default._debounce((request, id) => this.#fetchResults(request, id), this.options.debounce);
+				this.#loadResults = _fr0st_query.default._debounce((request, id, focusedValue) => this.#fetchResults(request, id, focusedValue), this.options.debounce);
 				const focused = _fr0st_query.default.is(this.node, ":focus");
 				this.#render();
 				this.#events();
@@ -710,8 +710,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 				if (this.#refreshData(records)) {
 					const focusedValue = _fr0st_query.default.getAttribute(this.#focusedItem, "data-ui-value");
 					this.#loadValue(this.#readNativeValue());
-					const focusedItem = this.#activeItems.find((item) => _fr0st_query.default.getAttribute(item, "data-ui-value") === focusedValue);
-					if (focusedItem) this.#focusItem(focusedItem);
+					this.#restoreFocus(focusedValue);
 				} else this.#refreshState();
 				if (_fr0st_query.default.is(this.node, ":disabled")) this.hide();
 			});
@@ -740,9 +739,10 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 		* Loads a remote result page, catching synchronous and asynchronous errors.
 		* @param {SelectMenuRequest} request The search request.
 		* @param {number} id The request generation.
+		* @param {string|null} focusedValue The option to keep active after rendering.
 		* @returns {Promise<void>} Resolves when the request settles.
 		*/
-		async #fetchResults(request, id) {
+		async #fetchResults(request, id, focusedValue) {
 			if (!this.node || id !== this.#requestId) return;
 			try {
 				const result = this.options.getResults(request);
@@ -766,6 +766,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 				this.#showMore = Boolean(response.showMore) && data.length > 0;
 				this.#renderResults(data);
 				if (!this.node || id !== this.#requestId) return;
+				this.#restoreFocus(focusedValue);
 				if (this.#showMore && _fr0st_query.default.height(this.#itemsList, { boxSize: _fr0st_query.default.SCROLL_BOX }) <= _fr0st_query.default.height(this.#itemsList)) this.#scrollHandler();
 			} catch {
 				if (this.node && id === this.#requestId) {
@@ -825,8 +826,9 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 		/**
 		* Loads local or remote results for the current search input.
 		* @param {number} [offset=0] The remote result offset.
+		* @param {string|null} [focusedValue=null] The option to keep active after rendering.
 		*/
-		#load(offset = 0) {
+		#load(offset = 0, focusedValue = null) {
 			this.#cancelSearch();
 			if (!offset) {
 				this.#clearResults();
@@ -847,8 +849,11 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 				this.#loadResults(term ? {
 					offset,
 					term
-				} : { offset }, this.#requestId);
-			} else this.#renderResults(this.#getLocalResults(term));
+				} : { offset }, this.#requestId, focusedValue);
+			} else {
+				this.#renderResults(this.#getLocalResults(term));
+				this.#restoreFocus(focusedValue);
+			}
 			this.update();
 		}
 		/**
@@ -1209,6 +1214,17 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 			if (!this.#focusedItem) this.#focusItem(this.#activeItems[0] || null);
 		}
 		/**
+		* Restores an option's focus and visibility after replacing result nodes.
+		* @param {string|null} value The option value key.
+		*/
+		#restoreFocus(value) {
+			const element = this.#activeItems.find((item) => _fr0st_query.default.getAttribute(item, "data-ui-value") === value);
+			if (element) {
+				this.#focusItem(element);
+				_fr0st_query.default._callDomMethod(element, "scrollIntoView", { block: "nearest" });
+			}
+		}
+		/**
 		* Applies a user selection and emits change only for an effective change.
 		* @param {string} key The lookup key.
 		*/
@@ -1224,7 +1240,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 			this.#refreshPlaceholder();
 			this.#updateSearchWidth();
 			if (this.options.closeOnSelect) this.hide();
-			else if (this.#open) this.#load();
+			else if (this.#open) this.#load(0, key);
 			if (this.node) _fr0st_query.default.focus(this.#multiple || this.#open ? this.#searchInput : this.#toggle);
 		}
 		/**

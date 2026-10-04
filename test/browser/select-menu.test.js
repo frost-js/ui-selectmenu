@@ -499,6 +499,82 @@ test.describe('SelectMenu', () => {
             await expect(control).toBeFocused();
         });
 
+        test('keeps a multiple option active when Enter selects and deselects it', async ({ page }) => {
+            await page.evaluate(() => {
+                $.setProperty('#select', 'multiple', true);
+                $.append('#select', $.create('option', { value: 'd', text: 'Date' }));
+                const instance = UI.SelectMenu.init($.findOne('#select'), { closeOnSelect: false });
+                instance.setValue([]);
+                instance.show();
+            });
+            const search = page.getByRole('combobox');
+            await search.press('ArrowDown');
+            const banana = page.getByRole('option', { name: 'Banana' });
+
+            for (const values of [['b'], []]) {
+                await search.press('Enter');
+                await expect(page.locator('#select')).toHaveValues(values);
+                await expect(search).toBeFocused();
+                await expect(banana).toHaveClass(/focus/);
+                await expect(search).toHaveAttribute('aria-activedescendant', await banana.getAttribute('id'));
+            }
+
+            await search.press('ArrowDown');
+            await expect(page.getByRole('option', { name: 'Date' })).toHaveClass(/focus/);
+        });
+
+        test('keeps the selected option active after clearing a multiple search', async ({ page }) => {
+            await page.evaluate(() => {
+                $.setProperty('#select', 'multiple', true);
+                UI.SelectMenu.init($.findOne('#select'), {
+                    closeOnSelect: false,
+                    data: [
+                        { value: 'a', text: 'Apple' },
+                        { text: 'Other fruit', children: [
+                            { value: '001', text: 'Banana' }, { value: 0, text: 'Date' },
+                        ] },
+                    ],
+                }).show();
+            });
+            const search = page.getByRole('combobox');
+            await search.fill('Ban');
+            await search.press('Enter');
+            await expect(search).toHaveValue('');
+            await expect(page.getByRole('option')).toHaveText(['Apple', 'Banana', 'Date']);
+            await expect(page.getByRole('option', { name: 'Banana' })).toHaveClass(/focus/);
+            await search.press('ArrowDown');
+            await search.press('Enter');
+            await expect(page.getByRole('option', { name: 'Date' })).toHaveClass(/focus/);
+            expect(await page.evaluate(() => $('#select').selectmenu('getValue'))).toEqual(['a', '001', 0]);
+
+            await search.fill('App');
+            await expect(page.getByRole('option', { name: 'Apple' })).toHaveClass(/focus/);
+        });
+
+        test('keeps an active multiple option in view after selection', async ({ page }) => {
+            await page.evaluate(() => {
+                $.setProperty('#select', 'multiple', true);
+                UI.SelectMenu.init($.findOne('#select'), {
+                    closeOnSelect: false,
+                    data: Array.from({ length: 30 }, (_, value) => ({ value, text: `Fruit ${value}` })),
+                }).show();
+            });
+            const search = page.getByRole('combobox');
+
+            for (let index = 0; index < 20; index++) {
+                await search.press('ArrowDown');
+            }
+
+            await search.press('Enter');
+            const option = page.getByRole('option', { name: 'Fruit 20', exact: true });
+            await expect(option).toHaveClass(/focus/);
+            await expect.poll(() => option.evaluate((element) => {
+                const option = element.getBoundingClientRect();
+                const list = element.closest('.selectmenu-items').getBoundingClientRect();
+                return option.top >= list.top - 1 && option.bottom <= list.bottom + 1;
+            })).toBe(true);
+        });
+
         test('tracks hover focus and resets it when results are replaced', async ({ page }) => {
             await page.evaluate(() => {
                 const node = $.findOne('#select');

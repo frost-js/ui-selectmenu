@@ -58,6 +58,35 @@ test.describe('SelectMenu remote results', () => {
             }).show());
             await expect(page.getByRole('status')).toHaveText('No results');
         });
+
+        for (const state of ['enabled', 'disabled', 'missing']) {
+            test(`restores the active option after a multiple selection response (${state})`, async ({ page }) => {
+                await page.evaluate(() => {
+                    $.setProperty('#select', 'multiple', true);
+                    UI.SelectMenu.init($.findOne('#select'), {
+                        closeOnSelect: false, debounce: 0, getResults: window.getResults,
+                    }).show();
+                });
+                await expect.poll(() => page.evaluate(() => window.requests.length)).toBe(1);
+                await page.evaluate(() => window.requests[0].resolve({ results: [
+                    { value: 'a', text: 'Apple' }, { value: 'b', text: 'Banana' },
+                ] }));
+                const search = page.getByRole('combobox');
+                await expect(page.getByRole('option')).toHaveCount(2);
+                await search.press('ArrowDown');
+                await search.press('Enter');
+                await expect(page.locator('#select')).toHaveValues(['a', 'b']);
+                await expect.poll(() => page.evaluate(() => window.requests.length)).toBe(2);
+                await page.evaluate((state) => window.requests[1].resolve({ results: [
+                    { value: 'a', text: 'Apple' },
+                    ...(state === 'missing' ? [] : [{ value: 'b', text: 'Banana', disabled: state === 'disabled' }]),
+                ] }), state);
+                const active = page.getByRole('option', { name: state === 'enabled' ? 'Banana' : 'Apple' });
+                await expect(active).toHaveClass(/focus/);
+                await expect(search).toHaveAttribute('aria-activedescendant', await active.getAttribute('id'));
+                await expect(search).toBeFocused();
+            });
+        }
     });
 
     test.describe('value resolution', () => {
@@ -197,6 +226,34 @@ test.describe('SelectMenu remote results', () => {
             await page.getByRole('option', { name: 'New', exact: true }).click();
             await expect(page.getByRole('combobox')).toHaveText('New');
             expect(await page.evaluate(() => window.requests[0].cancelled)).toBe(true);
+        });
+
+        test('does not restore selection focus into a newer search response', async ({ page }) => {
+            await page.evaluate(() => {
+                $.setProperty('#select', 'multiple', true);
+                UI.SelectMenu.init($.findOne('#select'), {
+                    closeOnSelect: false, debounce: 0, getResults: window.getResults,
+                }).show();
+            });
+            await expect.poll(() => page.evaluate(() => window.requests.length)).toBe(1);
+            await page.evaluate(() => window.requests[0].resolve({ results: [
+                { value: 'a', text: 'Apple' }, { value: 'b', text: 'Banana' },
+            ] }));
+            const search = page.getByRole('combobox');
+            await expect(page.getByRole('option')).toHaveCount(2);
+            await search.press('ArrowDown');
+            await search.press('Enter');
+            await expect.poll(() => page.evaluate(() => window.requests.length)).toBe(2);
+            await search.fill('fruit');
+            await expect.poll(() => page.evaluate(() => window.requests.length)).toBe(3);
+            await page.evaluate(() => {
+                window.requests[1].resolve({ results: [{ value: 'b', text: 'Old banana' }] });
+                window.requests[2].resolve({ results: [
+                    { value: 'd', text: 'Date' }, { value: 'b', text: 'Banana' },
+                ] });
+            });
+            await expect(page.getByRole('option')).toHaveText(['Date', 'Banana']);
+            await expect(page.getByRole('option', { name: 'Date' })).toHaveClass(/focus/);
         });
 
         test('applies only the latest remote value response', async ({ page }) => {
