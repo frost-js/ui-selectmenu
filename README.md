@@ -449,7 +449,9 @@ Use the original select's `name`, `required`, `multiple`, and `disabled` attribu
 
 Form reset restores native defaults and then synchronizes the visible selection asynchronously. Generated options do not become implicit reset defaults for an initially empty select; an explicit `defaultSelected` is respected. Canceled resets are ignored; resetting does not emit a change event. The associated form is captured at initialization, including association via the native `form` attribute.
 
-To synchronize an external native value change, dispatch a bubbling `change` event after changing the select. `update()` only repositions the menu. Dispose and reinitialize when replacing the available native option list.
+When native options provide the result data, option and group additions, removals, text changes, and changes to `value`, `label`, `disabled`, or `selected` attributes synchronize automatically and silently. Open results refresh while retaining the search term and the focused value when available. Explicit `data` and remote results remain their own data sources.
+
+To synchronize an external native value change, dispatch a bubbling `change` event after changing the select. Assigning `select.value` or `option.selected` does not produce an attribute mutation. `update()` only repositions the menu.
 
 ## Themes and RTL
 

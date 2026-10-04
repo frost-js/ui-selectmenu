@@ -843,12 +843,23 @@ export default class SelectMenu extends BaseComponent {
 
         $.addEvent(this.#itemsList, 'scroll.ui.selectmenu', this.#scrollHandler);
 
-        this.#observer = new MutationObserver(() => {
+        const nativeData = !this.options.data && !this.options.getResults;
+        this.#observer = new MutationObserver((records) => {
             if (!this.node) {
                 return;
             }
 
-            this.#refreshState();
+            if (this.#refreshData(records)) {
+                const focusedValue = $.getDataset(this.#focusedItem, 'uiValue');
+                this.#loadValue(this.#readNativeValue());
+
+                const focusedItem = this.#activeItems.find((item) => $.getDataset(item, 'uiValue') === focusedValue);
+                if (focusedItem) {
+                    this.#focusItem(focusedItem);
+                }
+            } else {
+                this.#refreshState();
+            }
 
             if ($.is(this.node, ':disabled')) {
                 this.hide();
@@ -856,7 +867,10 @@ export default class SelectMenu extends BaseComponent {
         });
         this.#observer.observe(this.node, {
             attributes: true,
-            attributeFilter: ['disabled', 'required', 'aria-label', 'aria-labelledby', ...ariaAttributes],
+            attributeFilter: ['disabled', 'required', 'aria-label', 'aria-labelledby', ...ariaAttributes, 'value', 'label', 'selected'],
+            childList: nativeData,
+            characterData: nativeData,
+            subtree: nativeData,
         });
         for (const fieldset of $.parents(this.node, 'fieldset')) {
             this.#observer.observe(fieldset, {
@@ -1128,6 +1142,26 @@ export default class SelectMenu extends BaseComponent {
         if (focused) {
             $.focus(this.#searchInput);
         }
+    }
+
+    /**
+     * Rebuilds native option data when mutation records contain option changes.
+     * @param {MutationRecord[]} records The observed or queued mutations.
+     * @returns {boolean} Whether native option data was refreshed.
+     */
+    #refreshData(records) {
+        if (
+            this.options.data ||
+            this.options.getResults ||
+            !records.some((record) => record.type !== 'attributes' || $.is(record.target, 'option, optgroup'))
+        ) {
+            return false;
+        }
+
+        this.#lookup.clear();
+        this.#data = this.#parseData(getDomData(this.node));
+
+        return true;
     }
 
     /**
@@ -1564,6 +1598,9 @@ export default class SelectMenu extends BaseComponent {
      * @param {boolean} [notify=false] Whether to emit a change event.
      */
     #setValue(value, notify = false) {
+        const records = this.#observer?.takeRecords() ?? [];
+        this.#refreshData(records);
+
         let values = normalizeValues(value)
             .filter((entry) => this.#lookup.has(String(entry)))
             .map((entry) => this.#lookup.get(String(entry)).value);
@@ -1600,6 +1637,14 @@ export default class SelectMenu extends BaseComponent {
         }
 
         this.#refresh();
+
+        if (records.length && $.is(this.node, ':disabled')) {
+            this.hide();
+
+            if (!this.node) {
+                return;
+            }
+        }
 
         if (this.#open && !notify) {
             this.#load();

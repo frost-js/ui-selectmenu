@@ -59,7 +59,7 @@ export function getDomData(node) {
 
             return {
                 ...$.getDataset(child),
-                text: $.getText(child),
+                text: $.getProperty(child, 'label'),
                 value: $.getValue(child),
                 disabled: $.getProperty(child, 'disabled'),
                 element: child,

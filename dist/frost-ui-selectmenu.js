@@ -78,7 +78,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 			};
 			return {
 				..._fr0st_query.default.getDataset(child),
-				text: _fr0st_query.default.getText(child),
+				text: _fr0st_query.default.getProperty(child, "label"),
 				value: _fr0st_query.default.getValue(child),
 				disabled: _fr0st_query.default.getProperty(child, "disabled"),
 				element: child
@@ -694,9 +694,15 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 				if (_fr0st_query.default.getScrollY(list) >= _fr0st_query.default.height(list, { boxSize: _fr0st_query.default.SCROLL_BOX }) - _fr0st_query.default.height(list) * 1.25) this.#load(this.#data.length);
 			}, 250, { leading: false });
 			_fr0st_query.default.addEvent(this.#itemsList, "scroll.ui.selectmenu", this.#scrollHandler);
-			this.#observer = new MutationObserver(() => {
+			const nativeData = !this.options.data && !this.options.getResults;
+			this.#observer = new MutationObserver((records) => {
 				if (!this.node) return;
-				this.#refreshState();
+				if (this.#refreshData(records)) {
+					const focusedValue = _fr0st_query.default.getDataset(this.#focusedItem, "uiValue");
+					this.#loadValue(this.#readNativeValue());
+					const focusedItem = this.#activeItems.find((item) => _fr0st_query.default.getDataset(item, "uiValue") === focusedValue);
+					if (focusedItem) this.#focusItem(focusedItem);
+				} else this.#refreshState();
 				if (_fr0st_query.default.is(this.node, ":disabled")) this.hide();
 			});
 			this.#observer.observe(this.node, {
@@ -706,8 +712,14 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 					"required",
 					"aria-label",
 					"aria-labelledby",
-					...ariaAttributes
-				]
+					...ariaAttributes,
+					"value",
+					"label",
+					"selected"
+				],
+				childList: nativeData,
+				characterData: nativeData,
+				subtree: nativeData
 			});
 			for (const fieldset of _fr0st_query.default.parents(this.node, "fieldset")) this.#observer.observe(fieldset, {
 				attributes: true,
@@ -891,6 +903,17 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 			this.#refreshState();
 			this.#updateSearchWidth();
 			if (focused) _fr0st_query.default.focus(this.#searchInput);
+		}
+		/**
+		* Rebuilds native option data when mutation records contain option changes.
+		* @param {MutationRecord[]} records The observed or queued mutations.
+		* @returns {boolean} Whether native option data was refreshed.
+		*/
+		#refreshData(records) {
+			if (this.options.data || this.options.getResults || !records.some((record) => record.type !== "attributes" || _fr0st_query.default.is(record.target, "option, optgroup"))) return false;
+			this.#lookup.clear();
+			this.#data = this.#parseData(getDomData(this.node));
+			return true;
 		}
 		/**
 		* Keeps UI input focus styling active for the control and its menu.
@@ -1188,6 +1211,8 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 		* @param {boolean} [notify=false] Whether to emit a change event.
 		*/
 		#setValue(value, notify = false) {
+			const records = this.#observer?.takeRecords() ?? [];
+			this.#refreshData(records);
 			let values = normalizeValues(value).filter((entry) => this.#lookup.has(String(entry))).map((entry) => this.#lookup.get(String(entry)).value);
 			if (!this.#multiple) values = values.slice(0, 1);
 			else if (this.#maxSelections) values = values.slice(0, this.#maxSelections);
@@ -1203,6 +1228,10 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 			for (const option of options) _fr0st_query.default.setProperty(option, { selected: selected.has(_fr0st_query.default.getValue(option)) });
 			if (!values.length) _fr0st_query.default.setProperty(this.node, { selectedIndex: -1 });
 			this.#refresh();
+			if (records.length && _fr0st_query.default.is(this.node, ":disabled")) {
+				this.hide();
+				if (!this.node) return;
+			}
 			if (this.#open && !notify) this.#load();
 			if (notify && changed) {
 				this.#notifying = true;

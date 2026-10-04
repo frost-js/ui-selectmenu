@@ -46,7 +46,7 @@ function getDomData(node) {
 		};
 		return {
 			...$.getDataset(child),
-			text: $.getText(child),
+			text: $.getProperty(child, "label"),
 			value: $.getValue(child),
 			disabled: $.getProperty(child, "disabled"),
 			element: child
@@ -662,9 +662,15 @@ var SelectMenu = class extends BaseComponent {
 			if ($.getScrollY(list) >= $.height(list, { boxSize: $.SCROLL_BOX }) - $.height(list) * 1.25) this.#load(this.#data.length);
 		}, 250, { leading: false });
 		$.addEvent(this.#itemsList, "scroll.ui.selectmenu", this.#scrollHandler);
-		this.#observer = new MutationObserver(() => {
+		const nativeData = !this.options.data && !this.options.getResults;
+		this.#observer = new MutationObserver((records) => {
 			if (!this.node) return;
-			this.#refreshState();
+			if (this.#refreshData(records)) {
+				const focusedValue = $.getDataset(this.#focusedItem, "uiValue");
+				this.#loadValue(this.#readNativeValue());
+				const focusedItem = this.#activeItems.find((item) => $.getDataset(item, "uiValue") === focusedValue);
+				if (focusedItem) this.#focusItem(focusedItem);
+			} else this.#refreshState();
 			if ($.is(this.node, ":disabled")) this.hide();
 		});
 		this.#observer.observe(this.node, {
@@ -674,8 +680,14 @@ var SelectMenu = class extends BaseComponent {
 				"required",
 				"aria-label",
 				"aria-labelledby",
-				...ariaAttributes
-			]
+				...ariaAttributes,
+				"value",
+				"label",
+				"selected"
+			],
+			childList: nativeData,
+			characterData: nativeData,
+			subtree: nativeData
 		});
 		for (const fieldset of $.parents(this.node, "fieldset")) this.#observer.observe(fieldset, {
 			attributes: true,
@@ -859,6 +871,17 @@ var SelectMenu = class extends BaseComponent {
 		this.#refreshState();
 		this.#updateSearchWidth();
 		if (focused) $.focus(this.#searchInput);
+	}
+	/**
+	* Rebuilds native option data when mutation records contain option changes.
+	* @param {MutationRecord[]} records The observed or queued mutations.
+	* @returns {boolean} Whether native option data was refreshed.
+	*/
+	#refreshData(records) {
+		if (this.options.data || this.options.getResults || !records.some((record) => record.type !== "attributes" || $.is(record.target, "option, optgroup"))) return false;
+		this.#lookup.clear();
+		this.#data = this.#parseData(getDomData(this.node));
+		return true;
 	}
 	/**
 	* Keeps UI input focus styling active for the control and its menu.
@@ -1156,6 +1179,8 @@ var SelectMenu = class extends BaseComponent {
 	* @param {boolean} [notify=false] Whether to emit a change event.
 	*/
 	#setValue(value, notify = false) {
+		const records = this.#observer?.takeRecords() ?? [];
+		this.#refreshData(records);
 		let values = normalizeValues(value).filter((entry) => this.#lookup.has(String(entry))).map((entry) => this.#lookup.get(String(entry)).value);
 		if (!this.#multiple) values = values.slice(0, 1);
 		else if (this.#maxSelections) values = values.slice(0, this.#maxSelections);
@@ -1171,6 +1196,10 @@ var SelectMenu = class extends BaseComponent {
 		for (const option of options) $.setProperty(option, { selected: selected.has($.getValue(option)) });
 		if (!values.length) $.setProperty(this.node, { selectedIndex: -1 });
 		this.#refresh();
+		if (records.length && $.is(this.node, ":disabled")) {
+			this.hide();
+			if (!this.node) return;
+		}
 		if (this.#open && !notify) this.#load();
 		if (notify && changed) {
 			this.#notifying = true;
