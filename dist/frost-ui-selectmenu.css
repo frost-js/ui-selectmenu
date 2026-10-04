@@ -38,6 +38,7 @@
 
 .selectmenu-multi {
   gap: 0.25rem;
+  row-gap: calc(0.25rem + 0.5rem);
   align-items: center;
 }
 .selectmenu-multi:not(:disabled) {

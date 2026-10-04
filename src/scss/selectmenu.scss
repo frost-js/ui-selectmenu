@@ -46,8 +46,9 @@
 }
 
 .selectmenu-multi {
-
+    // Offset the chips' negative vertical margins to preserve the visible row gap.
     gap: vars.$selectmenu-multi-item-spacing;
+    row-gap: calc(#{vars.$selectmenu-multi-item-spacing} + .5rem);
     align-items: center;
 
     &:not(:disabled) {
