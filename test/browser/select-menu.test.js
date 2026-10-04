@@ -499,6 +499,31 @@ test.describe('SelectMenu', () => {
             await expect(control).toBeFocused();
         });
 
+        test('tracks hover focus and resets it when results are replaced', async ({ page }) => {
+            await page.evaluate(() => {
+                const node = $.findOne('#select');
+                $.setProperty(node, 'selectedIndex', -1);
+                UI.SelectMenu.init(node);
+            });
+            await page.getByRole('combobox').press('ArrowDown');
+            const search = page.getByRole('searchbox');
+            const banana = page.getByRole('option', { name: 'Banana' });
+            await banana.hover();
+            await expect(search).toHaveAttribute('aria-activedescendant', await banana.getAttribute('id'));
+
+            await search.press('ArrowUp');
+            const apple = page.getByRole('option', { name: 'Apple' });
+            await expect(search).toHaveAttribute('aria-activedescendant', await apple.getAttribute('id'));
+            await expect(banana).not.toHaveClass(/focus/);
+
+            await banana.hover();
+            await search.fill('App');
+            await expect(page.getByRole('option')).toHaveText(['Apple']);
+            await expect(search).toHaveAttribute('aria-activedescendant', await apple.getAttribute('id'));
+            await search.press('Enter');
+            await expect(page.locator('#select')).toHaveValue('a');
+        });
+
         test('closes on Escape and outside clicks', async ({ page }) => {
             await page.evaluate(() => UI.SelectMenu.init($.findOne('#select')));
             await page.getByRole('combobox').click();

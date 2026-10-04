@@ -175,6 +175,7 @@ export default class SelectMenu extends BaseComponent {
     #container = null;
     #data = [];
     #documentHandler = null;
+    #focusedItem = null;
     #focusHandler = null;
     #form = null;
     #generatedOptions = new WeakSet();
@@ -326,6 +327,7 @@ export default class SelectMenu extends BaseComponent {
 
         this.#activeItems = [];
         this.#data = [];
+        this.#focusedItem = null;
         this.#lookup.clear();
 
         this.#changeHandler = null;
@@ -894,13 +896,11 @@ export default class SelectMenu extends BaseComponent {
      * @param {HTMLElement|null} element The focused option.
      */
     #focusItem(element) {
-        const previous = $.findOne('[data-ui-focus]', this.#itemsList);
-        $.removeClass(previous, this.constructor.classes.focus);
-        $.removeDataset(previous, 'uiFocus');
+        $.removeClass(this.#focusedItem, this.constructor.classes.focus);
+        this.#focusedItem = element;
 
         if (element) {
             $.addClass(element, this.constructor.classes.focus);
-            $.setDataset(element, { uiFocus: true });
         }
 
         $.setAttribute([this.#toggle, this.#searchInput], { 'aria-activedescendant': $.getProperty(element, 'id') || '' });
@@ -975,14 +975,12 @@ export default class SelectMenu extends BaseComponent {
                 return;
             }
 
-            const active = $.findOne('[data-ui-focus]', this.#itemsList);
-
             if (event.key === 'Enter') {
-                if (active) {
-                    this.#selectValue($.getAttribute(active, 'data-ui-value'));
+                if (this.#focusedItem) {
+                    this.#selectValue($.getAttribute(this.#focusedItem, 'data-ui-value'));
                 }
             } else {
-                const index = this.#activeItems.indexOf(active);
+                const index = this.#activeItems.indexOf(this.#focusedItem);
                 const next = index < 0 ? 0 : index + (event.key === 'ArrowDown' ? 1 : -1);
                 const option = this.#activeItems[next];
 
@@ -1492,7 +1490,7 @@ export default class SelectMenu extends BaseComponent {
             this.#renderInfo(this.options.lang.noResults);
         }
 
-        if (!$.findOne('[data-ui-focus]', this.#itemsList)) {
+        if (!this.#focusedItem) {
             this.#focusItem(this.#activeItems[0] || null);
         }
     }

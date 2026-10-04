@@ -241,6 +241,7 @@ var SelectMenu = class extends BaseComponent {
 	#container = null;
 	#data = [];
 	#documentHandler = null;
+	#focusedItem = null;
 	#focusHandler = null;
 	#form = null;
 	#generatedOptions = /* @__PURE__ */ new WeakSet();
@@ -342,6 +343,7 @@ var SelectMenu = class extends BaseComponent {
 		$.remove(this.#container);
 		this.#activeItems = [];
 		this.#data = [];
+		this.#focusedItem = null;
 		this.#lookup.clear();
 		this.#changeHandler = null;
 		this.#documentHandler = null;
@@ -698,13 +700,9 @@ var SelectMenu = class extends BaseComponent {
 	* @param {HTMLElement|null} element The focused option.
 	*/
 	#focusItem(element) {
-		const previous = $.findOne("[data-ui-focus]", this.#itemsList);
-		$.removeClass(previous, this.constructor.classes.focus);
-		$.removeDataset(previous, "uiFocus");
-		if (element) {
-			$.addClass(element, this.constructor.classes.focus);
-			$.setDataset(element, { uiFocus: true });
-		}
+		$.removeClass(this.#focusedItem, this.constructor.classes.focus);
+		this.#focusedItem = element;
+		if (element) $.addClass(element, this.constructor.classes.focus);
 		$.setAttribute([this.#toggle, this.#searchInput], { "aria-activedescendant": $.getProperty(element, "id") || "" });
 	}
 	/**
@@ -749,11 +747,10 @@ var SelectMenu = class extends BaseComponent {
 				this.show();
 				return;
 			}
-			const active = $.findOne("[data-ui-focus]", this.#itemsList);
 			if (event.key === "Enter") {
-				if (active) this.#selectValue($.getAttribute(active, "data-ui-value"));
+				if (this.#focusedItem) this.#selectValue($.getAttribute(this.#focusedItem, "data-ui-value"));
 			} else {
-				const index = this.#activeItems.indexOf(active);
+				const index = this.#activeItems.indexOf(this.#focusedItem);
 				const next = index < 0 ? 0 : index + (event.key === "ArrowDown" ? 1 : -1);
 				const option = this.#activeItems[next];
 				if (option) {
@@ -1117,7 +1114,7 @@ var SelectMenu = class extends BaseComponent {
 		}
 		if (container !== this.#itemsList) return;
 		if (!$.hasChildren(this.#itemsList)) this.#renderInfo(this.options.lang.noResults);
-		if (!$.findOne("[data-ui-focus]", this.#itemsList)) this.#focusItem(this.#activeItems[0] || null);
+		if (!this.#focusedItem) this.#focusItem(this.#activeItems[0] || null);
 	}
 	/**
 	* Applies a user selection and emits change only for an effective change.

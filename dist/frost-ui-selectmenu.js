@@ -273,6 +273,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 		#container = null;
 		#data = [];
 		#documentHandler = null;
+		#focusedItem = null;
 		#focusHandler = null;
 		#form = null;
 		#generatedOptions = /* @__PURE__ */ new WeakSet();
@@ -374,6 +375,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 			_fr0st_query.default.remove(this.#container);
 			this.#activeItems = [];
 			this.#data = [];
+			this.#focusedItem = null;
 			this.#lookup.clear();
 			this.#changeHandler = null;
 			this.#documentHandler = null;
@@ -730,13 +732,9 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 		* @param {HTMLElement|null} element The focused option.
 		*/
 		#focusItem(element) {
-			const previous = _fr0st_query.default.findOne("[data-ui-focus]", this.#itemsList);
-			_fr0st_query.default.removeClass(previous, this.constructor.classes.focus);
-			_fr0st_query.default.removeDataset(previous, "uiFocus");
-			if (element) {
-				_fr0st_query.default.addClass(element, this.constructor.classes.focus);
-				_fr0st_query.default.setDataset(element, { uiFocus: true });
-			}
+			_fr0st_query.default.removeClass(this.#focusedItem, this.constructor.classes.focus);
+			this.#focusedItem = element;
+			if (element) _fr0st_query.default.addClass(element, this.constructor.classes.focus);
 			_fr0st_query.default.setAttribute([this.#toggle, this.#searchInput], { "aria-activedescendant": _fr0st_query.default.getProperty(element, "id") || "" });
 		}
 		/**
@@ -781,11 +779,10 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 					this.show();
 					return;
 				}
-				const active = _fr0st_query.default.findOne("[data-ui-focus]", this.#itemsList);
 				if (event.key === "Enter") {
-					if (active) this.#selectValue(_fr0st_query.default.getAttribute(active, "data-ui-value"));
+					if (this.#focusedItem) this.#selectValue(_fr0st_query.default.getAttribute(this.#focusedItem, "data-ui-value"));
 				} else {
-					const index = this.#activeItems.indexOf(active);
+					const index = this.#activeItems.indexOf(this.#focusedItem);
 					const next = index < 0 ? 0 : index + (event.key === "ArrowDown" ? 1 : -1);
 					const option = this.#activeItems[next];
 					if (option) {
@@ -1149,7 +1146,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 			}
 			if (container !== this.#itemsList) return;
 			if (!_fr0st_query.default.hasChildren(this.#itemsList)) this.#renderInfo(this.options.lang.noResults);
-			if (!_fr0st_query.default.findOne("[data-ui-focus]", this.#itemsList)) this.#focusItem(this.#activeItems[0] || null);
+			if (!this.#focusedItem) this.#focusItem(this.#activeItems[0] || null);
 		}
 		/**
 		* Applies a user selection and emits change only for an effective change.
