@@ -29,6 +29,33 @@ test.describe('SelectMenu', () => {
             });
         }
 
+        for (const multiple of [false, true]) {
+            test(`transfers native focus on initialization (multiple=${multiple})`, async ({ page }) => {
+                await page.evaluate((multiple) => {
+                    const node = $.findOne('#select');
+                    $.setProperty(node, 'multiple', multiple);
+                    $.focus(node);
+                    UI.SelectMenu.init(node);
+                }, multiple);
+
+                await expect(page.getByRole('combobox')).toBeFocused();
+                await expect(page.locator('.selectmenu-toggle, .selectmenu-multi')).toHaveClass(/focus/);
+                await expect(page.locator('.selectmenu-menu')).toHaveCount(0);
+            });
+
+            test(`preserves outside focus on initialization (multiple=${multiple})`, async ({ page }) => {
+                await page.locator('#outside').focus();
+                await page.evaluate((multiple) => {
+                    const node = $.findOne('#select');
+                    $.setProperty(node, 'multiple', multiple);
+                    UI.SelectMenu.init(node);
+                }, multiple);
+
+                await expect(page.locator('#outside')).toBeFocused();
+                await expect(page.locator('.selectmenu-toggle, .selectmenu-multi')).not.toHaveClass(/focus/);
+            });
+        }
+
         test('reuses an existing instance and respects data options', async ({ page }) => {
             expect(await page.evaluate(() => {
                 const node = $.findOne('#select');

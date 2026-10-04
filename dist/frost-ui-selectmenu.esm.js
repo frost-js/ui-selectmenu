@@ -294,9 +294,11 @@ var SelectMenu = class extends BaseComponent {
 			})) : this.options.data;
 			this.#data = this.#parseData(data || getDomData(this.node));
 			this.#loadResults = $._debounce((request, id) => this.#fetchResults(request, id), this.options.debounce);
+			const focused = $.is(this.node, ":focus");
 			this.#render();
 			this.#events();
 			this.#loadValue(initialValue);
+			if (focused) $.focus(this.#multiple ? this.#searchInput : this.#toggle);
 		} catch (error) {
 			this.dispose();
 			throw error;

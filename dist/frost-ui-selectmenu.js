@@ -326,9 +326,11 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 				})) : this.options.data;
 				this.#data = this.#parseData(data || getDomData(this.node));
 				this.#loadResults = _fr0st_query.default._debounce((request, id) => this.#fetchResults(request, id), this.options.debounce);
+				const focused = _fr0st_query.default.is(this.node, ":focus");
 				this.#render();
 				this.#events();
 				this.#loadValue(initialValue);
+				if (focused) _fr0st_query.default.focus(this.#multiple ? this.#searchInput : this.#toggle);
 			} catch (error) {
 				this.dispose();
 				throw error;
