@@ -372,30 +372,6 @@ test.describe('SelectMenu', () => {
         });
     }
 
-    test.describe('minimum search length', () => {
-        for (const multiple of [false, true]) {
-            test(`keeps expanded state aligned with menu visibility (multiple=${multiple})`, async ({ page }) => {
-                await page.evaluate((multiple) => {
-                    $.setProperty('#select', 'multiple', multiple);
-                    UI.SelectMenu.init($.findOne('#select'), { minSearch: 2 });
-                }, multiple);
-                const control = page.getByRole('combobox');
-                await control.click();
-                await expect(control).toHaveAttribute('aria-expanded', String(!multiple));
-                await expect(page.locator('.selectmenu-menu')).toBeVisible({ visible: !multiple });
-                const search = page.getByRole(multiple ? 'combobox' : 'searchbox');
-                await search.fill('ap');
-                await expect(control).toHaveAttribute('aria-expanded', 'true');
-                await expect(page.locator('.selectmenu-menu')).toBeVisible();
-                await search.fill('a');
-                await expect(control).toHaveAttribute('aria-expanded', String(!multiple));
-                await expect(page.locator('.selectmenu-menu')).toBeVisible({ visible: !multiple });
-                await page.evaluate(() => $('#select').selectmenu('hide'));
-                await expect(control).toHaveAttribute('aria-expanded', 'false');
-            });
-        }
-    });
-
     test.describe('#update', () => {
         test('updates an appended full-width menu and returns the instance', async ({ page }) => {
             expect(await page.evaluate(() => {
@@ -675,6 +651,28 @@ test.describe('SelectMenu', () => {
             await page.getByRole('combobox').fill('b');
             await expect(page.locator('.selectmenu-menu')).toBeHidden();
         });
+
+        for (const multiple of [false, true]) {
+            test(`keeps expanded state aligned with menu visibility (multiple=${multiple})`, async ({ page }) => {
+                await page.evaluate((multiple) => {
+                    $.setProperty('#select', 'multiple', multiple);
+                    UI.SelectMenu.init($.findOne('#select'), { minSearch: 2 });
+                }, multiple);
+                const control = page.getByRole('combobox');
+                await control.click();
+                await expect(control).toHaveAttribute('aria-expanded', String(!multiple));
+                await expect(page.locator('.selectmenu-menu')).toBeVisible({ visible: !multiple });
+                const search = page.getByRole(multiple ? 'combobox' : 'searchbox');
+                await search.fill('ap');
+                await expect(control).toHaveAttribute('aria-expanded', 'true');
+                await expect(page.locator('.selectmenu-menu')).toBeVisible();
+                await search.fill('a');
+                await expect(control).toHaveAttribute('aria-expanded', String(!multiple));
+                await expect(page.locator('.selectmenu-menu')).toBeVisible({ visible: !multiple });
+                await page.evaluate(() => $('#select').selectmenu('hide'));
+                await expect(control).toHaveAttribute('aria-expanded', 'false');
+            });
+        }
     });
 
     test.describe('closeOnSelect option', () => {
@@ -705,6 +703,34 @@ test.describe('SelectMenu', () => {
     });
 
     test.describe('rendering and sanitization', () => {
+        test('allows rendering directly into the destination without exposing internal data', async ({ page }) => {
+            await page.evaluate(() => UI.SelectMenu.init($.findOne('#select'), {
+                renderSelection: (item, element) => {
+                    $.setText(element, item.text);
+                    item.text = 'Changed by renderer';
+                    return element;
+                },
+            }));
+            await expect(page.getByRole('combobox')).toHaveText('Apple');
+            expect(await page.evaluate(() => $('#select').selectmenu('data').text)).toBe('Apple');
+        });
+
+        test('accepts a returned element and sanitizes string output', async ({ page }) => {
+            await page.evaluate(() => {
+                UI.SelectMenu.init($.findOne('#select'), {
+                    renderSelection: (item) => {
+                        const span = $.create('span');
+                        $.setText(span, `Chosen ${item.text}`);
+                        return span;
+                    },
+                    renderResult: (item) => `<strong>${item.text}</strong><img src="x" onerror="window.unsafe = true">`,
+                }).show();
+            });
+            await expect(page.getByRole('combobox')).toHaveText('Chosen Apple');
+            await expect(page.locator('.selectmenu-items [onerror]')).toHaveCount(0);
+            await expect(page.getByRole('option', { name: 'Apple' }).locator('strong')).toHaveText('Apple');
+        });
+
         for (const multiple of [false, true]) {
             for (const grouped of [false, true]) {
                 test(`allows disposal from result renderers (multiple=${multiple}, grouped=${grouped})`, async ({ page }) => {
@@ -743,33 +769,5 @@ test.describe('SelectMenu', () => {
                 await expect(page.locator('#select')).not.toHaveClass(/visually-hidden/);
             });
         }
-
-        test('allows rendering directly into the destination without exposing internal data', async ({ page }) => {
-            await page.evaluate(() => UI.SelectMenu.init($.findOne('#select'), {
-                renderSelection: (item, element) => {
-                    $.setText(element, item.text);
-                    item.text = 'Changed by renderer';
-                    return element;
-                },
-            }));
-            await expect(page.getByRole('combobox')).toHaveText('Apple');
-            expect(await page.evaluate(() => $('#select').selectmenu('data').text)).toBe('Apple');
-        });
-
-        test('accepts a returned element and sanitizes string output', async ({ page }) => {
-            await page.evaluate(() => {
-                UI.SelectMenu.init($.findOne('#select'), {
-                    renderSelection: (item) => {
-                        const span = $.create('span');
-                        $.setText(span, `Chosen ${item.text}`);
-                        return span;
-                    },
-                    renderResult: (item) => `<strong>${item.text}</strong><img src="x" onerror="window.unsafe = true">`,
-                }).show();
-            });
-            await expect(page.getByRole('combobox')).toHaveText('Chosen Apple');
-            await expect(page.locator('.selectmenu-items [onerror]')).toHaveCount(0);
-            await expect(page.getByRole('option', { name: 'Apple' }).locator('strong')).toHaveText('Apple');
-        });
     });
 });

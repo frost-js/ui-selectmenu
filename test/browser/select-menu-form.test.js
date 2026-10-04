@@ -21,43 +21,20 @@ test.describe('SelectMenu forms', () => {
     });
 
     test.describe('native synchronization', () => {
-        for (const multiple of [false, true]) {
-            test(`retains selection when changing limits after a queued value mutation (multiple=${multiple})`, async ({ page }) => {
-                await page.evaluate((multiple) => {
-                    $.setProperty('#select', 'multiple', multiple);
-                    const instance = UI.SelectMenu.init($.findOne('#select'));
-                    $.setAttribute('#select option[value="a"]', 'value', 'apple');
-                    instance.setMaxSelections(2);
-                }, multiple);
-                expect(await page.evaluate(() => $('#select').selectmenu('getValue')))
-                    .toEqual(multiple ? ['apple'] : 'apple');
-                const selection = multiple ? page.locator('.selectmenu-selection') : page.getByRole('combobox');
-                await expect(selection).toHaveText('Apple');
-                expect(await page.evaluate(() => window.changes)).toBe(0);
+        test('synchronizes external native changes without duplicating events', async ({ page }) => {
+            await page.evaluate(() => {
+                const node = $.findOne('#select');
+                UI.SelectMenu.init(node);
+                node.add(new Option('Date', 'd'));
+                node.value = 'd';
+                node.dispatchEvent(new Event('change', { bubbles: true }));
             });
+            await expect(page.getByRole('combobox')).toHaveText('Date');
+            expect(await page.evaluate(() => $('#select').selectmenu('getValue'))).toBe('d');
+            expect(await page.evaluate(() => window.changes)).toBe(1);
+        });
 
-            for (const value of ['[]', '{}']) {
-                test(`retains focus on JSON-shaped option values (${value}, multiple=${multiple})`, async ({ page }) => {
-                    await page.evaluate(({ multiple, value }) => {
-                        $.setProperty('#select', 'multiple', multiple);
-                        $.setProperty('#select option[value="b"]', 'value', value);
-                        UI.SelectMenu.init($.findOne('#select'));
-                    }, { multiple, value });
-                    await page.getByRole('combobox').click();
-                    await page.getByRole('option', { name: 'Banana' }).hover();
-                    await page.evaluate(() => $.append('#select', '<option value="d">Date</option>'));
-                    await expect(page.getByRole('option')).toHaveText(['Apple', 'Banana', 'Date']);
-                    const search = page.getByRole(multiple ? 'combobox' : 'searchbox');
-                    await expect(search).toHaveAttribute('aria-activedescendant',
-                        await page.getByRole('option', { name: 'Banana' }).getAttribute('id'),
-                    );
-                    expect(await page.evaluate(() => window.changes)).toBe(0);
-                    await search.press('Enter');
-                    expect(await page.evaluate(() => $('#select').selectmenu('getValue')))
-                        .toEqual(multiple ? ['a', value] : value);
-                });
-            }
-
+        for (const multiple of [false, true]) {
             test(`does not reread option data for known value changes (multiple=${multiple})`, async ({ page }) => {
                 const reads = await page.evaluate((multiple) => {
                     $.setProperty('#select', 'multiple', multiple);
@@ -104,23 +81,6 @@ test.describe('SelectMenu forms', () => {
                 expect(await page.evaluate(() => window.changes)).toBe(1);
                 await page.getByRole('combobox').click();
                 await expect(page.getByRole('option')).toHaveText(['Extra']);
-            });
-
-            test(`processes queued control state when setting a value (multiple=${multiple})`, async ({ page }) => {
-                await page.evaluate((multiple) => {
-                    $.setProperty('#select', 'multiple', multiple);
-                    UI.SelectMenu.init($.findOne('#select')).show();
-                    $.setProperty('fieldset', 'disabled', true);
-                    $.setProperty('#select', 'required', true);
-                    $.setAttribute('#select', 'aria-invalid', true);
-                    $('#select').selectmenu('setValue', 'b');
-                }, multiple);
-                const control = page.getByRole('combobox');
-                await expect(control).toBeDisabled();
-                await expect(control).toHaveAttribute('aria-required', 'true');
-                await expect(control).toHaveAttribute('aria-invalid', 'true');
-                await expect(page.locator('.selectmenu-menu')).toHaveCount(0);
-                expect(await page.evaluate(() => $('#select').selectmenu('getValue'))).toEqual(multiple ? ['b'] : 'b');
             });
 
             test(`refreshes option labels while retaining search and focus (multiple=${multiple})`, async ({ page }) => {
@@ -261,18 +221,60 @@ test.describe('SelectMenu forms', () => {
             expect(await page.evaluate(() => window.searchRequests)).toBe(1);
         });
 
-        test('synchronizes external native changes without duplicating events', async ({ page }) => {
-            await page.evaluate(() => {
-                const node = $.findOne('#select');
-                UI.SelectMenu.init(node);
-                node.add(new Option('Date', 'd'));
-                node.value = 'd';
-                node.dispatchEvent(new Event('change', { bubbles: true }));
+        for (const multiple of [false, true]) {
+            test(`processes queued control state when setting a value (multiple=${multiple})`, async ({ page }) => {
+                await page.evaluate((multiple) => {
+                    $.setProperty('#select', 'multiple', multiple);
+                    UI.SelectMenu.init($.findOne('#select')).show();
+                    $.setProperty('fieldset', 'disabled', true);
+                    $.setProperty('#select', 'required', true);
+                    $.setAttribute('#select', 'aria-invalid', true);
+                    $('#select').selectmenu('setValue', 'b');
+                }, multiple);
+                const control = page.getByRole('combobox');
+                await expect(control).toBeDisabled();
+                await expect(control).toHaveAttribute('aria-required', 'true');
+                await expect(control).toHaveAttribute('aria-invalid', 'true');
+                await expect(page.locator('.selectmenu-menu')).toHaveCount(0);
+                expect(await page.evaluate(() => $('#select').selectmenu('getValue'))).toEqual(multiple ? ['b'] : 'b');
             });
-            await expect(page.getByRole('combobox')).toHaveText('Date');
-            expect(await page.evaluate(() => $('#select').selectmenu('getValue'))).toBe('d');
-            expect(await page.evaluate(() => window.changes)).toBe(1);
-        });
+
+            test(`retains selection when changing limits after a queued value mutation (multiple=${multiple})`, async ({ page }) => {
+                await page.evaluate((multiple) => {
+                    $.setProperty('#select', 'multiple', multiple);
+                    const instance = UI.SelectMenu.init($.findOne('#select'));
+                    $.setAttribute('#select option[value="a"]', 'value', 'apple');
+                    instance.setMaxSelections(2);
+                }, multiple);
+                expect(await page.evaluate(() => $('#select').selectmenu('getValue')))
+                    .toEqual(multiple ? ['apple'] : 'apple');
+                const selection = multiple ? page.locator('.selectmenu-selection') : page.getByRole('combobox');
+                await expect(selection).toHaveText('Apple');
+                expect(await page.evaluate(() => window.changes)).toBe(0);
+            });
+
+            for (const value of ['[]', '{}']) {
+                test(`retains focus on JSON-shaped option values (${value}, multiple=${multiple})`, async ({ page }) => {
+                    await page.evaluate(({ multiple, value }) => {
+                        $.setProperty('#select', 'multiple', multiple);
+                        $.setProperty('#select option[value="b"]', 'value', value);
+                        UI.SelectMenu.init($.findOne('#select'));
+                    }, { multiple, value });
+                    await page.getByRole('combobox').click();
+                    await page.getByRole('option', { name: 'Banana' }).hover();
+                    await page.evaluate(() => $.append('#select', '<option value="d">Date</option>'));
+                    await expect(page.getByRole('option')).toHaveText(['Apple', 'Banana', 'Date']);
+                    const search = page.getByRole(multiple ? 'combobox' : 'searchbox');
+                    await expect(search).toHaveAttribute('aria-activedescendant',
+                        await page.getByRole('option', { name: 'Banana' }).getAttribute('id'),
+                    );
+                    expect(await page.evaluate(() => window.changes)).toBe(0);
+                    await search.press('Enter');
+                    expect(await page.evaluate(() => $('#select').selectmenu('getValue')))
+                        .toEqual(multiple ? ['a', value] : value);
+                });
+            }
+        }
     });
 
     test.describe('submission', () => {
