@@ -84,6 +84,93 @@ test.describe('SelectMenu forms', () => {
         });
     });
 
+    test.describe('accessible state', () => {
+        for (const multiple of [false, true]) {
+            test(`synchronizes ARIA changes and restores native required state (multiple=${multiple})`, async ({ page }) => {
+                await page.evaluate((multiple) => {
+                    const node = $.findOne('#select');
+                    $.setProperty(node, 'multiple', multiple);
+                    $.setAttribute(node, {
+                        'aria-describedby': 'help',
+                        'aria-errormessage': 'error',
+                        'aria-invalid': true,
+                        'aria-required': true,
+                    });
+                    UI.SelectMenu.init(node);
+                }, multiple);
+                const control = page.getByRole('combobox');
+                await expect(control).toHaveAttribute('aria-describedby', 'help');
+                await expect(control).toHaveAttribute('aria-errormessage', 'error');
+                await expect(control).toHaveAttribute('aria-invalid', 'true');
+                await expect(control).toHaveAttribute('aria-required', 'true');
+
+                await control.click();
+                await expect(control).toHaveAttribute('aria-expanded', 'true');
+                const controls = await control.getAttribute('aria-controls');
+                const activeDescendant = await control.getAttribute('aria-activedescendant');
+                await page.evaluate(() => {
+                    $.setProperty('#select', 'required', true);
+                    $.setAttribute('#select', {
+                        'aria-describedby': 'updated-help',
+                        'aria-errormessage': 'updated-error',
+                        'aria-invalid': false,
+                        'aria-required': false,
+                    });
+                });
+                await expect(control).toHaveAttribute('aria-describedby', 'updated-help');
+                await expect(control).toHaveAttribute('aria-errormessage', 'updated-error');
+                await expect(control).toHaveAttribute('aria-invalid', 'false');
+                await expect(control).toHaveAttribute('aria-required', 'false');
+
+                await page.evaluate(() => {
+                    for (const attribute of ['aria-describedby', 'aria-errormessage', 'aria-invalid', 'aria-required']) {
+                        $.removeAttribute('#select', attribute);
+                    }
+                });
+                await expect(control).not.toHaveAttribute('aria-describedby');
+                await expect(control).not.toHaveAttribute('aria-errormessage');
+                await expect(control).not.toHaveAttribute('aria-invalid');
+                await expect(control).toHaveAttribute('aria-required', 'true');
+                await expect(control).toHaveAttribute('aria-expanded', 'true');
+                await expect(control).toHaveAttribute('aria-controls', controls);
+                await expect(control).toHaveAttribute('aria-activedescendant', activeDescendant);
+
+                await page.evaluate(() => $.setProperty('#select', 'required', false));
+                await expect(control).toHaveAttribute('aria-required', 'false');
+                expect(await page.evaluate(() => window.changes)).toBe(0);
+            });
+
+            test(`updates accessible names and falls back to the native label (multiple=${multiple})`, async ({ page }) => {
+                await page.evaluate((multiple) => {
+                    $.append(document.body, '<span id="fruit-label">Preferred fruit</span>');
+                    $.setProperty('#select', 'multiple', multiple);
+                    UI.SelectMenu.init($.findOne('#select'));
+                }, multiple);
+                const control = page.getByRole('combobox');
+                await expect(control).toHaveAccessibleName('Fruit');
+
+                await page.evaluate(() => $.setAttribute('#select', 'aria-label', 'Choose fruit'));
+                await expect(control).toHaveAccessibleName('Choose fruit');
+                await page.evaluate(() => $.setAttribute('#select', 'aria-labelledby', 'fruit-label'));
+                await expect(control).toHaveAccessibleName('Preferred fruit');
+                await expect(control).not.toHaveAttribute('aria-label');
+
+                await page.evaluate(() => $.setAttribute('#select', 'aria-label', 'Other fruit'));
+                await expect(control).toHaveAccessibleName('Preferred fruit');
+                await page.evaluate(() => $.removeAttribute('#select', 'aria-labelledby'));
+                await expect(control).not.toHaveAttribute('aria-labelledby');
+                await expect(control).toHaveAccessibleName('Other fruit');
+                await page.evaluate(() => $.removeAttribute('#select', 'aria-label'));
+                await expect(control).toHaveAccessibleName('Fruit');
+
+                if (!multiple) {
+                    await control.click();
+                    await expect(page.getByRole('searchbox')).toHaveAccessibleName('Search');
+                }
+            });
+        }
+    });
+
     test.describe('disabled state', () => {
         for (const multiple of [false, true]) {
             test(`enables options after an initially disabled fieldset is enabled (multiple=${multiple})`, async ({ page }) => {

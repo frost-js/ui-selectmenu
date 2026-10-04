@@ -105,7 +105,13 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 
 //#endregion
 //#region src/js/select-menu.js
-/** @typedef {string|number} SelectMenuValue */
+	var ariaAttributes = [
+		"aria-describedby",
+		"aria-errormessage",
+		"aria-invalid",
+		"aria-required"
+	];
+	/** @typedef {string|number} SelectMenuValue */
 	/**
 	* @typedef {object} SelectMenuItem
 	* @property {string} text The displayed label.
@@ -350,7 +356,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 		*/
 		disable() {
 			_fr0st_query.default.setProperty(this.node, { disabled: true });
-			this.#refreshDisabled();
+			this.#refreshState();
 			this.hide();
 		}
 		/** @inheritdoc */
@@ -400,7 +406,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 		*/
 		enable() {
 			_fr0st_query.default.setProperty(this.node, { disabled: false });
-			this.#refreshDisabled();
+			this.#refreshState();
 		}
 		/**
 		* Gets the selection limit.
@@ -689,14 +695,19 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 			}, 250, { leading: false });
 			_fr0st_query.default.addEvent(this.#itemsList, "scroll.ui.selectmenu", this.#scrollHandler);
 			this.#observer = new MutationObserver(() => {
-				if (this.node) {
-					this.#refreshDisabled();
-					if (_fr0st_query.default.is(this.node, ":disabled")) this.hide();
-				}
+				if (!this.node) return;
+				this.#refreshState();
+				if (_fr0st_query.default.is(this.node, ":disabled")) this.hide();
 			});
 			this.#observer.observe(this.node, {
 				attributes: true,
-				attributeFilter: ["disabled", "required"]
+				attributeFilter: [
+					"disabled",
+					"required",
+					"aria-label",
+					"aria-labelledby",
+					...ariaAttributes
+				]
 			});
 			for (const fieldset of _fr0st_query.default.parents(this.node, "fieldset")) this.#observer.observe(fieldset, {
 				attributes: true,
@@ -877,25 +888,9 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 			if (this.#multiple) this.#refreshMultiple();
 			else this.#refreshSingle();
 			this.#refreshPlaceholder();
-			this.#refreshDisabled();
+			this.#refreshState();
 			this.#updateSearchWidth();
 			if (focused) _fr0st_query.default.focus(this.#searchInput);
-		}
-		/**
-		* Synchronizes disabled and required semantics with the native control.
-		*/
-		#refreshDisabled() {
-			const disabled = _fr0st_query.default.is(this.node, ":disabled");
-			if (disabled) _fr0st_query.default.addClass(this.#toggle, this.constructor.classes.disabled);
-			else _fr0st_query.default.removeClass(this.#toggle, this.constructor.classes.disabled);
-			_fr0st_query.default.setProperty(this.#searchInput, { disabled });
-			if (!this.#multiple) _fr0st_query.default.setProperty(this.#toggle, { disabled });
-			for (const button of _fr0st_query.default.find("[data-ui-action=\"clear\"]", this.#container)) _fr0st_query.default.setProperty(button, { disabled });
-			const control = this.#multiple ? this.#searchInput : this.#toggle;
-			_fr0st_query.default.setProperty(control, { tabIndex: disabled ? -1 : Number(this.#tabIndex ?? 0) });
-			_fr0st_query.default.setAttribute(control, { "aria-disabled": String(disabled) });
-			_fr0st_query.default.setAttribute(control, { "aria-required": String(_fr0st_query.default.getProperty(this.node, "required")) });
-			this.#refreshFocus();
 		}
 		/**
 		* Keeps UI input focus styling active for the control and its menu.
@@ -946,13 +941,45 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 			if (this.options.allowClear) _fr0st_query.default.append(this.#container, this.#renderClear());
 		}
 		/**
+		* Synchronizes disabled, required, and accessible attributes with the native control.
+		*/
+		#refreshState() {
+			const disabled = _fr0st_query.default.is(this.node, ":disabled");
+			if (disabled) _fr0st_query.default.addClass(this.#toggle, this.constructor.classes.disabled);
+			else _fr0st_query.default.removeClass(this.#toggle, this.constructor.classes.disabled);
+			_fr0st_query.default.setProperty(this.#searchInput, { disabled });
+			if (!this.#multiple) _fr0st_query.default.setProperty(this.#toggle, { disabled });
+			for (const button of _fr0st_query.default.find("[data-ui-action=\"clear\"]", this.#container)) _fr0st_query.default.setProperty(button, { disabled });
+			const control = this.#multiple ? this.#searchInput : this.#toggle;
+			_fr0st_query.default.setProperty(control, { tabIndex: disabled ? -1 : Number(this.#tabIndex ?? 0) });
+			_fr0st_query.default.setAttribute(control, {
+				"aria-disabled": disabled,
+				"aria-required": Boolean(_fr0st_query.default.getProperty(this.node, "required"))
+			});
+			for (const attribute of ariaAttributes) {
+				const value = _fr0st_query.default.getAttribute(this.node, attribute);
+				if (value === null) {
+					if (attribute !== "aria-required") _fr0st_query.default.removeAttribute(control, attribute);
+				} else _fr0st_query.default.setAttribute(control, { [attribute]: value });
+			}
+			const labelledBy = _fr0st_query.default.getAttribute(this.node, "aria-labelledby");
+			const label = _fr0st_query.default.getAttribute(this.node, "aria-label") || [..._fr0st_query.default.getProperty(this.node, "labels")].map((node) => _fr0st_query.default.getText(node).trim()).join(" ");
+			if (labelledBy) {
+				_fr0st_query.default.setAttribute(control, { "aria-labelledby": labelledBy });
+				_fr0st_query.default.removeAttribute(control, "aria-label");
+			} else {
+				_fr0st_query.default.removeAttribute(control, "aria-labelledby");
+				if (label) _fr0st_query.default.setAttribute(control, { "aria-label": label });
+				else _fr0st_query.default.removeAttribute(control, "aria-label");
+			}
+			this.#refreshFocus();
+		}
+		/**
 		* Renders the controls and their accessible relationships.
 		*/
 		#render() {
 			const classes = this.constructor.classes;
 			const id = (0, _fr0st_ui.generateId)("selectmenu");
-			const labelledBy = _fr0st_query.default.getAttribute(this.node, "aria-labelledby");
-			const label = _fr0st_query.default.getAttribute(this.node, "aria-label") || [..._fr0st_query.default.getProperty(this.node, "labels")].map((node) => _fr0st_query.default.getText(node).trim()).join(" ");
 			const attributes = {
 				"role": "combobox",
 				"aria-haspopup": "listbox",
@@ -960,13 +987,6 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 				"aria-controls": id,
 				"aria-activedescendant": ""
 			};
-			for (const name of [
-				"aria-describedby",
-				"aria-errormessage",
-				"aria-invalid"
-			]) if (_fr0st_query.default.hasAttribute(this.node, name)) attributes[name] = _fr0st_query.default.getAttribute(this.node, name);
-			if (labelledBy) attributes["aria-labelledby"] = labelledBy;
-			else if (label) attributes["aria-label"] = label;
 			let toggleAttributes = {};
 			let searchAttributes = attributes;
 			let searchClass = classes.multiSearchInput;

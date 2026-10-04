@@ -73,6 +73,12 @@ function normalizeText(value) {
 
 //#endregion
 //#region src/js/select-menu.js
+var ariaAttributes = [
+	"aria-describedby",
+	"aria-errormessage",
+	"aria-invalid",
+	"aria-required"
+];
 /** @typedef {string|number} SelectMenuValue */
 /**
 * @typedef {object} SelectMenuItem
@@ -318,7 +324,7 @@ var SelectMenu = class extends BaseComponent {
 	*/
 	disable() {
 		$.setProperty(this.node, { disabled: true });
-		this.#refreshDisabled();
+		this.#refreshState();
 		this.hide();
 	}
 	/** @inheritdoc */
@@ -368,7 +374,7 @@ var SelectMenu = class extends BaseComponent {
 	*/
 	enable() {
 		$.setProperty(this.node, { disabled: false });
-		this.#refreshDisabled();
+		this.#refreshState();
 	}
 	/**
 	* Gets the selection limit.
@@ -657,14 +663,19 @@ var SelectMenu = class extends BaseComponent {
 		}, 250, { leading: false });
 		$.addEvent(this.#itemsList, "scroll.ui.selectmenu", this.#scrollHandler);
 		this.#observer = new MutationObserver(() => {
-			if (this.node) {
-				this.#refreshDisabled();
-				if ($.is(this.node, ":disabled")) this.hide();
-			}
+			if (!this.node) return;
+			this.#refreshState();
+			if ($.is(this.node, ":disabled")) this.hide();
 		});
 		this.#observer.observe(this.node, {
 			attributes: true,
-			attributeFilter: ["disabled", "required"]
+			attributeFilter: [
+				"disabled",
+				"required",
+				"aria-label",
+				"aria-labelledby",
+				...ariaAttributes
+			]
 		});
 		for (const fieldset of $.parents(this.node, "fieldset")) this.#observer.observe(fieldset, {
 			attributes: true,
@@ -845,25 +856,9 @@ var SelectMenu = class extends BaseComponent {
 		if (this.#multiple) this.#refreshMultiple();
 		else this.#refreshSingle();
 		this.#refreshPlaceholder();
-		this.#refreshDisabled();
+		this.#refreshState();
 		this.#updateSearchWidth();
 		if (focused) $.focus(this.#searchInput);
-	}
-	/**
-	* Synchronizes disabled and required semantics with the native control.
-	*/
-	#refreshDisabled() {
-		const disabled = $.is(this.node, ":disabled");
-		if (disabled) $.addClass(this.#toggle, this.constructor.classes.disabled);
-		else $.removeClass(this.#toggle, this.constructor.classes.disabled);
-		$.setProperty(this.#searchInput, { disabled });
-		if (!this.#multiple) $.setProperty(this.#toggle, { disabled });
-		for (const button of $.find("[data-ui-action=\"clear\"]", this.#container)) $.setProperty(button, { disabled });
-		const control = this.#multiple ? this.#searchInput : this.#toggle;
-		$.setProperty(control, { tabIndex: disabled ? -1 : Number(this.#tabIndex ?? 0) });
-		$.setAttribute(control, { "aria-disabled": String(disabled) });
-		$.setAttribute(control, { "aria-required": String($.getProperty(this.node, "required")) });
-		this.#refreshFocus();
 	}
 	/**
 	* Keeps UI input focus styling active for the control and its menu.
@@ -914,13 +909,45 @@ var SelectMenu = class extends BaseComponent {
 		if (this.options.allowClear) $.append(this.#container, this.#renderClear());
 	}
 	/**
+	* Synchronizes disabled, required, and accessible attributes with the native control.
+	*/
+	#refreshState() {
+		const disabled = $.is(this.node, ":disabled");
+		if (disabled) $.addClass(this.#toggle, this.constructor.classes.disabled);
+		else $.removeClass(this.#toggle, this.constructor.classes.disabled);
+		$.setProperty(this.#searchInput, { disabled });
+		if (!this.#multiple) $.setProperty(this.#toggle, { disabled });
+		for (const button of $.find("[data-ui-action=\"clear\"]", this.#container)) $.setProperty(button, { disabled });
+		const control = this.#multiple ? this.#searchInput : this.#toggle;
+		$.setProperty(control, { tabIndex: disabled ? -1 : Number(this.#tabIndex ?? 0) });
+		$.setAttribute(control, {
+			"aria-disabled": disabled,
+			"aria-required": Boolean($.getProperty(this.node, "required"))
+		});
+		for (const attribute of ariaAttributes) {
+			const value = $.getAttribute(this.node, attribute);
+			if (value === null) {
+				if (attribute !== "aria-required") $.removeAttribute(control, attribute);
+			} else $.setAttribute(control, { [attribute]: value });
+		}
+		const labelledBy = $.getAttribute(this.node, "aria-labelledby");
+		const label = $.getAttribute(this.node, "aria-label") || [...$.getProperty(this.node, "labels")].map((node) => $.getText(node).trim()).join(" ");
+		if (labelledBy) {
+			$.setAttribute(control, { "aria-labelledby": labelledBy });
+			$.removeAttribute(control, "aria-label");
+		} else {
+			$.removeAttribute(control, "aria-labelledby");
+			if (label) $.setAttribute(control, { "aria-label": label });
+			else $.removeAttribute(control, "aria-label");
+		}
+		this.#refreshFocus();
+	}
+	/**
 	* Renders the controls and their accessible relationships.
 	*/
 	#render() {
 		const classes = this.constructor.classes;
 		const id = generateId("selectmenu");
-		const labelledBy = $.getAttribute(this.node, "aria-labelledby");
-		const label = $.getAttribute(this.node, "aria-label") || [...$.getProperty(this.node, "labels")].map((node) => $.getText(node).trim()).join(" ");
 		const attributes = {
 			"role": "combobox",
 			"aria-haspopup": "listbox",
@@ -928,13 +955,6 @@ var SelectMenu = class extends BaseComponent {
 			"aria-controls": id,
 			"aria-activedescendant": ""
 		};
-		for (const name of [
-			"aria-describedby",
-			"aria-errormessage",
-			"aria-invalid"
-		]) if ($.hasAttribute(this.node, name)) attributes[name] = $.getAttribute(this.node, name);
-		if (labelledBy) attributes["aria-labelledby"] = labelledBy;
-		else if (label) attributes["aria-label"] = label;
 		let toggleAttributes = {};
 		let searchAttributes = attributes;
 		let searchClass = classes.multiSearchInput;
