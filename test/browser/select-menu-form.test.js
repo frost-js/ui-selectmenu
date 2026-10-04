@@ -22,6 +22,20 @@ test.describe('SelectMenu forms', () => {
 
     test.describe('native synchronization', () => {
         for (const multiple of [false, true]) {
+            test(`retains selection when changing limits after a queued value mutation (multiple=${multiple})`, async ({ page }) => {
+                await page.evaluate((multiple) => {
+                    $.setProperty('#select', 'multiple', multiple);
+                    const instance = UI.SelectMenu.init($.findOne('#select'));
+                    $.setAttribute('#select option[value="a"]', 'value', 'apple');
+                    instance.setMaxSelections(2);
+                }, multiple);
+                expect(await page.evaluate(() => $('#select').selectmenu('getValue')))
+                    .toEqual(multiple ? ['apple'] : 'apple');
+                const selection = multiple ? page.locator('.selectmenu-selection') : page.getByRole('combobox');
+                await expect(selection).toHaveText('Apple');
+                expect(await page.evaluate(() => window.changes)).toBe(0);
+            });
+
             for (const value of ['[]', '{}']) {
                 test(`retains focus on JSON-shaped option values (${value}, multiple=${multiple})`, async ({ page }) => {
                     await page.evaluate(({ multiple, value }) => {

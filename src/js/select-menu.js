@@ -439,7 +439,7 @@ export default class SelectMenu extends BaseComponent {
      */
     setMaxSelections(maxSelections) {
         this.#maxSelections = Math.max(0, Number(maxSelections) || 0);
-        this.#loadValue(this.#value);
+        this.#loadValue(this.#readNativeValue());
     }
 
     /**
@@ -486,11 +486,15 @@ export default class SelectMenu extends BaseComponent {
 
         $.show(this.#menuNode);
         this.#load();
+
+        if (!this.node) {
+            return;
+        }
+
         this.#createPopper();
 
         $.css(this.#menuNode, 'opacity');
         $.addClass(this.#menuNode, 'show');
-        $.setAttribute(this.#multiple ? this.#searchInput : this.#toggle, { 'aria-expanded': true });
 
         waitForTransition(this.#menuNode, ['opacity']).then(() => {
             if (this.node && id === this.#transitionId) {
@@ -531,7 +535,11 @@ export default class SelectMenu extends BaseComponent {
         this.#request = null;
         this.#loading = false;
 
-        request?.cancel?.();
+        try {
+            request?.cancel?.();
+        } catch {
+            // Consumer cancellation errors must not interrupt cleanup.
+        }
     }
 
     /**
@@ -543,7 +551,11 @@ export default class SelectMenu extends BaseComponent {
         const request = this.#valueRequest;
         this.#valueRequest = null;
 
-        request?.cancel?.();
+        try {
+            request?.cancel?.();
+        } catch {
+            // Consumer cancellation errors must not interrupt cleanup.
+        }
     }
 
     /**
@@ -919,8 +931,18 @@ export default class SelectMenu extends BaseComponent {
                 this.#data.push(...data);
             }
 
+            this.#refresh();
+
+            if (!this.node || id !== this.#requestId) {
+                return;
+            }
+
             this.#showMore = Boolean(response.showMore) && data.length > 0;
             this.#renderResults(data);
+
+            if (!this.node || id !== this.#requestId) {
+                return;
+            }
 
             if (this.#showMore && $.height(this.#itemsList, { boxSize: $.SCROLL_BOX }) <= $.height(this.#itemsList)) {
                 this.#scrollHandler();
@@ -1022,6 +1044,9 @@ export default class SelectMenu extends BaseComponent {
         }
 
         const term = $.getValue(this.#searchInput);
+        $.setAttribute(this.#multiple ? this.#searchInput : this.#toggle, {
+            'aria-expanded': !this.#multiple || term.length >= this.options.minSearch,
+        });
 
         if (term.length < this.options.minSearch) {
             if (this.#multiple) {
@@ -1135,6 +1160,10 @@ export default class SelectMenu extends BaseComponent {
             this.#refreshSingle();
         }
 
+        if (!this.node) {
+            return;
+        }
+
         this.#refreshPlaceholder();
         this.#refreshState();
         this.#updateSearchWidth();
@@ -1194,6 +1223,11 @@ export default class SelectMenu extends BaseComponent {
             const label = $.create('span', { class: classes.multiItem });
 
             this.#renderContent(item, label, this.options.renderSelection);
+
+            if (!this.node) {
+                return;
+            }
+
             $.append(group, [clear, label]);
             $.append(this.#toggle, group);
         }
@@ -1232,6 +1266,11 @@ export default class SelectMenu extends BaseComponent {
         const label = $.create('span', { class: this.constructor.classes.selectionSingle });
 
         this.#renderContent(item, label, this.options.renderSelection);
+
+        if (!this.node) {
+            return;
+        }
+
         $.append(this.#toggle, label);
 
         if (this.options.allowClear) {
@@ -1432,6 +1471,10 @@ export default class SelectMenu extends BaseComponent {
     #renderContent(item, element, renderer) {
         const content = renderer.call(this, cloneItem(item), element);
 
+        if (!this.node) {
+            return;
+        }
+
         if (typeof content === 'string') {
             $.setHtml(element, this.options.sanitize(content));
         } else if ($._isElement(content) && content !== element) {
@@ -1443,7 +1486,7 @@ export default class SelectMenu extends BaseComponent {
      * Renders a group label and its nested results.
      * @param {SelectMenuItem} item The group.
      * @param {Set<string>} selectedValues The selected value keys.
-     * @returns {HTMLLIElement} The group element.
+     * @returns {HTMLLIElement|null} The group element, or `null` after disposal.
      */
     #renderGroup(item, selectedValues) {
         const classes = this.constructor.classes;
@@ -1460,6 +1503,11 @@ export default class SelectMenu extends BaseComponent {
         });
 
         this.#renderContent(item, label, this.options.renderResult);
+
+        if (!this.node) {
+            return null;
+        }
+
         $.append(group, [label, list]);
         this.#renderResults(item.children, list, selectedValues);
 
@@ -1529,6 +1577,11 @@ export default class SelectMenu extends BaseComponent {
             const element = item.children ?
                 this.#renderGroup(item, selectedValues) :
                 this.#renderItem(item, selectedValues.has(String(item.value)));
+
+            if (!this.node) {
+                return;
+            }
+
             $.append(container, element);
         }
 
@@ -1637,6 +1690,10 @@ export default class SelectMenu extends BaseComponent {
         }
 
         this.#refresh();
+
+        if (!this.node) {
+            return;
+        }
 
         if (records.length && $.is(this.node, ':disabled')) {
             this.hide();

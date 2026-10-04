@@ -460,7 +460,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 		*/
 		setMaxSelections(maxSelections) {
 			this.#maxSelections = Math.max(0, Number(maxSelections) || 0);
-			this.#loadValue(this.#value);
+			this.#loadValue(this.#readNativeValue());
 		}
 		/**
 		* Sets the empty selection label.
@@ -489,10 +489,10 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 			else _fr0st_query.default.after(_fr0st_query.default.closest(this.#container, ".input-group")[0] || this.#container, this.#menuNode);
 			_fr0st_query.default.show(this.#menuNode);
 			this.#load();
+			if (!this.node) return;
 			this.#createPopper();
 			_fr0st_query.default.css(this.#menuNode, "opacity");
 			_fr0st_query.default.addClass(this.#menuNode, "show");
-			_fr0st_query.default.setAttribute(this.#multiple ? this.#searchInput : this.#toggle, { "aria-expanded": true });
 			(0, _fr0st_ui.waitForTransition)(this.#menuNode, ["opacity"]).then(() => {
 				if (this.node && id === this.#transitionId) _fr0st_query.default.triggerEvent(this.node, "shown.ui.selectmenu");
 			});
@@ -521,7 +521,9 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 			const request = this.#request;
 			this.#request = null;
 			this.#loading = false;
-			request?.cancel?.();
+			try {
+				request?.cancel?.();
+			} catch {}
 		}
 		/**
 		* Cancels a pending value lookup and invalidates its response.
@@ -530,7 +532,9 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 			this.#valueRequestId++;
 			const request = this.#valueRequest;
 			this.#valueRequest = null;
-			request?.cancel?.();
+			try {
+				request?.cancel?.();
+			} catch {}
 		}
 		/**
 		* Clears result nodes and their active descendant references.
@@ -751,8 +755,11 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 					_fr0st_query.default.remove(_fr0st_query.default.children(this.#itemsList, "[role=\"status\"]"));
 					this.#data.push(...data);
 				}
+				this.#refresh();
+				if (!this.node || id !== this.#requestId) return;
 				this.#showMore = Boolean(response.showMore) && data.length > 0;
 				this.#renderResults(data);
+				if (!this.node || id !== this.#requestId) return;
 				if (this.#showMore && _fr0st_query.default.height(this.#itemsList, { boxSize: _fr0st_query.default.SCROLL_BOX }) <= _fr0st_query.default.height(this.#itemsList)) this.#scrollHandler();
 			} catch {
 				if (this.node && id === this.#requestId) {
@@ -821,6 +828,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 				this.#showMore = false;
 			} else _fr0st_query.default.remove(_fr0st_query.default.children(this.#itemsList, "[role=\"status\"]"));
 			const term = _fr0st_query.default.getValue(this.#searchInput);
+			_fr0st_query.default.setAttribute(this.#multiple ? this.#searchInput : this.#toggle, { "aria-expanded": !this.#multiple || term.length >= this.options.minSearch });
 			if (term.length < this.options.minSearch) {
 				if (this.#multiple) _fr0st_query.default.hide(this.#menuNode);
 				this.update();
@@ -899,6 +907,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 			const focused = this.#searchInput === this.node.ownerDocument.activeElement;
 			if (this.#multiple) this.#refreshMultiple();
 			else this.#refreshSingle();
+			if (!this.node) return;
 			this.#refreshPlaceholder();
 			this.#refreshState();
 			this.#updateSearchWidth();
@@ -935,6 +944,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 				const clear = this.#renderClear(item.value);
 				const label = _fr0st_query.default.create("span", { class: classes.multiItem });
 				this.#renderContent(item, label, this.options.renderSelection);
+				if (!this.node) return;
 				_fr0st_query.default.append(group, [clear, label]);
 				_fr0st_query.default.append(this.#toggle, group);
 			}
@@ -960,6 +970,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 			const item = this.#lookup.get(String(this.#value));
 			const label = _fr0st_query.default.create("span", { class: this.constructor.classes.selectionSingle });
 			this.#renderContent(item, label, this.options.renderSelection);
+			if (!this.node) return;
 			_fr0st_query.default.append(this.#toggle, label);
 			if (this.options.allowClear) _fr0st_query.default.append(this.#container, this.#renderClear());
 		}
@@ -1104,6 +1115,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 		*/
 		#renderContent(item, element, renderer) {
 			const content = renderer.call(this, cloneItem(item), element);
+			if (!this.node) return;
 			if (typeof content === "string") _fr0st_query.default.setHtml(element, this.options.sanitize(content));
 			else if (_fr0st_query.default._isElement(content) && content !== element) _fr0st_query.default.append(element, content);
 		}
@@ -1111,7 +1123,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 		* Renders a group label and its nested results.
 		* @param {SelectMenuItem} item The group.
 		* @param {Set<string>} selectedValues The selected value keys.
-		* @returns {HTMLLIElement} The group element.
+		* @returns {HTMLLIElement|null} The group element, or `null` after disposal.
 		*/
 		#renderGroup(item, selectedValues) {
 			const classes = this.constructor.classes;
@@ -1125,6 +1137,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 				attributes: { role: "none" }
 			});
 			this.#renderContent(item, label, this.options.renderResult);
+			if (!this.node) return null;
 			_fr0st_query.default.append(group, [label, list]);
 			this.#renderResults(item.children, list, selectedValues);
 			return group;
@@ -1180,6 +1193,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 		#renderResults(results, container = this.#itemsList, selectedValues = new Set(normalizeValues(this.#value).map(String))) {
 			for (const item of results) {
 				const element = item.children ? this.#renderGroup(item, selectedValues) : this.#renderItem(item, selectedValues.has(String(item.value)));
+				if (!this.node) return;
 				_fr0st_query.default.append(container, element);
 			}
 			if (container !== this.#itemsList) return;
@@ -1228,6 +1242,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 			for (const option of options) _fr0st_query.default.setProperty(option, { selected: selected.has(_fr0st_query.default.getValue(option)) });
 			if (!values.length) _fr0st_query.default.setProperty(this.node, { selectedIndex: -1 });
 			this.#refresh();
+			if (!this.node) return;
 			if (records.length && _fr0st_query.default.is(this.node, ":disabled")) {
 				this.hide();
 				if (!this.node) return;

@@ -24,6 +24,34 @@ test.describe('SelectMenu remote results', () => {
     });
 
     test.describe('responses', () => {
+        for (const multiple of [false, true]) {
+            test(`refreshes selected labels from search responses without changing values (multiple=${multiple})`, async ({ page }) => {
+                await page.evaluate((multiple) => {
+                    $.setProperty('#select', 'multiple', multiple);
+                    UI.SelectMenu.init($.findOne('#select'), {
+                        debounce: 0, getResults: window.getResults,
+                    }).setValue('a');
+                    window.changes = 0;
+                    $.addEvent('#select', 'change.ui.selectmenu', () => window.changes++);
+                }, multiple);
+                await page.getByRole('combobox').click();
+                await expect.poll(() => page.evaluate(() => window.requests.length)).toBe(1);
+                const search = page.getByRole(multiple ? 'combobox' : 'searchbox');
+                await search.fill('ap');
+                await expect.poll(() => page.evaluate(() => window.requests.length)).toBe(2);
+                await page.evaluate(() => window.requests[1].resolve({ results: [{ value: 'a', text: 'Apricot' }] }));
+                const selection = multiple ? page.locator('.selectmenu-selection') : page.getByRole('combobox');
+                await expect(selection).toHaveText('Apricot');
+                await expect(page.getByRole('option')).toHaveText('Apricot');
+                await expect(search).toHaveValue('ap');
+                await expect(search).toBeFocused();
+                expect(await page.evaluate(() => $('#select').selectmenu('getValue'))).toEqual(multiple ? ['a'] : 'a');
+                expect(await page.evaluate(() => window.requests.length)).toBe(2);
+                expect(await page.evaluate(() => window.changes)).toBe(0);
+                await expect(page.locator('#select option')).toHaveText('Apple');
+            });
+        }
+
         test('shows no results for an empty response', async ({ page }) => {
             await page.evaluate(() => UI.SelectMenu.init($.findOne('#select'), {
                 debounce: 0, getResults: () => ({ results: [] }),
@@ -117,6 +145,43 @@ test.describe('SelectMenu remote results', () => {
     });
 
     test.describe('cancellation', () => {
+        for (const type of ['search', 'value']) {
+            test(`completes disposal when ${type} cancellation throws`, async ({ page }) => {
+                await page.evaluate((type) => {
+                    window.instance = UI.SelectMenu.init($.findOne('#select'), {
+                        debounce: 0,
+                        getResults(request) {
+                            const result = window.getResults(request);
+                            const cancel = result.cancel;
+                            result.cancel = () => {
+                                cancel();
+                                throw new Error('Cancellation failed');
+                            };
+                            return result;
+                        },
+                    });
+                    if (type === 'search') {
+                        window.instance.show();
+                    } else {
+                        window.instance.setValue('remote');
+                    }
+                }, type);
+                await expect.poll(() => page.evaluate(() => window.requests.length)).toBe(1);
+                await page.evaluate(() => window.instance.dispose());
+                expect(await page.evaluate(() => window.instance.node)).toBeNull();
+                expect(await page.evaluate(() => $.hasData('#select', 'selectmenu'))).toBe(false);
+                expect(await page.evaluate(() => window.requests[0].cancelled)).toBe(true);
+                await expect(page.locator('.selectmenu-container, .selectmenu-menu')).toHaveCount(0);
+                await expect(page.locator('#select')).not.toHaveClass(/visually-hidden/);
+                await page.evaluate(() => {
+                    UI.SelectMenu.init($.findOne('#select'));
+                    window.requests[0].resolve({ results: [{ value: 'late', text: 'Late' }] });
+                });
+                await expect(page.getByRole('combobox')).toHaveText('Apple');
+                await expect(page.locator('#select option')).toHaveCount(1);
+            });
+        }
+
         test('shows loading and prevents stale search responses from changing the lookup', async ({ page }) => {
             await page.evaluate(() => UI.SelectMenu.init($.findOne('#select'), {
                 getResults: window.getResults, debounce: 0,

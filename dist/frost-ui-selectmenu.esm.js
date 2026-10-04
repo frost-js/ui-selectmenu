@@ -428,7 +428,7 @@ var SelectMenu = class extends BaseComponent {
 	*/
 	setMaxSelections(maxSelections) {
 		this.#maxSelections = Math.max(0, Number(maxSelections) || 0);
-		this.#loadValue(this.#value);
+		this.#loadValue(this.#readNativeValue());
 	}
 	/**
 	* Sets the empty selection label.
@@ -457,10 +457,10 @@ var SelectMenu = class extends BaseComponent {
 		else $.after($.closest(this.#container, ".input-group")[0] || this.#container, this.#menuNode);
 		$.show(this.#menuNode);
 		this.#load();
+		if (!this.node) return;
 		this.#createPopper();
 		$.css(this.#menuNode, "opacity");
 		$.addClass(this.#menuNode, "show");
-		$.setAttribute(this.#multiple ? this.#searchInput : this.#toggle, { "aria-expanded": true });
 		waitForTransition(this.#menuNode, ["opacity"]).then(() => {
 			if (this.node && id === this.#transitionId) $.triggerEvent(this.node, "shown.ui.selectmenu");
 		});
@@ -489,7 +489,9 @@ var SelectMenu = class extends BaseComponent {
 		const request = this.#request;
 		this.#request = null;
 		this.#loading = false;
-		request?.cancel?.();
+		try {
+			request?.cancel?.();
+		} catch {}
 	}
 	/**
 	* Cancels a pending value lookup and invalidates its response.
@@ -498,7 +500,9 @@ var SelectMenu = class extends BaseComponent {
 		this.#valueRequestId++;
 		const request = this.#valueRequest;
 		this.#valueRequest = null;
-		request?.cancel?.();
+		try {
+			request?.cancel?.();
+		} catch {}
 	}
 	/**
 	* Clears result nodes and their active descendant references.
@@ -719,8 +723,11 @@ var SelectMenu = class extends BaseComponent {
 				$.remove($.children(this.#itemsList, "[role=\"status\"]"));
 				this.#data.push(...data);
 			}
+			this.#refresh();
+			if (!this.node || id !== this.#requestId) return;
 			this.#showMore = Boolean(response.showMore) && data.length > 0;
 			this.#renderResults(data);
+			if (!this.node || id !== this.#requestId) return;
 			if (this.#showMore && $.height(this.#itemsList, { boxSize: $.SCROLL_BOX }) <= $.height(this.#itemsList)) this.#scrollHandler();
 		} catch {
 			if (this.node && id === this.#requestId) {
@@ -789,6 +796,7 @@ var SelectMenu = class extends BaseComponent {
 			this.#showMore = false;
 		} else $.remove($.children(this.#itemsList, "[role=\"status\"]"));
 		const term = $.getValue(this.#searchInput);
+		$.setAttribute(this.#multiple ? this.#searchInput : this.#toggle, { "aria-expanded": !this.#multiple || term.length >= this.options.minSearch });
 		if (term.length < this.options.minSearch) {
 			if (this.#multiple) $.hide(this.#menuNode);
 			this.update();
@@ -867,6 +875,7 @@ var SelectMenu = class extends BaseComponent {
 		const focused = this.#searchInput === this.node.ownerDocument.activeElement;
 		if (this.#multiple) this.#refreshMultiple();
 		else this.#refreshSingle();
+		if (!this.node) return;
 		this.#refreshPlaceholder();
 		this.#refreshState();
 		this.#updateSearchWidth();
@@ -903,6 +912,7 @@ var SelectMenu = class extends BaseComponent {
 			const clear = this.#renderClear(item.value);
 			const label = $.create("span", { class: classes.multiItem });
 			this.#renderContent(item, label, this.options.renderSelection);
+			if (!this.node) return;
 			$.append(group, [clear, label]);
 			$.append(this.#toggle, group);
 		}
@@ -928,6 +938,7 @@ var SelectMenu = class extends BaseComponent {
 		const item = this.#lookup.get(String(this.#value));
 		const label = $.create("span", { class: this.constructor.classes.selectionSingle });
 		this.#renderContent(item, label, this.options.renderSelection);
+		if (!this.node) return;
 		$.append(this.#toggle, label);
 		if (this.options.allowClear) $.append(this.#container, this.#renderClear());
 	}
@@ -1072,6 +1083,7 @@ var SelectMenu = class extends BaseComponent {
 	*/
 	#renderContent(item, element, renderer) {
 		const content = renderer.call(this, cloneItem(item), element);
+		if (!this.node) return;
 		if (typeof content === "string") $.setHtml(element, this.options.sanitize(content));
 		else if ($._isElement(content) && content !== element) $.append(element, content);
 	}
@@ -1079,7 +1091,7 @@ var SelectMenu = class extends BaseComponent {
 	* Renders a group label and its nested results.
 	* @param {SelectMenuItem} item The group.
 	* @param {Set<string>} selectedValues The selected value keys.
-	* @returns {HTMLLIElement} The group element.
+	* @returns {HTMLLIElement|null} The group element, or `null` after disposal.
 	*/
 	#renderGroup(item, selectedValues) {
 		const classes = this.constructor.classes;
@@ -1093,6 +1105,7 @@ var SelectMenu = class extends BaseComponent {
 			attributes: { role: "none" }
 		});
 		this.#renderContent(item, label, this.options.renderResult);
+		if (!this.node) return null;
 		$.append(group, [label, list]);
 		this.#renderResults(item.children, list, selectedValues);
 		return group;
@@ -1148,6 +1161,7 @@ var SelectMenu = class extends BaseComponent {
 	#renderResults(results, container = this.#itemsList, selectedValues = new Set(normalizeValues(this.#value).map(String))) {
 		for (const item of results) {
 			const element = item.children ? this.#renderGroup(item, selectedValues) : this.#renderItem(item, selectedValues.has(String(item.value)));
+			if (!this.node) return;
 			$.append(container, element);
 		}
 		if (container !== this.#itemsList) return;
@@ -1196,6 +1210,7 @@ var SelectMenu = class extends BaseComponent {
 		for (const option of options) $.setProperty(option, { selected: selected.has($.getValue(option)) });
 		if (!values.length) $.setProperty(this.node, { selectedIndex: -1 });
 		this.#refresh();
+		if (!this.node) return;
 		if (records.length && $.is(this.node, ":disabled")) {
 			this.hide();
 			if (!this.node) return;
