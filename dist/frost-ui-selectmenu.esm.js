@@ -16,6 +16,15 @@ function cloneItem(item) {
 	return copy;
 }
 /**
+* Checks whether a node is the parent itself or one of its descendants.
+* @param {Node} parent The parent node.
+* @param {Node|null} node The node to check.
+* @returns {boolean} Whether the parent contains the node.
+*/
+function containsNode(parent, node) {
+	return Boolean(node) && ($.isSame(parent, node) || $.hasDescendent(parent, node));
+}
+/**
 * Gets all leaf items from a grouped result set.
 * @param {SelectMenuItem[]} items The items and groups.
 * @returns {SelectMenuItem[]} The leaf items.
@@ -29,17 +38,17 @@ function flattenItems(items) {
 * @returns {SelectMenuItem[]} The native data.
 */
 function getDomData(node) {
-	return [...node.children].filter((child) => $.is(child, "option, optgroup")).map((child) => {
+	return $.children(node, "option, optgroup").map((child) => {
 		if ($.is(child, "optgroup")) return {
-			text: child.label,
-			disabled: child.disabled,
+			text: $.getProperty(child, "label"),
+			disabled: $.getProperty(child, "disabled"),
 			children: getDomData(child)
 		};
 		return {
 			...$.getDataset(child),
 			text: $.getText(child),
 			value: $.getValue(child),
-			disabled: child.disabled,
+			disabled: $.getProperty(child, "disabled"),
 			element: child
 		};
 	});
@@ -273,11 +282,11 @@ var SelectMenu = class extends BaseComponent {
 			this.#tabIndex = $.getAttribute(this.node, "tabindex");
 			this.#hidden = $.hasClass(this.node, this.constructor.classes.hide);
 			this.#ariaHidden = $.getAttribute(this.node, "aria-hidden");
-			this.#multiple = this.node.multiple;
+			this.#multiple = $.getProperty(this.node, "multiple");
 			this.#value = this.#multiple ? [] : null;
 			this.#maxSelections = Math.max(0, Number(this.options.maxSelections) || 0);
 			this.#placeholderText = this.options.placeholder;
-			this.#form = this.node.form;
+			this.#form = $.getProperty(this.node, "form");
 			const initialValue = this.#readNativeValue();
 			const data = $._isPlainObject(this.options.data) ? Object.entries(this.options.data).map(([value, text]) => ({
 				value,
@@ -525,8 +534,8 @@ var SelectMenu = class extends BaseComponent {
 				clearTimeout(this.#resetTimer);
 				this.#resetTimer = setTimeout(() => {
 					if (this.node && !event.defaultPrevented) {
-						const selected = this.node.selectedOptions[0];
-						if (!this.#multiple && this.#generatedOptions.has(selected) && !selected.defaultSelected) this.node.selectedIndex = -1;
+						const [selected] = $.getProperty(this.node, "selectedOptions");
+						if (!this.#multiple && this.#generatedOptions.has(selected) && !$.getProperty(selected, "defaultSelected")) $.setProperty(this.node, { selectedIndex: -1 });
 						this.#loadValue(this.#readNativeValue());
 						this.hide();
 					}
@@ -535,13 +544,13 @@ var SelectMenu = class extends BaseComponent {
 			$.addEvent(this.#form, "reset.ui.selectmenu", this.#resetHandler);
 		}
 		this.#documentHandler = (event) => {
-			if (this.#open && !this.#container.contains(event.target) && !this.#menuNode.contains(event.target)) this.hide();
+			if (this.#open && !containsNode(this.#container, event.target) && !containsNode(this.#menuNode, event.target)) this.hide();
 		};
 		$.addEvent(this.node.ownerDocument, "mousedown.ui.selectmenu", this.#documentHandler);
 		$.addEvent([this.#container, this.#menuNode], "focusin.ui.selectmenu", () => this.#refreshFocus());
 		$.addEvent([this.#container, this.#menuNode], "focusout.ui.selectmenu", () => {
 			queueMicrotask(() => {
-				if (this.node && this.#open && !this.#container.contains(this.node.ownerDocument.activeElement) && !this.#menuNode.contains(this.node.ownerDocument.activeElement)) this.hide();
+				if (this.node && this.#open && !containsNode(this.#container, this.node.ownerDocument.activeElement) && !containsNode(this.#menuNode, this.node.ownerDocument.activeElement)) this.hide();
 				if (this.node) this.#refreshFocus();
 			});
 		});
@@ -599,7 +608,7 @@ var SelectMenu = class extends BaseComponent {
 		this.#scrollHandler = $._throttle(() => {
 			if (!this.node || !this.#open || this.#loading || !this.#showMore) return;
 			const list = this.#itemsList;
-			if (list.scrollTop >= list.scrollHeight - list.clientHeight * 1.25) this.#load(this.#data.length);
+			if ($.getScrollY(list) >= $.height(list, { boxSize: $.SCROLL_BOX }) - $.height(list) * 1.25) this.#load(this.#data.length);
 		}, 250, { leading: false });
 		$.addEvent(this.#itemsList, "scroll.ui.selectmenu", this.#scrollHandler);
 		this.#observer = new MutationObserver(() => {
@@ -644,7 +653,7 @@ var SelectMenu = class extends BaseComponent {
 			}
 			this.#showMore = Boolean(response.showMore) && data.length > 0;
 			this.#renderResults(data);
-			if (this.#showMore && this.#itemsList.scrollHeight <= this.#itemsList.clientHeight) this.#scrollHandler();
+			if (this.#showMore && $.height(this.#itemsList, { boxSize: $.SCROLL_BOX }) <= $.height(this.#itemsList)) this.#scrollHandler();
 		} catch {
 			if (this.node && id === this.#requestId) {
 				$.remove($.children(this.#itemsList, "[role=\"status\"]"));
@@ -694,7 +703,7 @@ var SelectMenu = class extends BaseComponent {
 			$.addClass(element, this.constructor.classes.focus);
 			$.setDataset(element, { uiFocus: true });
 		}
-		$.setAttribute([this.#toggle, this.#searchInput], { "aria-activedescendant": element?.id || "" });
+		$.setAttribute([this.#toggle, this.#searchInput], { "aria-activedescendant": $.getProperty(element, "id") || "" });
 	}
 	/**
 	* Gets local results, retaining groups when there is no search term.
@@ -747,7 +756,7 @@ var SelectMenu = class extends BaseComponent {
 				const option = this.#activeItems[next];
 				if (option) {
 					this.#focusItem(option);
-					option.scrollIntoView({ block: "nearest" });
+					$._callDomMethod(option, "scrollIntoView", { block: "nearest" });
 				}
 			}
 		}
@@ -811,7 +820,7 @@ var SelectMenu = class extends BaseComponent {
 			if (Array.isArray(source.children)) item.children = this.#parseData(source.children, item.disabled);
 			else {
 				const key = String(item.value);
-				item.element = source.element || this.#lookup.get(key)?.element || [...this.node.options].find((option) => $.getValue(option) === key);
+				item.element = source.element || this.#lookup.get(key)?.element || [...$.getProperty(this.node, "options")].find((option) => $.getValue(option) === key);
 				if (!item.element) {
 					item.element = $.create("option", {
 						text: item.text,
@@ -831,7 +840,7 @@ var SelectMenu = class extends BaseComponent {
 	*/
 	#readNativeValue() {
 		for (const item of flattenItems(getDomData(this.node))) if (!this.#lookup.has(String(item.value))) this.#lookup.set(String(item.value), item);
-		const values = [...this.node.selectedOptions].map((option) => $.getValue(option));
+		const values = [...$.getProperty(this.node, "selectedOptions")].map((option) => $.getValue(option));
 		return this.#multiple ? values : values[0] ?? null;
 	}
 	/**
@@ -857,16 +866,16 @@ var SelectMenu = class extends BaseComponent {
 		if (!this.#multiple) $.setProperty(this.#toggle, { disabled });
 		for (const button of $.find("[data-ui-action=\"clear\"]", this.#container)) $.setProperty(button, { disabled });
 		const control = this.#multiple ? this.#searchInput : this.#toggle;
-		control.tabIndex = disabled ? -1 : Number(this.#tabIndex ?? 0);
+		$.setProperty(control, { tabIndex: disabled ? -1 : Number(this.#tabIndex ?? 0) });
 		$.setAttribute(control, { "aria-disabled": String(disabled) });
-		$.setAttribute(control, { "aria-required": String(this.node.required) });
+		$.setAttribute(control, { "aria-required": String($.getProperty(this.node, "required")) });
 		this.#refreshFocus();
 	}
 	/**
 	* Keeps UI input focus styling active for the control and its menu.
 	*/
 	#refreshFocus() {
-		if (!$.is(this.node, ":disabled") && (this.#open || this.#container.contains(this.node.ownerDocument.activeElement))) $.addClass(this.#toggle, this.constructor.classes.focus);
+		if (!$.is(this.node, ":disabled") && (this.#open || containsNode(this.#container, this.node.ownerDocument.activeElement))) $.addClass(this.#toggle, this.constructor.classes.focus);
 		else $.removeClass(this.#toggle, this.constructor.classes.focus);
 	}
 	/**
@@ -917,7 +926,7 @@ var SelectMenu = class extends BaseComponent {
 		const classes = this.constructor.classes;
 		const id = generateId("selectmenu");
 		const labelledBy = $.getAttribute(this.node, "aria-labelledby");
-		const label = $.getAttribute(this.node, "aria-label") || [...this.node.labels].map((node) => $.getText(node).trim()).join(" ");
+		const label = $.getAttribute(this.node, "aria-label") || [...$.getProperty(this.node, "labels")].map((node) => $.getText(node).trim()).join(" ");
 		const attributes = {
 			"role": "combobox",
 			"aria-haspopup": "listbox",
@@ -953,7 +962,7 @@ var SelectMenu = class extends BaseComponent {
 			attributes: { dir: $.css(this.node, "direction") }
 		});
 		this.#toggle = $.create(this.#multiple ? "div" : "button", {
-			class: [this.node.className, this.#multiple ? classes.multiToggle : classes.toggle],
+			class: [$.getProperty(this.node, "className"), this.#multiple ? classes.multiToggle : classes.toggle],
 			attributes: toggleAttributes
 		});
 		this.#searchInput = $.create("input", {
@@ -1105,7 +1114,7 @@ var SelectMenu = class extends BaseComponent {
 			$.append(container, element);
 		}
 		if (container !== this.#itemsList) return;
-		if (!this.#itemsList.children.length) this.#renderInfo(this.options.lang.noResults);
+		if (!$.hasChildren(this.#itemsList)) this.#renderInfo(this.options.lang.noResults);
 		if (!$.findOne("[data-ui-focus]", this.#itemsList)) this.#focusItem(this.#activeItems[0] || null);
 	}
 	/**
@@ -1141,11 +1150,12 @@ var SelectMenu = class extends BaseComponent {
 		this.#value = this.#multiple ? values : values[0] ?? null;
 		for (const entry of values) {
 			const element = this.#lookup.get(String(entry)).element;
-			if (!this.node.contains(element)) this.node.append(element);
+			if (!containsNode(this.node, element)) $.append(this.node, element);
 		}
 		const selected = new Set(values.map(String));
-		for (const option of this.node.options) $.setProperty(option, { selected: selected.has($.getValue(option)) });
-		if (!values.length) this.node.selectedIndex = -1;
+		const options = $.getProperty(this.node, "options");
+		for (const option of options) $.setProperty(option, { selected: selected.has($.getValue(option)) });
+		if (!values.length) $.setProperty(this.node, { selectedIndex: -1 });
 		this.#refresh();
 		if (this.#open && !notify) this.#load();
 		if (notify && changed) {
@@ -1171,7 +1181,7 @@ var SelectMenu = class extends BaseComponent {
 				whiteSpace: "pre"
 			}
 		});
-		this.node.ownerDocument.body.append(span);
+		$.append(this.node.ownerDocument.body, span);
 		$.setStyle(this.#searchInput, "width", `${$.width(span) + 2}px`);
 		$.remove(span);
 	}

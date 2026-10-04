@@ -48,6 +48,15 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 		return copy;
 	}
 	/**
+	* Checks whether a node is the parent itself or one of its descendants.
+	* @param {Node} parent The parent node.
+	* @param {Node|null} node The node to check.
+	* @returns {boolean} Whether the parent contains the node.
+	*/
+	function containsNode(parent, node) {
+		return Boolean(node) && (_fr0st_query.default.isSame(parent, node) || _fr0st_query.default.hasDescendent(parent, node));
+	}
+	/**
 	* Gets all leaf items from a grouped result set.
 	* @param {SelectMenuItem[]} items The items and groups.
 	* @returns {SelectMenuItem[]} The leaf items.
@@ -61,17 +70,17 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 	* @returns {SelectMenuItem[]} The native data.
 	*/
 	function getDomData(node) {
-		return [...node.children].filter((child) => _fr0st_query.default.is(child, "option, optgroup")).map((child) => {
+		return _fr0st_query.default.children(node, "option, optgroup").map((child) => {
 			if (_fr0st_query.default.is(child, "optgroup")) return {
-				text: child.label,
-				disabled: child.disabled,
+				text: _fr0st_query.default.getProperty(child, "label"),
+				disabled: _fr0st_query.default.getProperty(child, "disabled"),
 				children: getDomData(child)
 			};
 			return {
 				..._fr0st_query.default.getDataset(child),
 				text: _fr0st_query.default.getText(child),
 				value: _fr0st_query.default.getValue(child),
-				disabled: child.disabled,
+				disabled: _fr0st_query.default.getProperty(child, "disabled"),
 				element: child
 			};
 		});
@@ -305,11 +314,11 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 				this.#tabIndex = _fr0st_query.default.getAttribute(this.node, "tabindex");
 				this.#hidden = _fr0st_query.default.hasClass(this.node, this.constructor.classes.hide);
 				this.#ariaHidden = _fr0st_query.default.getAttribute(this.node, "aria-hidden");
-				this.#multiple = this.node.multiple;
+				this.#multiple = _fr0st_query.default.getProperty(this.node, "multiple");
 				this.#value = this.#multiple ? [] : null;
 				this.#maxSelections = Math.max(0, Number(this.options.maxSelections) || 0);
 				this.#placeholderText = this.options.placeholder;
-				this.#form = this.node.form;
+				this.#form = _fr0st_query.default.getProperty(this.node, "form");
 				const initialValue = this.#readNativeValue();
 				const data = _fr0st_query.default._isPlainObject(this.options.data) ? Object.entries(this.options.data).map(([value, text]) => ({
 					value,
@@ -557,8 +566,8 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 					clearTimeout(this.#resetTimer);
 					this.#resetTimer = setTimeout(() => {
 						if (this.node && !event.defaultPrevented) {
-							const selected = this.node.selectedOptions[0];
-							if (!this.#multiple && this.#generatedOptions.has(selected) && !selected.defaultSelected) this.node.selectedIndex = -1;
+							const [selected] = _fr0st_query.default.getProperty(this.node, "selectedOptions");
+							if (!this.#multiple && this.#generatedOptions.has(selected) && !_fr0st_query.default.getProperty(selected, "defaultSelected")) _fr0st_query.default.setProperty(this.node, { selectedIndex: -1 });
 							this.#loadValue(this.#readNativeValue());
 							this.hide();
 						}
@@ -567,13 +576,13 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 				_fr0st_query.default.addEvent(this.#form, "reset.ui.selectmenu", this.#resetHandler);
 			}
 			this.#documentHandler = (event) => {
-				if (this.#open && !this.#container.contains(event.target) && !this.#menuNode.contains(event.target)) this.hide();
+				if (this.#open && !containsNode(this.#container, event.target) && !containsNode(this.#menuNode, event.target)) this.hide();
 			};
 			_fr0st_query.default.addEvent(this.node.ownerDocument, "mousedown.ui.selectmenu", this.#documentHandler);
 			_fr0st_query.default.addEvent([this.#container, this.#menuNode], "focusin.ui.selectmenu", () => this.#refreshFocus());
 			_fr0st_query.default.addEvent([this.#container, this.#menuNode], "focusout.ui.selectmenu", () => {
 				queueMicrotask(() => {
-					if (this.node && this.#open && !this.#container.contains(this.node.ownerDocument.activeElement) && !this.#menuNode.contains(this.node.ownerDocument.activeElement)) this.hide();
+					if (this.node && this.#open && !containsNode(this.#container, this.node.ownerDocument.activeElement) && !containsNode(this.#menuNode, this.node.ownerDocument.activeElement)) this.hide();
 					if (this.node) this.#refreshFocus();
 				});
 			});
@@ -631,7 +640,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 			this.#scrollHandler = _fr0st_query.default._throttle(() => {
 				if (!this.node || !this.#open || this.#loading || !this.#showMore) return;
 				const list = this.#itemsList;
-				if (list.scrollTop >= list.scrollHeight - list.clientHeight * 1.25) this.#load(this.#data.length);
+				if (_fr0st_query.default.getScrollY(list) >= _fr0st_query.default.height(list, { boxSize: _fr0st_query.default.SCROLL_BOX }) - _fr0st_query.default.height(list) * 1.25) this.#load(this.#data.length);
 			}, 250, { leading: false });
 			_fr0st_query.default.addEvent(this.#itemsList, "scroll.ui.selectmenu", this.#scrollHandler);
 			this.#observer = new MutationObserver(() => {
@@ -676,7 +685,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 				}
 				this.#showMore = Boolean(response.showMore) && data.length > 0;
 				this.#renderResults(data);
-				if (this.#showMore && this.#itemsList.scrollHeight <= this.#itemsList.clientHeight) this.#scrollHandler();
+				if (this.#showMore && _fr0st_query.default.height(this.#itemsList, { boxSize: _fr0st_query.default.SCROLL_BOX }) <= _fr0st_query.default.height(this.#itemsList)) this.#scrollHandler();
 			} catch {
 				if (this.node && id === this.#requestId) {
 					_fr0st_query.default.remove(_fr0st_query.default.children(this.#itemsList, "[role=\"status\"]"));
@@ -726,7 +735,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 				_fr0st_query.default.addClass(element, this.constructor.classes.focus);
 				_fr0st_query.default.setDataset(element, { uiFocus: true });
 			}
-			_fr0st_query.default.setAttribute([this.#toggle, this.#searchInput], { "aria-activedescendant": element?.id || "" });
+			_fr0st_query.default.setAttribute([this.#toggle, this.#searchInput], { "aria-activedescendant": _fr0st_query.default.getProperty(element, "id") || "" });
 		}
 		/**
 		* Gets local results, retaining groups when there is no search term.
@@ -779,7 +788,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 					const option = this.#activeItems[next];
 					if (option) {
 						this.#focusItem(option);
-						option.scrollIntoView({ block: "nearest" });
+						_fr0st_query.default._callDomMethod(option, "scrollIntoView", { block: "nearest" });
 					}
 				}
 			}
@@ -843,7 +852,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 				if (Array.isArray(source.children)) item.children = this.#parseData(source.children, item.disabled);
 				else {
 					const key = String(item.value);
-					item.element = source.element || this.#lookup.get(key)?.element || [...this.node.options].find((option) => _fr0st_query.default.getValue(option) === key);
+					item.element = source.element || this.#lookup.get(key)?.element || [..._fr0st_query.default.getProperty(this.node, "options")].find((option) => _fr0st_query.default.getValue(option) === key);
 					if (!item.element) {
 						item.element = _fr0st_query.default.create("option", {
 							text: item.text,
@@ -863,7 +872,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 		*/
 		#readNativeValue() {
 			for (const item of flattenItems(getDomData(this.node))) if (!this.#lookup.has(String(item.value))) this.#lookup.set(String(item.value), item);
-			const values = [...this.node.selectedOptions].map((option) => _fr0st_query.default.getValue(option));
+			const values = [..._fr0st_query.default.getProperty(this.node, "selectedOptions")].map((option) => _fr0st_query.default.getValue(option));
 			return this.#multiple ? values : values[0] ?? null;
 		}
 		/**
@@ -889,16 +898,16 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 			if (!this.#multiple) _fr0st_query.default.setProperty(this.#toggle, { disabled });
 			for (const button of _fr0st_query.default.find("[data-ui-action=\"clear\"]", this.#container)) _fr0st_query.default.setProperty(button, { disabled });
 			const control = this.#multiple ? this.#searchInput : this.#toggle;
-			control.tabIndex = disabled ? -1 : Number(this.#tabIndex ?? 0);
+			_fr0st_query.default.setProperty(control, { tabIndex: disabled ? -1 : Number(this.#tabIndex ?? 0) });
 			_fr0st_query.default.setAttribute(control, { "aria-disabled": String(disabled) });
-			_fr0st_query.default.setAttribute(control, { "aria-required": String(this.node.required) });
+			_fr0st_query.default.setAttribute(control, { "aria-required": String(_fr0st_query.default.getProperty(this.node, "required")) });
 			this.#refreshFocus();
 		}
 		/**
 		* Keeps UI input focus styling active for the control and its menu.
 		*/
 		#refreshFocus() {
-			if (!_fr0st_query.default.is(this.node, ":disabled") && (this.#open || this.#container.contains(this.node.ownerDocument.activeElement))) _fr0st_query.default.addClass(this.#toggle, this.constructor.classes.focus);
+			if (!_fr0st_query.default.is(this.node, ":disabled") && (this.#open || containsNode(this.#container, this.node.ownerDocument.activeElement))) _fr0st_query.default.addClass(this.#toggle, this.constructor.classes.focus);
 			else _fr0st_query.default.removeClass(this.#toggle, this.constructor.classes.focus);
 		}
 		/**
@@ -949,7 +958,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 			const classes = this.constructor.classes;
 			const id = (0, _fr0st_ui.generateId)("selectmenu");
 			const labelledBy = _fr0st_query.default.getAttribute(this.node, "aria-labelledby");
-			const label = _fr0st_query.default.getAttribute(this.node, "aria-label") || [...this.node.labels].map((node) => _fr0st_query.default.getText(node).trim()).join(" ");
+			const label = _fr0st_query.default.getAttribute(this.node, "aria-label") || [..._fr0st_query.default.getProperty(this.node, "labels")].map((node) => _fr0st_query.default.getText(node).trim()).join(" ");
 			const attributes = {
 				"role": "combobox",
 				"aria-haspopup": "listbox",
@@ -985,7 +994,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 				attributes: { dir: _fr0st_query.default.css(this.node, "direction") }
 			});
 			this.#toggle = _fr0st_query.default.create(this.#multiple ? "div" : "button", {
-				class: [this.node.className, this.#multiple ? classes.multiToggle : classes.toggle],
+				class: [_fr0st_query.default.getProperty(this.node, "className"), this.#multiple ? classes.multiToggle : classes.toggle],
 				attributes: toggleAttributes
 			});
 			this.#searchInput = _fr0st_query.default.create("input", {
@@ -1137,7 +1146,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 				_fr0st_query.default.append(container, element);
 			}
 			if (container !== this.#itemsList) return;
-			if (!this.#itemsList.children.length) this.#renderInfo(this.options.lang.noResults);
+			if (!_fr0st_query.default.hasChildren(this.#itemsList)) this.#renderInfo(this.options.lang.noResults);
 			if (!_fr0st_query.default.findOne("[data-ui-focus]", this.#itemsList)) this.#focusItem(this.#activeItems[0] || null);
 		}
 		/**
@@ -1173,11 +1182,12 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 			this.#value = this.#multiple ? values : values[0] ?? null;
 			for (const entry of values) {
 				const element = this.#lookup.get(String(entry)).element;
-				if (!this.node.contains(element)) this.node.append(element);
+				if (!containsNode(this.node, element)) _fr0st_query.default.append(this.node, element);
 			}
 			const selected = new Set(values.map(String));
-			for (const option of this.node.options) _fr0st_query.default.setProperty(option, { selected: selected.has(_fr0st_query.default.getValue(option)) });
-			if (!values.length) this.node.selectedIndex = -1;
+			const options = _fr0st_query.default.getProperty(this.node, "options");
+			for (const option of options) _fr0st_query.default.setProperty(option, { selected: selected.has(_fr0st_query.default.getValue(option)) });
+			if (!values.length) _fr0st_query.default.setProperty(this.node, { selectedIndex: -1 });
 			this.#refresh();
 			if (this.#open && !notify) this.#load();
 			if (notify && changed) {
@@ -1203,7 +1213,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 					whiteSpace: "pre"
 				}
 			});
-			this.node.ownerDocument.body.append(span);
+			_fr0st_query.default.append(this.node.ownerDocument.body, span);
 			_fr0st_query.default.setStyle(this.#searchInput, "width", `${_fr0st_query.default.width(span) + 2}px`);
 			_fr0st_query.default.remove(span);
 		}

@@ -133,7 +133,7 @@ test.describe('SelectMenu forms', () => {
             test(`tracks disabled fieldsets and native state (multiple=${multiple})`, async ({ page }) => {
                 await page.evaluate((multiple) => {
                     const node = $.findOne('#select');
-                    node.multiple = multiple;
+                    $.setProperty(node, 'multiple', multiple);
                     UI.SelectMenu.init(node, { allowClear: true });
                 }, multiple);
                 await page.getByRole('combobox').click();
@@ -157,7 +157,7 @@ test.describe('SelectMenu forms', () => {
         test('resets an initially empty select without selecting a generated option', async ({ page }) => {
             await page.evaluate(() => {
                 const node = $.findOne('#select');
-                node.replaceChildren();
+                $.empty(node);
                 const instance = UI.SelectMenu.init(node, {
                     placeholder: 'Choose fruit',
                     data: [{ value: 'x', text: 'Extra' }, { value: 'y', text: 'Another' }],
@@ -226,7 +226,7 @@ test.describe('SelectMenu forms', () => {
         test('preserves reset handlers for another instance and the form consumer', async ({ page }) => {
             await page.evaluate(() => {
                 const first = $.findOne('#select');
-                const second = first.cloneNode(true);
+                const [second] = $.clone(first);
                 $.setProperty(second, 'id', 'second');
                 $.setAttribute(second, 'aria-label', 'Other fruit');
                 $.after(first, second);

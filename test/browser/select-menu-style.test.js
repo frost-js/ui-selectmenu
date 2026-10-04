@@ -24,7 +24,7 @@ test.describe('SelectMenu styles', () => {
                         await page.evaluate(({ style, size }) => {
                             const node = $.findOne('#select');
                             $.setAttribute(node, 'class', `input-${style}${size ? ` input-${size}` : ''}`);
-                            node.selectedIndex = -1;
+                            $.setProperty(node, 'selectedIndex', -1);
                             const reference = $.create('input');
                             $.setProperty(reference, 'id', 'reference');
                             $.setAttribute(reference, 'class', $.getProperty(node, 'className'));
@@ -84,7 +84,7 @@ test.describe('SelectMenu styles', () => {
                 await page.evaluate((direction) => {
                     const node = $.findOne('#select');
                     $.setProperty(node, 'dir', direction);
-                    node.options[0].text = 'An extremely long selected label that must fit inside the control';
+                    $.setText($.getProperty(node, 'options')[0], 'An extremely long selected label that must fit inside the control');
                     UI.SelectMenu.init(node, { allowClear: true });
                 }, direction);
                 const control = page.getByRole('combobox');
@@ -108,7 +108,7 @@ test.describe('SelectMenu styles', () => {
                 await page.evaluate((direction) => {
                     const node = $.findOne('#select');
                     $.setProperty(node, 'dir', direction);
-                    node.options[0].text = 'An extremely long selected label that must fit inside the control';
+                    $.setText($.getProperty(node, 'options')[0], 'An extremely long selected label that must fit inside the control');
                     $.setProperty(node, 'multiple', true);
                     UI.SelectMenu.init(node).setValue(['a', 'b']);
                 }, direction);
@@ -143,7 +143,7 @@ test.describe('SelectMenu styles', () => {
             await page.evaluate(() => {
                 const node = $.findOne('#select');
                 $.setProperty(node, 'multiple', true);
-                node.selectedIndex = -1;
+                $.setProperty(node, 'selectedIndex', -1);
                 UI.SelectMenu.init(node, { placeholder: 'Choose fruit' });
             });
             const control = page.locator('.selectmenu-multi');
@@ -343,7 +343,11 @@ test.describe('SelectMenu styles', () => {
                 for (const invalid of [false, true]) {
                     test(`matches UI disabled styling (invalid=${invalid})`, async ({ page }) => {
                         await page.evaluate((invalid) => {
-                            $.findOne('#host').classList.toggle('form-error', invalid);
+                            if (invalid) {
+                                $.addClass('#host', 'form-error');
+                            } else {
+                                $.removeClass('#host', 'form-error');
+                            }
                             $('#select').selectmenu('disable');
                             $.setProperty($.findOne('#reference'), 'disabled', true);
                         }, invalid);

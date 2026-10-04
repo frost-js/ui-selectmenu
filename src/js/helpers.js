@@ -23,6 +23,16 @@ export function cloneItem(item) {
 }
 
 /**
+ * Checks whether a node is the parent itself or one of its descendants.
+ * @param {Node} parent The parent node.
+ * @param {Node|null} node The node to check.
+ * @returns {boolean} Whether the parent contains the node.
+ */
+export function containsNode(parent, node) {
+    return Boolean(node) && ($.isSame(parent, node) || $.hasDescendent(parent, node));
+}
+
+/**
  * Gets all leaf items from a grouped result set.
  * @param {SelectMenuItem[]} items The items and groups.
  * @returns {SelectMenuItem[]} The leaf items.
@@ -37,13 +47,12 @@ export function flattenItems(items) {
  * @returns {SelectMenuItem[]} The native data.
  */
 export function getDomData(node) {
-    return [...node.children]
-        .filter((child) => $.is(child, 'option, optgroup'))
+    return $.children(node, 'option, optgroup')
         .map((child) => {
             if ($.is(child, 'optgroup')) {
                 return {
-                    text: child.label,
-                    disabled: child.disabled,
+                    text: $.getProperty(child, 'label'),
+                    disabled: $.getProperty(child, 'disabled'),
                     children: getDomData(child),
                 };
             }
@@ -52,7 +61,7 @@ export function getDomData(node) {
                 ...$.getDataset(child),
                 text: $.getText(child),
                 value: $.getValue(child),
-                disabled: child.disabled,
+                disabled: $.getProperty(child, 'disabled'),
                 element: child,
             };
         });

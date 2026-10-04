@@ -43,7 +43,7 @@ test.describe('SelectMenu', () => {
         test('initializes multiple nodes and returns the first instance through QuerySet', async ({ page }) => {
             expect(await page.evaluate(() => {
                 const first = $.findOne('#select');
-                const second = first.cloneNode(true);
+                const [second] = $.clone(first);
                 $.setProperty(second, 'id', 'second');
                 $.after(first, second);
                 const instance = $('select').selectmenu();
@@ -478,6 +478,8 @@ test.describe('SelectMenu', () => {
             await page.getByRole('searchbox').press('Escape');
             await expect(page.getByRole('combobox')).toBeFocused();
             await page.getByRole('combobox').click();
+            await page.locator('.selectmenu-menu').dispatchEvent('mousedown');
+            await expect(page.locator('.selectmenu-menu')).toBeVisible();
             await page.locator('#outside').click();
             await expect(page.locator('.selectmenu-menu')).toHaveCount(0);
         });
@@ -596,7 +598,7 @@ test.describe('SelectMenu', () => {
         test('announces the limit and permits another choice after a removal', async ({ page }) => {
             await page.evaluate(() => {
                 const node = $.findOne('#select');
-                node.multiple = true;
+                $.setProperty(node, 'multiple', true);
                 const instance = UI.SelectMenu.init(node, { maxSelections: 1, closeOnSelect: false });
                 instance.setValue('a');
                 instance.show();

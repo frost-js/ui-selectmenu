@@ -1,6 +1,6 @@
 import $ from '@fr0st/query';
 import { BaseComponent, generateId, Popper, waitForTransition } from '@fr0st/ui';
-import { cloneItem, flattenItems, getDomData, normalizeText, normalizeValues } from './helpers.js';
+import { cloneItem, containsNode, flattenItems, getDomData, normalizeText, normalizeValues } from './helpers.js';
 
 /** @typedef {string|number} SelectMenuValue */
 /**
@@ -222,12 +222,12 @@ export default class SelectMenu extends BaseComponent {
             this.#hidden = $.hasClass(this.node, this.constructor.classes.hide);
             this.#ariaHidden = $.getAttribute(this.node, 'aria-hidden');
 
-            this.#multiple = this.node.multiple;
+            this.#multiple = $.getProperty(this.node, 'multiple');
             this.#value = this.#multiple ? [] : null;
             this.#maxSelections = Math.max(0, Number(this.options.maxSelections) || 0);
             this.#placeholderText = this.options.placeholder;
 
-            this.#form = this.node.form;
+            this.#form = $.getProperty(this.node, 'form');
 
             const initialValue = this.#readNativeValue();
             const data = $._isPlainObject(this.options.data) ?
@@ -589,15 +589,15 @@ export default class SelectMenu extends BaseComponent {
                 clearTimeout(this.#resetTimer);
                 this.#resetTimer = setTimeout(() => {
                     if (this.node && !event.defaultPrevented) {
-                        const selected = this.node.selectedOptions[0];
+                        const [selected] = $.getProperty(this.node, 'selectedOptions');
 
                         // Native reset can select a generated option even when the original select was empty.
                         if (
                             !this.#multiple &&
                             this.#generatedOptions.has(selected) &&
-                            !selected.defaultSelected
+                            !$.getProperty(selected, 'defaultSelected')
                         ) {
-                            this.node.selectedIndex = -1;
+                            $.setProperty(this.node, { selectedIndex: -1 });
                         }
 
                         this.#loadValue(this.#readNativeValue());
@@ -612,8 +612,8 @@ export default class SelectMenu extends BaseComponent {
         this.#documentHandler = (event) => {
             if (
                 this.#open &&
-                !this.#container.contains(event.target) &&
-                !this.#menuNode.contains(event.target)
+                !containsNode(this.#container, event.target) &&
+                !containsNode(this.#menuNode, event.target)
             ) {
                 this.hide();
             }
@@ -626,8 +626,8 @@ export default class SelectMenu extends BaseComponent {
                 if (
                     this.node &&
                     this.#open &&
-                    !this.#container.contains(this.node.ownerDocument.activeElement) &&
-                    !this.#menuNode.contains(this.node.ownerDocument.activeElement)
+                    !containsNode(this.#container, this.node.ownerDocument.activeElement) &&
+                    !containsNode(this.#menuNode, this.node.ownerDocument.activeElement)
                 ) {
                     this.hide();
                 }
@@ -760,7 +760,7 @@ export default class SelectMenu extends BaseComponent {
 
             const list = this.#itemsList;
 
-            if (list.scrollTop >= list.scrollHeight - list.clientHeight * 1.25) {
+            if ($.getScrollY(list) >= $.height(list, { boxSize: $.SCROLL_BOX }) - $.height(list) * 1.25) {
                 this.#load(this.#data.length);
             }
         }, 250, { leading: false });
@@ -832,7 +832,7 @@ export default class SelectMenu extends BaseComponent {
             this.#showMore = Boolean(response.showMore) && data.length > 0;
             this.#renderResults(data);
 
-            if (this.#showMore && this.#itemsList.scrollHeight <= this.#itemsList.clientHeight) {
+            if (this.#showMore && $.height(this.#itemsList, { boxSize: $.SCROLL_BOX }) <= $.height(this.#itemsList)) {
                 this.#scrollHandler();
             }
         } catch {
@@ -897,7 +897,7 @@ export default class SelectMenu extends BaseComponent {
             $.setDataset(element, { uiFocus: true });
         }
 
-        $.setAttribute([this.#toggle, this.#searchInput], { 'aria-activedescendant': element?.id || '' });
+        $.setAttribute([this.#toggle, this.#searchInput], { 'aria-activedescendant': $.getProperty(element, 'id') || '' });
     }
 
     /**
@@ -982,7 +982,7 @@ export default class SelectMenu extends BaseComponent {
 
                 if (option) {
                     this.#focusItem(option);
-                    option.scrollIntoView({ block: 'nearest' });
+                    $._callDomMethod(option, 'scrollIntoView', { block: 'nearest' });
                 }
             }
         }
@@ -1070,7 +1070,7 @@ export default class SelectMenu extends BaseComponent {
                 const key = String(item.value);
                 item.element = source.element ||
                     this.#lookup.get(key)?.element ||
-                    [...this.node.options].find((option) => $.getValue(option) === key);
+                    [...$.getProperty(this.node, 'options')].find((option) => $.getValue(option) === key);
 
                 if (!item.element) {
                     item.element = $.create('option', { text: item.text, value: key });
@@ -1099,7 +1099,7 @@ export default class SelectMenu extends BaseComponent {
             }
         }
 
-        const values = [...this.node.selectedOptions].map((option) => $.getValue(option));
+        const values = [...$.getProperty(this.node, 'selectedOptions')].map((option) => $.getValue(option));
 
         return this.#multiple ? values : values[0] ?? null;
     }
@@ -1148,9 +1148,9 @@ export default class SelectMenu extends BaseComponent {
         }
 
         const control = this.#multiple ? this.#searchInput : this.#toggle;
-        control.tabIndex = disabled ? -1 : Number(this.#tabIndex ?? 0);
+        $.setProperty(control, { tabIndex: disabled ? -1 : Number(this.#tabIndex ?? 0) });
         $.setAttribute(control, { 'aria-disabled': String(disabled) });
-        $.setAttribute(control, { 'aria-required': String(this.node.required) });
+        $.setAttribute(control, { 'aria-required': String($.getProperty(this.node, 'required')) });
 
         this.#refreshFocus();
     }
@@ -1160,7 +1160,7 @@ export default class SelectMenu extends BaseComponent {
      */
     #refreshFocus() {
         const focused = !$.is(this.node, ':disabled') &&
-            (this.#open || this.#container.contains(this.node.ownerDocument.activeElement));
+            (this.#open || containsNode(this.#container, this.node.ownerDocument.activeElement));
 
         if (focused) {
             $.addClass(this.#toggle, this.constructor.classes.focus);
@@ -1237,7 +1237,7 @@ export default class SelectMenu extends BaseComponent {
         const classes = this.constructor.classes;
         const id = generateId('selectmenu');
         const labelledBy = $.getAttribute(this.node, 'aria-labelledby');
-        const label = $.getAttribute(this.node, 'aria-label') || [...this.node.labels]
+        const label = $.getAttribute(this.node, 'aria-label') || [...$.getProperty(this.node, 'labels')]
             .map((node) => $.getText(node).trim())
             .join(' ');
         const attributes = {
@@ -1283,7 +1283,7 @@ export default class SelectMenu extends BaseComponent {
         });
 
         this.#toggle = $.create(this.#multiple ? 'div' : 'button', {
-            class: [this.node.className, this.#multiple ? classes.multiToggle : classes.toggle],
+            class: [$.getProperty(this.node, 'className'), this.#multiple ? classes.multiToggle : classes.toggle],
             attributes: toggleAttributes,
         });
 
@@ -1482,7 +1482,7 @@ export default class SelectMenu extends BaseComponent {
             return;
         }
 
-        if (!this.#itemsList.children.length) {
+        if (!$.hasChildren(this.#itemsList)) {
             this.#renderInfo(this.options.lang.noResults);
         }
 
@@ -1563,18 +1563,20 @@ export default class SelectMenu extends BaseComponent {
         for (const entry of values) {
             const element = this.#lookup.get(String(entry)).element;
 
-            if (!this.node.contains(element)) {
-                this.node.append(element);
+            if (!containsNode(this.node, element)) {
+                $.append(this.node, element);
             }
         }
 
         const selected = new Set(values.map(String));
-        for (const option of this.node.options) {
+        const options = $.getProperty(this.node, 'options');
+
+        for (const option of options) {
             $.setProperty(option, { selected: selected.has($.getValue(option)) });
         }
 
         if (!values.length) {
-            this.node.selectedIndex = -1;
+            $.setProperty(this.node, { selectedIndex: -1 });
         }
 
         this.#refresh();
@@ -1611,7 +1613,7 @@ export default class SelectMenu extends BaseComponent {
                 whiteSpace: 'pre',
             },
         });
-        this.node.ownerDocument.body.append(span);
+        $.append(this.node.ownerDocument.body, span);
 
         $.setStyle(this.#searchInput, 'width', `${$.width(span) + 2}px`);
 
