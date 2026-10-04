@@ -237,11 +237,18 @@ export default class SelectMenu extends BaseComponent {
 
             this.#form = $.getProperty(this.node, 'form');
 
+            const nativeData = getDomData(this.node);
+            for (const item of flattenItems(nativeData)) {
+                if (!this.#lookup.has(String(item.value))) {
+                    this.#lookup.set(String(item.value), item);
+                }
+            }
+
             const initialValue = this.#readNativeValue();
             const data = $._isPlainObject(this.options.data) ?
                 Object.entries(this.options.data).map(([value, text]) => ({ value, text })) :
                 this.options.data;
-            this.#data = this.#parseData(data || getDomData(this.node));
+            this.#data = this.#parseData(data || nativeData);
 
             this.#loadResults = $._debounce(
                 (request, id) => this.#fetchResults(request, id),
@@ -978,7 +985,6 @@ export default class SelectMenu extends BaseComponent {
             }
 
             this.#valueRequest = result;
-            this.#refresh();
 
             const response = await result;
 
@@ -1098,9 +1104,10 @@ export default class SelectMenu extends BaseComponent {
      * Copies data into the lookup without mutating caller-owned objects.
      * @param {SelectMenuItem[]} data The source data.
      * @param {boolean} [disabled=false] Whether the containing group is disabled.
+     * @param {HTMLOptionElement[]} [nativeOptions] The native options, shared by nested groups.
      * @returns {SelectMenuItem[]} The internal data.
      */
-    #parseData(data, disabled = false) {
+    #parseData(data, disabled = false, nativeOptions = [...$.getProperty(this.node, 'options')]) {
         return data.map((source) => {
             const item = {
                 ...source,
@@ -1109,12 +1116,12 @@ export default class SelectMenu extends BaseComponent {
             };
 
             if (Array.isArray(source.children)) {
-                item.children = this.#parseData(source.children, item.disabled);
+                item.children = this.#parseData(source.children, item.disabled, nativeOptions);
             } else {
                 const key = String(item.value);
                 item.element = source.element ||
                     this.#lookup.get(key)?.element ||
-                    [...$.getProperty(this.node, 'options')].find((option) => $.getValue(option) === key);
+                    nativeOptions.find((option) => $.getValue(option) === key);
 
                 if (!item.element) {
                     item.element = $.create('option', { text: item.text, value: key });
@@ -1137,13 +1144,15 @@ export default class SelectMenu extends BaseComponent {
      * @returns {string|string[]|null} The native selection.
      */
     #readNativeValue() {
-        for (const item of flattenItems(getDomData(this.node))) {
-            if (!this.#lookup.has(String(item.value))) {
-                this.#lookup.set(String(item.value), item);
+        const values = [...$.getProperty(this.node, 'selectedOptions')].map((option) => $.getValue(option));
+
+        if (values.some((value) => !this.#lookup.has(value))) {
+            for (const item of flattenItems(getDomData(this.node))) {
+                if (!this.#lookup.has(String(item.value))) {
+                    this.#lookup.set(String(item.value), item);
+                }
             }
         }
-
-        const values = [...$.getProperty(this.node, 'selectedOptions')].map((option) => $.getValue(option));
 
         return this.#multiple ? values : values[0] ?? null;
     }

@@ -326,12 +326,14 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 				this.#maxSelections = Math.max(0, Number(this.options.maxSelections) || 0);
 				this.#placeholderText = this.options.placeholder;
 				this.#form = _fr0st_query.default.getProperty(this.node, "form");
+				const nativeData = getDomData(this.node);
+				for (const item of flattenItems(nativeData)) if (!this.#lookup.has(String(item.value))) this.#lookup.set(String(item.value), item);
 				const initialValue = this.#readNativeValue();
 				const data = _fr0st_query.default._isPlainObject(this.options.data) ? Object.entries(this.options.data).map(([value, text]) => ({
 					value,
 					text
 				})) : this.options.data;
-				this.#data = this.#parseData(data || getDomData(this.node));
+				this.#data = this.#parseData(data || nativeData);
 				this.#loadResults = _fr0st_query.default._debounce((request, id) => this.#fetchResults(request, id), this.options.debounce);
 				const focused = _fr0st_query.default.is(this.node, ":focus");
 				this.#render();
@@ -788,7 +790,6 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 					return;
 				}
 				this.#valueRequest = result;
-				this.#refresh();
 				const response = await result;
 				if (this.node && id === this.#valueRequestId) {
 					this.#parseData(response.results);
@@ -865,19 +866,20 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 		* Copies data into the lookup without mutating caller-owned objects.
 		* @param {SelectMenuItem[]} data The source data.
 		* @param {boolean} [disabled=false] Whether the containing group is disabled.
+		* @param {HTMLOptionElement[]} [nativeOptions] The native options, shared by nested groups.
 		* @returns {SelectMenuItem[]} The internal data.
 		*/
-		#parseData(data, disabled = false) {
+		#parseData(data, disabled = false, nativeOptions = [..._fr0st_query.default.getProperty(this.node, "options")]) {
 			return data.map((source) => {
 				const item = {
 					...source,
 					text: String(source.text ?? source.value ?? ""),
 					disabled: disabled || Boolean(source.disabled)
 				};
-				if (Array.isArray(source.children)) item.children = this.#parseData(source.children, item.disabled);
+				if (Array.isArray(source.children)) item.children = this.#parseData(source.children, item.disabled, nativeOptions);
 				else {
 					const key = String(item.value);
-					item.element = source.element || this.#lookup.get(key)?.element || [..._fr0st_query.default.getProperty(this.node, "options")].find((option) => _fr0st_query.default.getValue(option) === key);
+					item.element = source.element || this.#lookup.get(key)?.element || nativeOptions.find((option) => _fr0st_query.default.getValue(option) === key);
 					if (!item.element) {
 						item.element = _fr0st_query.default.create("option", {
 							text: item.text,
@@ -896,8 +898,10 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 		* @returns {string|string[]|null} The native selection.
 		*/
 		#readNativeValue() {
-			for (const item of flattenItems(getDomData(this.node))) if (!this.#lookup.has(String(item.value))) this.#lookup.set(String(item.value), item);
 			const values = [..._fr0st_query.default.getProperty(this.node, "selectedOptions")].map((option) => _fr0st_query.default.getValue(option));
+			if (values.some((value) => !this.#lookup.has(value))) {
+				for (const item of flattenItems(getDomData(this.node))) if (!this.#lookup.has(String(item.value))) this.#lookup.set(String(item.value), item);
+			}
 			return this.#multiple ? values : values[0] ?? null;
 		}
 		/**

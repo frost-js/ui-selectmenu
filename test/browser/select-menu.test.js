@@ -585,6 +585,22 @@ test.describe('SelectMenu', () => {
     });
 
     test.describe('data option', () => {
+        for (const multiple of [false, true]) {
+            test(`retains unselected native values with configured data (multiple=${multiple})`, async ({ page }) => {
+                await page.evaluate((multiple) => {
+                    $.setProperty('#select', { multiple, selectedIndex: -1 });
+                    UI.SelectMenu.init($.findOne('#select'), { data: { x: 'Extra' } });
+                }, multiple);
+                expect(await page.evaluate(() => $('#select').selectmenu('getValue'))).toEqual(multiple ? [] : null);
+                await page.evaluate(() => $('#select').selectmenu('setValue', 'b'));
+                await expect(page.locator('.selectmenu-selection')).toHaveText('Banana');
+                expect(await page.evaluate(() => $('#select').selectmenu('getValue'))).toEqual(multiple ? ['b'] : 'b');
+                await page.getByRole('combobox').click();
+                await expect(page.getByRole('option')).toHaveText(['Extra']);
+                await expect(page.locator('#select option')).toHaveCount(3);
+            });
+        }
+
         test('supports object maps, nested groups, disabled groups, and immutable caller data', async ({ page }) => {
             expect(await page.evaluate(() => {
                 const child = Object.freeze({ text: 'Grouped', value: 'g' });

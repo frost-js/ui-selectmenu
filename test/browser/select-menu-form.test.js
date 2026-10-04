@@ -58,7 +58,7 @@ test.describe('SelectMenu forms', () => {
                 });
             }
 
-            test(`does not reread option data for ordinary value changes (multiple=${multiple})`, async ({ page }) => {
+            test(`does not reread option data for known value changes (multiple=${multiple})`, async ({ page }) => {
                 const reads = await page.evaluate((multiple) => {
                     $.setProperty('#select', 'multiple', multiple);
                     const instance = UI.SelectMenu.init($.findOne('#select'));
@@ -73,12 +73,37 @@ test.describe('SelectMenu forms', () => {
                     });
 
                     instance.setValue('b');
+                    $.setValue('#select', 'a');
+                    $.triggerEvent('#select', 'change');
+                    instance.setMaxSelections(2);
                     instance.setValue('a');
 
                     return reads;
                 }, multiple);
                 expect(reads).toBe(0);
                 expect(await page.evaluate(() => $('#select').selectmenu('getValue'))).toEqual(multiple ? ['a'] : 'a');
+            });
+
+            test(`reads newly selected native options with configured data (multiple=${multiple})`, async ({ page }) => {
+                await page.evaluate((multiple) => {
+                    $.setProperty('#select', 'multiple', multiple);
+                    UI.SelectMenu.init($.findOne('#select'), {
+                        data: [{ value: 'x', text: 'Extra' }],
+                    });
+                    $.append('#select optgroup', '<option value="d" data-custom="date">Date</option>');
+                    $.setValue('#select', 'd');
+                    $.triggerEvent('#select', 'change');
+                }, multiple);
+                expect(await page.evaluate(() => $('#select').selectmenu('getValue'))).toEqual(multiple ? ['d'] : 'd');
+                const selection = page.locator('.selectmenu-selection');
+                await expect(selection).toHaveText('Date');
+                expect(await page.evaluate((multiple) => {
+                    const data = $('#select').selectmenu('data');
+                    return (multiple ? data[0] : data).custom;
+                }, multiple)).toBe('date');
+                expect(await page.evaluate(() => window.changes)).toBe(1);
+                await page.getByRole('combobox').click();
+                await expect(page.getByRole('option')).toHaveText(['Extra']);
             });
 
             test(`processes queued control state when setting a value (multiple=${multiple})`, async ({ page }) => {

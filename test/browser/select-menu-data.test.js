@@ -61,6 +61,27 @@ test.describe('SelectMenu remote results', () => {
     });
 
     test.describe('value resolution', () => {
+        for (const multiple of [false, true]) {
+            test(`preserves selected controls while a value lookup is pending (multiple=${multiple})`, async ({ page }) => {
+                await page.evaluate((multiple) => {
+                    $.setProperty('#select', 'multiple', multiple);
+                    UI.SelectMenu.init($.findOne('#select'), {
+                        allowClear: true, getResults: window.getResults,
+                    }).setValue('a');
+                }, multiple);
+                const clear = page.getByRole('button', { name: 'Remove selection' });
+                await clear.focus();
+                await page.evaluate(() => $('#select').selectmenu('setValue', 'remote'));
+                await expect(clear).toBeFocused();
+                const selection = page.locator('.selectmenu-selection');
+                await expect(selection).toHaveText('Apple');
+                expect(await page.evaluate(() => $('#select').selectmenu('getValue'))).toEqual(multiple ? ['a'] : 'a');
+                await page.evaluate(() => window.requests[0].resolve({ results: [{ value: 'remote', text: 'Remote' }] }));
+                await expect(selection).toHaveText('Remote');
+                expect(await page.evaluate(() => $('#select').selectmenu('getValue'))).toEqual(multiple ? ['remote'] : 'remote');
+            });
+        }
+
         test('resolves numeric multiple values and adds only selected native options', async ({ page }) => {
             await page.evaluate(() => {
                 const node = $.findOne('#select');
