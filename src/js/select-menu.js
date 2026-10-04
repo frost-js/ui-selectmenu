@@ -1183,8 +1183,6 @@ export default class SelectMenu extends BaseComponent {
      * Refreshes selection labels while retaining native options and defaults.
      */
     #refresh() {
-        const focused = this.#searchInput === this.node.ownerDocument.activeElement;
-
         if (this.#multiple) {
             this.#refreshMultiple();
         } else {
@@ -1198,10 +1196,6 @@ export default class SelectMenu extends BaseComponent {
         this.#refreshPlaceholder();
         this.#refreshState();
         this.#updateSearchWidth();
-
-        if (focused) {
-            $.focus(this.#searchInput);
-        }
     }
 
     /**
@@ -1244,8 +1238,7 @@ export default class SelectMenu extends BaseComponent {
     #refreshMultiple() {
         const classes = this.constructor.classes;
 
-        $.detach(this.#searchInput);
-        $.empty(this.#toggle);
+        $.remove($.siblings(this.#searchInput));
 
         for (const value of this.#value) {
             const item = this.#lookup.get(String(value));
@@ -1260,10 +1253,8 @@ export default class SelectMenu extends BaseComponent {
             }
 
             $.append(group, [clear, label]);
-            $.append(this.#toggle, group);
+            $.before(this.#searchInput, group);
         }
-
-        $.append(this.#toggle, this.#searchInput);
     }
 
     /**
@@ -1327,9 +1318,7 @@ export default class SelectMenu extends BaseComponent {
             $.setProperty(this.#toggle, { disabled });
         }
 
-        for (const button of $.find('[data-ui-action="clear"]', this.#container)) {
-            $.setProperty(button, { disabled });
-        }
+        $.setProperty($.find('[data-ui-action="clear"]', this.#container), { disabled });
 
         const control = this.#multiple ? this.#searchInput : this.#toggle;
         $.setProperty(control, { tabIndex: disabled ? -1 : Number(this.#tabIndex ?? 0) });
@@ -1437,7 +1426,9 @@ export default class SelectMenu extends BaseComponent {
             $.addClass(this.#menuNode, classes.menuLarge);
         }
 
-        if (!this.#multiple) {
+        if (this.#multiple) {
+            $.append(this.#toggle, this.#searchInput);
+        } else {
             const outer = $.create('div', { class: classes.searchOuter });
             const container = $.create('div', { class: classes.searchContainer });
 

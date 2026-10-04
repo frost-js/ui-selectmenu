@@ -885,14 +885,12 @@ var SelectMenu = class extends BaseComponent {
 	* Refreshes selection labels while retaining native options and defaults.
 	*/
 	#refresh() {
-		const focused = this.#searchInput === this.node.ownerDocument.activeElement;
 		if (this.#multiple) this.#refreshMultiple();
 		else this.#refreshSingle();
 		if (!this.node) return;
 		this.#refreshPlaceholder();
 		this.#refreshState();
 		this.#updateSearchWidth();
-		if (focused) $.focus(this.#searchInput);
 	}
 	/**
 	* Rebuilds native option data when mutation records contain option changes.
@@ -917,8 +915,7 @@ var SelectMenu = class extends BaseComponent {
 	*/
 	#refreshMultiple() {
 		const classes = this.constructor.classes;
-		$.detach(this.#searchInput);
-		$.empty(this.#toggle);
+		$.remove($.siblings(this.#searchInput));
 		for (const value of this.#value) {
 			const item = this.#lookup.get(String(value));
 			const group = $.create("div", { class: classes.multiGroup });
@@ -927,9 +924,8 @@ var SelectMenu = class extends BaseComponent {
 			this.#renderContent(item, label, this.options.renderSelection);
 			if (!this.node) return;
 			$.append(group, [clear, label]);
-			$.append(this.#toggle, group);
+			$.before(this.#searchInput, group);
 		}
-		$.append(this.#toggle, this.#searchInput);
 	}
 	/**
 	* Refreshes the placeholder without interpreting zero or empty-string values as missing.
@@ -964,7 +960,7 @@ var SelectMenu = class extends BaseComponent {
 		else $.removeClass(this.#toggle, this.constructor.classes.disabled);
 		$.setProperty(this.#searchInput, { disabled });
 		if (!this.#multiple) $.setProperty(this.#toggle, { disabled });
-		for (const button of $.find("[data-ui-action=\"clear\"]", this.#container)) $.setProperty(button, { disabled });
+		$.setProperty($.find("[data-ui-action=\"clear\"]", this.#container), { disabled });
 		const control = this.#multiple ? this.#searchInput : this.#toggle;
 		$.setProperty(control, { tabIndex: disabled ? -1 : Number(this.#tabIndex ?? 0) });
 		$.setAttribute(control, {
@@ -1043,7 +1039,8 @@ var SelectMenu = class extends BaseComponent {
 		});
 		if ($.is(this.node, ".input-sm") || $.closest(this.node, ".input-group-sm").length) $.addClass(this.#menuNode, classes.menuSmall);
 		else if ($.is(this.node, ".input-lg") || $.closest(this.node, ".input-group-lg").length) $.addClass(this.#menuNode, classes.menuLarge);
-		if (!this.#multiple) {
+		if (this.#multiple) $.append(this.#toggle, this.#searchInput);
+		else {
 			const outer = $.create("div", { class: classes.searchOuter });
 			const container = $.create("div", { class: classes.searchContainer });
 			$.append(container, this.#searchInput);

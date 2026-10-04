@@ -917,14 +917,12 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 		* Refreshes selection labels while retaining native options and defaults.
 		*/
 		#refresh() {
-			const focused = this.#searchInput === this.node.ownerDocument.activeElement;
 			if (this.#multiple) this.#refreshMultiple();
 			else this.#refreshSingle();
 			if (!this.node) return;
 			this.#refreshPlaceholder();
 			this.#refreshState();
 			this.#updateSearchWidth();
-			if (focused) _fr0st_query.default.focus(this.#searchInput);
 		}
 		/**
 		* Rebuilds native option data when mutation records contain option changes.
@@ -949,8 +947,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 		*/
 		#refreshMultiple() {
 			const classes = this.constructor.classes;
-			_fr0st_query.default.detach(this.#searchInput);
-			_fr0st_query.default.empty(this.#toggle);
+			_fr0st_query.default.remove(_fr0st_query.default.siblings(this.#searchInput));
 			for (const value of this.#value) {
 				const item = this.#lookup.get(String(value));
 				const group = _fr0st_query.default.create("div", { class: classes.multiGroup });
@@ -959,9 +956,8 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 				this.#renderContent(item, label, this.options.renderSelection);
 				if (!this.node) return;
 				_fr0st_query.default.append(group, [clear, label]);
-				_fr0st_query.default.append(this.#toggle, group);
+				_fr0st_query.default.before(this.#searchInput, group);
 			}
-			_fr0st_query.default.append(this.#toggle, this.#searchInput);
 		}
 		/**
 		* Refreshes the placeholder without interpreting zero or empty-string values as missing.
@@ -996,7 +992,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 			else _fr0st_query.default.removeClass(this.#toggle, this.constructor.classes.disabled);
 			_fr0st_query.default.setProperty(this.#searchInput, { disabled });
 			if (!this.#multiple) _fr0st_query.default.setProperty(this.#toggle, { disabled });
-			for (const button of _fr0st_query.default.find("[data-ui-action=\"clear\"]", this.#container)) _fr0st_query.default.setProperty(button, { disabled });
+			_fr0st_query.default.setProperty(_fr0st_query.default.find("[data-ui-action=\"clear\"]", this.#container), { disabled });
 			const control = this.#multiple ? this.#searchInput : this.#toggle;
 			_fr0st_query.default.setProperty(control, { tabIndex: disabled ? -1 : Number(this.#tabIndex ?? 0) });
 			_fr0st_query.default.setAttribute(control, {
@@ -1075,7 +1071,8 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 			});
 			if (_fr0st_query.default.is(this.node, ".input-sm") || _fr0st_query.default.closest(this.node, ".input-group-sm").length) _fr0st_query.default.addClass(this.#menuNode, classes.menuSmall);
 			else if (_fr0st_query.default.is(this.node, ".input-lg") || _fr0st_query.default.closest(this.node, ".input-group-lg").length) _fr0st_query.default.addClass(this.#menuNode, classes.menuLarge);
-			if (!this.#multiple) {
+			if (this.#multiple) _fr0st_query.default.append(this.#toggle, this.#searchInput);
+			else {
 				const outer = _fr0st_query.default.create("div", { class: classes.searchOuter });
 				const container = _fr0st_query.default.create("div", { class: classes.searchContainer });
 				_fr0st_query.default.append(container, this.#searchInput);

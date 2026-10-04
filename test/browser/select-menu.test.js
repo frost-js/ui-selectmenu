@@ -300,6 +300,30 @@ test.describe('SelectMenu', () => {
             });
         }
 
+        test('preserves multiple search focus and caret while updating selections', async ({ page }) => {
+            await page.evaluate(() => {
+                $.setProperty('#select', 'multiple', true);
+                UI.SelectMenu.init($.findOne('#select')).show();
+            });
+            const search = page.getByRole('combobox');
+            await search.fill('Banana');
+            await search.evaluate((input) => {
+                input.setSelectionRange(1, 4);
+                window.focusEvents = [];
+                input.addEventListener('focus', () => window.focusEvents.push('focus'));
+                input.addEventListener('blur', () => window.focusEvents.push('blur'));
+            });
+
+            for (const values of [['a', 'b'], []]) {
+                await page.evaluate((values) => $('#select').selectmenu('setValue', values), values);
+                await expect(page.locator('#select')).toHaveValues(values);
+                await expect(search).toBeFocused();
+                await expect(search).toHaveValue('Banana');
+                expect(await search.evaluate((input) => [input.selectionStart, input.selectionEnd])).toEqual([1, 4]);
+                expect(await page.evaluate(() => window.focusEvents)).toEqual([]);
+            }
+        });
+
         for (const value of [0, '', '__proto__', 'constructor', 'toString', 'null']) {
             test(`supports the value ${JSON.stringify(value)}`, async ({ page }) => {
                 expect(await page.evaluate((value) => {
