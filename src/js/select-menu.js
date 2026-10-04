@@ -850,10 +850,10 @@ export default class SelectMenu extends BaseComponent {
             }
 
             if (this.#refreshData(records)) {
-                const focusedValue = $.getDataset(this.#focusedItem, 'uiValue');
+                const focusedValue = $.getAttribute(this.#focusedItem, 'data-ui-value');
                 this.#loadValue(this.#readNativeValue());
 
-                const focusedItem = this.#activeItems.find((item) => $.getDataset(item, 'uiValue') === focusedValue);
+                const focusedItem = this.#activeItems.find((item) => $.getAttribute(item, 'data-ui-value') === focusedValue);
                 if (focusedItem) {
                     this.#focusItem(focusedItem);
                 }

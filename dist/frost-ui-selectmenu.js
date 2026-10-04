@@ -698,9 +698,9 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 			this.#observer = new MutationObserver((records) => {
 				if (!this.node) return;
 				if (this.#refreshData(records)) {
-					const focusedValue = _fr0st_query.default.getDataset(this.#focusedItem, "uiValue");
+					const focusedValue = _fr0st_query.default.getAttribute(this.#focusedItem, "data-ui-value");
 					this.#loadValue(this.#readNativeValue());
-					const focusedItem = this.#activeItems.find((item) => _fr0st_query.default.getDataset(item, "uiValue") === focusedValue);
+					const focusedItem = this.#activeItems.find((item) => _fr0st_query.default.getAttribute(item, "data-ui-value") === focusedValue);
 					if (focusedItem) this.#focusItem(focusedItem);
 				} else this.#refreshState();
 				if (_fr0st_query.default.is(this.node, ":disabled")) this.hide();

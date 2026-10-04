@@ -666,9 +666,9 @@ var SelectMenu = class extends BaseComponent {
 		this.#observer = new MutationObserver((records) => {
 			if (!this.node) return;
 			if (this.#refreshData(records)) {
-				const focusedValue = $.getDataset(this.#focusedItem, "uiValue");
+				const focusedValue = $.getAttribute(this.#focusedItem, "data-ui-value");
 				this.#loadValue(this.#readNativeValue());
-				const focusedItem = this.#activeItems.find((item) => $.getDataset(item, "uiValue") === focusedValue);
+				const focusedItem = this.#activeItems.find((item) => $.getAttribute(item, "data-ui-value") === focusedValue);
 				if (focusedItem) this.#focusItem(focusedItem);
 			} else this.#refreshState();
 			if ($.is(this.node, ":disabled")) this.hide();

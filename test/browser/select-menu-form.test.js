@@ -22,6 +22,28 @@ test.describe('SelectMenu forms', () => {
 
     test.describe('native synchronization', () => {
         for (const multiple of [false, true]) {
+            for (const value of ['[]', '{}']) {
+                test(`retains focus on JSON-shaped option values (${value}, multiple=${multiple})`, async ({ page }) => {
+                    await page.evaluate(({ multiple, value }) => {
+                        $.setProperty('#select', 'multiple', multiple);
+                        $.setProperty('#select option[value="b"]', 'value', value);
+                        UI.SelectMenu.init($.findOne('#select'));
+                    }, { multiple, value });
+                    await page.getByRole('combobox').click();
+                    await page.getByRole('option', { name: 'Banana' }).hover();
+                    await page.evaluate(() => $.append('#select', '<option value="d">Date</option>'));
+                    await expect(page.getByRole('option')).toHaveText(['Apple', 'Banana', 'Date']);
+                    const search = page.getByRole(multiple ? 'combobox' : 'searchbox');
+                    await expect(search).toHaveAttribute('aria-activedescendant',
+                        await page.getByRole('option', { name: 'Banana' }).getAttribute('id'),
+                    );
+                    expect(await page.evaluate(() => window.changes)).toBe(0);
+                    await search.press('Enter');
+                    expect(await page.evaluate(() => $('#select').selectmenu('getValue')))
+                        .toEqual(multiple ? ['a', value] : value);
+                });
+            }
+
             test(`does not reread option data for ordinary value changes (multiple=${multiple})`, async ({ page }) => {
                 const reads = await page.evaluate((multiple) => {
                     $.setProperty('#select', 'multiple', multiple);
