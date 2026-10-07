@@ -194,7 +194,6 @@ export default class SelectMenu extends BaseComponent {
     #maxSelections;
     #menuNode = null;
     #multiple;
-    #notifying = false;
     #observer = null;
     #open = false;
     #placeholderText;
@@ -618,8 +617,8 @@ export default class SelectMenu extends BaseComponent {
             $.focus(this.#multiple ? this.#searchInput : this.#toggle);
         };
 
-        this.#changeHandler = () => {
-            if (!this.#notifying) {
+        this.#changeHandler = (event) => {
+            if (!event.skipUpdate) {
                 this.#loadValue(this.#readNativeValue());
             }
         };
@@ -1749,13 +1748,9 @@ export default class SelectMenu extends BaseComponent {
         }
 
         if (notify && changed) {
-            this.#notifying = true;
-
-            try {
-                $.triggerEvent(this.node, 'change.ui.selectmenu');
-            } finally {
-                this.#notifying = false;
-            }
+            $.triggerEvent(this.node, 'change.ui.selectmenu', {
+                data: { skipUpdate: true },
+            });
         }
     }
 

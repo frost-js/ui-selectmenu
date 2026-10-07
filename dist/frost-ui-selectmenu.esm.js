@@ -259,7 +259,6 @@ var SelectMenu = class extends BaseComponent {
 	#maxSelections;
 	#menuNode = null;
 	#multiple;
-	#notifying = false;
 	#observer = null;
 	#open = false;
 	#placeholderText;
@@ -545,8 +544,8 @@ var SelectMenu = class extends BaseComponent {
 		this.#focusHandler = () => {
 			$.focus(this.#multiple ? this.#searchInput : this.#toggle);
 		};
-		this.#changeHandler = () => {
-			if (!this.#notifying) this.#loadValue(this.#readNativeValue());
+		this.#changeHandler = (event) => {
+			if (!event.skipUpdate) this.#loadValue(this.#readNativeValue());
 		};
 		$.addEvent(this.node, "focus.ui.selectmenu", this.#focusHandler);
 		$.addEvent(this.node, "change.ui.selectmenu", this.#changeHandler);
@@ -1239,14 +1238,7 @@ var SelectMenu = class extends BaseComponent {
 			if (!this.node) return;
 		}
 		if (this.#open && !notify) this.#load();
-		if (notify && changed) {
-			this.#notifying = true;
-			try {
-				$.triggerEvent(this.node, "change.ui.selectmenu");
-			} finally {
-				this.#notifying = false;
-			}
-		}
+		if (notify && changed) $.triggerEvent(this.node, "change.ui.selectmenu", { data: { skipUpdate: true } });
 	}
 	/**
 	* Sizes the multiple search input to its text.

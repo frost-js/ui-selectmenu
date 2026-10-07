@@ -35,6 +35,26 @@ test.describe('SelectMenu forms', () => {
         });
 
         for (const multiple of [false, true]) {
+            test(`synchronizes a native change dispatched by a change listener (multiple=${multiple})`, async ({ page }) => {
+                await page.evaluate((multiple) => {
+                    const node = $.findOne('#select');
+                    $.setProperty(node, { multiple });
+                    UI.SelectMenu.init(node);
+                    $.addEvent(node, 'change.ui.selectmenu', (event) => {
+                        if (event.skipUpdate) {
+                            $.setValue(node, 'a');
+                            node.dispatchEvent(new Event('change', { bubbles: true }));
+                        }
+                    });
+                }, multiple);
+
+                await page.getByRole('combobox').click();
+                await page.getByRole('option', { name: 'Banana' }).click();
+                await expect(page.locator('.selectmenu-selection')).toHaveText('Apple');
+                expect(await page.evaluate(() => $('#select').selectmenu('getValue'))).toEqual(multiple ? ['a'] : 'a');
+                expect(await page.evaluate(() => window.changes)).toBe(2);
+            });
+
             test(`does not reread option data for known value changes (multiple=${multiple})`, async ({ page }) => {
                 const reads = await page.evaluate((multiple) => {
                     $.setProperty('#select', 'multiple', multiple);

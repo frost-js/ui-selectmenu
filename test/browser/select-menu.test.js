@@ -459,9 +459,15 @@ test.describe('SelectMenu', () => {
         test('emits lifecycle events in order and user change exactly once', async ({ page }) => {
             await page.evaluate(() => {
                 window.events = [];
+                window.changeSkipUpdate = null;
                 const node = $.findOne('#select');
                 for (const event of ['show', 'shown', 'hide', 'hidden', 'change']) {
-                    $.addEvent(node, `${event}.ui.selectmenu`, () => window.events.push(event));
+                    $.addEvent(node, `${event}.ui.selectmenu`, (event) => {
+                        window.events.push(event.type);
+                        if (event.type === 'change') {
+                            window.changeSkipUpdate = event.skipUpdate;
+                        }
+                    });
                 }
                 UI.SelectMenu.init(node).setValue('a');
             });
@@ -469,6 +475,7 @@ test.describe('SelectMenu', () => {
             await expect.poll(() => page.evaluate(() => window.events.join(','))).toBe('show,shown');
             await page.getByRole('option', { name: 'Banana' }).click();
             await expect.poll(() => page.evaluate(() => window.events.join(','))).toBe('show,shown,change,hide,hidden');
+            expect(await page.evaluate(() => window.changeSkipUpdate)).toBe(true);
         });
 
         for (const event of ['show', 'hide']) {
