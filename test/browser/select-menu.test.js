@@ -271,14 +271,6 @@ test.describe('SelectMenu', () => {
             await expect(page.locator('#select')).toHaveAttribute('aria-hidden', 'false');
         });
 
-        test('disposes automatically when fQuery removes the native control', async ({ page }) => {
-            await page.evaluate(() => {
-                UI.SelectMenu.init($.findOne('#select')).show();
-                $.remove('#select');
-            });
-            await expect(page.locator('.selectmenu-menu, .selectmenu-toggle')).toHaveCount(0);
-        });
-
         test('does not remove another instance or consumer change listeners', async ({ page }) => {
             await page.evaluate(() => {
                 $.append(document.body, '<select id="second"><option>Other</option></select>');
@@ -293,6 +285,14 @@ test.describe('SelectMenu', () => {
             await expect(page.getByRole('option', { name: 'Other' })).toBeVisible();
             await page.locator('#outside').click();
             await expect(page.locator('.selectmenu-menu')).toHaveCount(0);
+        });
+
+        test('disposes automatically when fQuery removes the native control', async ({ page }) => {
+            await page.evaluate(() => {
+                UI.SelectMenu.init($.findOne('#select')).show();
+                $.remove('#select');
+            });
+            await expect(page.locator('.selectmenu-menu, .selectmenu-toggle')).toHaveCount(0);
         });
     });
 
