@@ -299,7 +299,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 		#request = null;
 		#requestId = 0;
 		#resetHandler = null;
-		#resetTimer;
+		#resetTimers = /* @__PURE__ */ new Set();
 		#scrollHandler = null;
 		#searchInput = null;
 		#showMore = false;
@@ -367,7 +367,8 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 			this.#transitionId++;
 			this.#cancelSearch();
 			this.#cancelValueRequest();
-			clearTimeout(this.#resetTimer);
+			for (const timer of this.#resetTimers) clearTimeout(timer);
+			this.#resetTimers.clear();
 			this.#scrollHandler?.cancel();
 			this.#observer?.disconnect();
 			this.#popper?.dispose();
@@ -583,8 +584,8 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 			_fr0st_query.default.addEvent(this.node, "change.ui.selectmenu", this.#changeHandler);
 			if (this.#form) {
 				this.#resetHandler = (event) => {
-					clearTimeout(this.#resetTimer);
-					this.#resetTimer = setTimeout(() => {
+					const timer = setTimeout(() => {
+						this.#resetTimers.delete(timer);
 						if (this.node && !event.defaultPrevented) {
 							const [selected] = _fr0st_query.default.getProperty(this.node, "selectedOptions");
 							if (!this.#multiple && this.#generatedOptions.has(selected) && !_fr0st_query.default.getProperty(selected, "defaultSelected")) _fr0st_query.default.setProperty(this.node, { selectedIndex: -1 });
@@ -592,6 +593,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 							this.hide();
 						}
 					}, 0);
+					this.#resetTimers.add(timer);
 				};
 				_fr0st_query.default.addEvent(this.#form, "reset.ui.selectmenu", this.#resetHandler);
 			}

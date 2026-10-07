@@ -530,6 +530,47 @@ test.describe('SelectMenu forms', () => {
             });
         }
 
+        for (const multiple of [false, true]) {
+            for (const listenerOrder of ['before', 'after']) {
+                test(`retains an accepted reset when a later reset is canceled (multiple=${multiple}, listener=${listenerOrder})`, async ({ page }) => {
+                    await page.clock.install({ time: 0 });
+                    await page.clock.pauseAt(1000);
+                    await page.evaluate(({ multiple, listenerOrder }) => {
+                        const form = $.findOne('#form');
+                        const node = $.findOne('#select');
+                        $.setProperty(node, 'multiple', multiple);
+                        let cancel = false;
+                        const handler = (event) => {
+                            if (cancel) {
+                                event.preventDefault();
+                            }
+                        };
+                        if (listenerOrder === 'before') {
+                            form.addEventListener('reset', handler);
+                        }
+                        UI.SelectMenu.init(node).setValue('b');
+                        if (listenerOrder === 'after') {
+                            form.addEventListener('reset', handler);
+                        }
+                        form.reset();
+                        cancel = true;
+                        form.reset();
+                    }, { multiple, listenerOrder });
+                    await page.clock.runFor(1);
+
+                    if (multiple) {
+                        await expect(page.locator('#select')).toHaveValues(['a']);
+                        await expect(page.locator('.selectmenu-selection')).toHaveText('Apple');
+                    } else {
+                        await expect(page.locator('#select')).toHaveValue('a');
+                        await expect(page.getByRole('combobox')).toHaveText('Apple');
+                    }
+                    expect(await page.evaluate(() => $('#select').selectmenu('getValue'))).toEqual(multiple ? ['a'] : 'a');
+                    expect(await page.evaluate(() => window.changes)).toBe(0);
+                });
+            }
+        }
+
         test('respects a cancelled form reset', async ({ page }) => {
             await page.evaluate(() => {
                 UI.SelectMenu.init($.findOne('#select')).setValue('b');

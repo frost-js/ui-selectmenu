@@ -202,7 +202,7 @@ export default class SelectMenu extends BaseComponent {
     #request = null;
     #requestId = 0;
     #resetHandler = null;
-    #resetTimer;
+    #resetTimers = new Set();
     #scrollHandler = null;
     #searchInput = null;
     #showMore = false;
@@ -305,7 +305,10 @@ export default class SelectMenu extends BaseComponent {
         this.#transitionId++;
         this.#cancelSearch();
         this.#cancelValueRequest();
-        clearTimeout(this.#resetTimer);
+        for (const timer of this.#resetTimers) {
+            clearTimeout(timer);
+        }
+        this.#resetTimers.clear();
         this.#scrollHandler?.cancel();
 
         this.#observer?.disconnect();
@@ -626,8 +629,9 @@ export default class SelectMenu extends BaseComponent {
 
         if (this.#form) {
             this.#resetHandler = (event) => {
-                clearTimeout(this.#resetTimer);
-                this.#resetTimer = setTimeout(() => {
+                const timer = setTimeout(() => {
+                    this.#resetTimers.delete(timer);
+
                     if (this.node && !event.defaultPrevented) {
                         const [selected] = $.getProperty(this.node, 'selectedOptions');
 
@@ -644,6 +648,7 @@ export default class SelectMenu extends BaseComponent {
                         this.hide();
                     }
                 }, 0);
+                this.#resetTimers.add(timer);
             };
 
             $.addEvent(this.#form, 'reset.ui.selectmenu', this.#resetHandler);
