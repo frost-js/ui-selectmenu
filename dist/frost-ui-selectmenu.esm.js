@@ -243,12 +243,9 @@ var SelectMenu = class extends BaseComponent {
 	};
 	#activeItems = [];
 	#ariaHidden;
-	#changeHandler = null;
 	#container = null;
 	#data = [];
-	#documentHandler = null;
 	#focusedItem = null;
-	#focusHandler = null;
 	#form = null;
 	#generatedOptions = /* @__PURE__ */ new WeakSet();
 	#hidden;
@@ -265,7 +262,6 @@ var SelectMenu = class extends BaseComponent {
 	#popper = null;
 	#request = null;
 	#requestId = 0;
-	#resetHandler = null;
 	#resetTimers = /* @__PURE__ */ new Set();
 	#scrollHandler = null;
 	#searchInput = null;
@@ -339,10 +335,6 @@ var SelectMenu = class extends BaseComponent {
 		this.#scrollHandler?.cancel();
 		this.#observer?.disconnect();
 		this.#popper?.dispose();
-		if (this.#focusHandler) $.removeEvent(this.node, "focus.ui.selectmenu", this.#focusHandler);
-		if (this.#changeHandler) $.removeEvent(this.node, "change.ui.selectmenu", this.#changeHandler);
-		if (this.#documentHandler) $.removeEvent(this.node.ownerDocument, "mousedown.ui.selectmenu", this.#documentHandler);
-		if (this.#form && this.#resetHandler) $.removeEvent(this.#form, "reset.ui.selectmenu", this.#resetHandler);
 		if (this.#hidden) $.addClass(this.node, this.constructor.classes.hide);
 		else $.removeClass(this.node, this.constructor.classes.hide);
 		for (const [name, value] of [["tabindex", this.#tabIndex], ["aria-hidden", this.#ariaHidden]]) if (value === null) $.removeAttribute(this.node, name);
@@ -353,10 +345,6 @@ var SelectMenu = class extends BaseComponent {
 		this.#data = [];
 		this.#focusedItem = null;
 		this.#lookup.clear();
-		this.#changeHandler = null;
-		this.#documentHandler = null;
-		this.#focusHandler = null;
-		this.#resetHandler = null;
 		this.#container = null;
 		this.#form = null;
 		this.#itemsList = null;
@@ -541,33 +529,27 @@ var SelectMenu = class extends BaseComponent {
 	* Attaches control events and native form synchronization.
 	*/
 	#events() {
-		this.#focusHandler = () => {
+		this.listen(this.node, "focus.ui.selectmenu", () => {
 			$.focus(this.#multiple ? this.#searchInput : this.#toggle);
-		};
-		this.#changeHandler = (event) => {
+		});
+		this.listen(this.node, "change.ui.selectmenu", (event) => {
 			if (!event.skipUpdate) this.#loadValue(this.#readNativeValue());
-		};
-		$.addEvent(this.node, "focus.ui.selectmenu", this.#focusHandler);
-		$.addEvent(this.node, "change.ui.selectmenu", this.#changeHandler);
-		if (this.#form) {
-			this.#resetHandler = (event) => {
-				const timer = setTimeout(() => {
-					this.#resetTimers.delete(timer);
-					if (this.node && !event.defaultPrevented) {
-						const [selected] = $.getProperty(this.node, "selectedOptions");
-						if (!this.#multiple && this.#generatedOptions.has(selected) && !$.getProperty(selected, "defaultSelected")) $.setProperty(this.node, { selectedIndex: -1 });
-						this.#loadValue(this.#readNativeValue());
-						this.hide();
-					}
-				}, 0);
-				this.#resetTimers.add(timer);
-			};
-			$.addEvent(this.#form, "reset.ui.selectmenu", this.#resetHandler);
-		}
-		this.#documentHandler = (event) => {
+		});
+		if (this.#form) this.listen(this.#form, "reset.ui.selectmenu", (event) => {
+			const timer = setTimeout(() => {
+				this.#resetTimers.delete(timer);
+				if (this.node && !event.defaultPrevented) {
+					const [selected] = $.getProperty(this.node, "selectedOptions");
+					if (!this.#multiple && this.#generatedOptions.has(selected) && !$.getProperty(selected, "defaultSelected")) $.setProperty(this.node, { selectedIndex: -1 });
+					this.#loadValue(this.#readNativeValue());
+					this.hide();
+				}
+			}, 0);
+			this.#resetTimers.add(timer);
+		});
+		this.listen(this.node.ownerDocument, "mousedown.ui.selectmenu", (event) => {
 			if (this.#open && !containsNode(this.#container, event.target) && !containsNode(this.#menuNode, event.target)) this.hide();
-		};
-		$.addEvent(this.node.ownerDocument, "mousedown.ui.selectmenu", this.#documentHandler);
+		});
 		$.addEvent([this.#container, this.#menuNode], "focusin.ui.selectmenu", () => this.#refreshFocus());
 		$.addEvent([this.#container, this.#menuNode], "focusout.ui.selectmenu", () => {
 			queueMicrotask(() => {

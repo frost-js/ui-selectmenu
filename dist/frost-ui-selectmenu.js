@@ -275,12 +275,9 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 		};
 		#activeItems = [];
 		#ariaHidden;
-		#changeHandler = null;
 		#container = null;
 		#data = [];
-		#documentHandler = null;
 		#focusedItem = null;
-		#focusHandler = null;
 		#form = null;
 		#generatedOptions = /* @__PURE__ */ new WeakSet();
 		#hidden;
@@ -297,7 +294,6 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 		#popper = null;
 		#request = null;
 		#requestId = 0;
-		#resetHandler = null;
 		#resetTimers = /* @__PURE__ */ new Set();
 		#scrollHandler = null;
 		#searchInput = null;
@@ -371,10 +367,6 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 			this.#scrollHandler?.cancel();
 			this.#observer?.disconnect();
 			this.#popper?.dispose();
-			if (this.#focusHandler) _fr0st_query.default.removeEvent(this.node, "focus.ui.selectmenu", this.#focusHandler);
-			if (this.#changeHandler) _fr0st_query.default.removeEvent(this.node, "change.ui.selectmenu", this.#changeHandler);
-			if (this.#documentHandler) _fr0st_query.default.removeEvent(this.node.ownerDocument, "mousedown.ui.selectmenu", this.#documentHandler);
-			if (this.#form && this.#resetHandler) _fr0st_query.default.removeEvent(this.#form, "reset.ui.selectmenu", this.#resetHandler);
 			if (this.#hidden) _fr0st_query.default.addClass(this.node, this.constructor.classes.hide);
 			else _fr0st_query.default.removeClass(this.node, this.constructor.classes.hide);
 			for (const [name, value] of [["tabindex", this.#tabIndex], ["aria-hidden", this.#ariaHidden]]) if (value === null) _fr0st_query.default.removeAttribute(this.node, name);
@@ -385,10 +377,6 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 			this.#data = [];
 			this.#focusedItem = null;
 			this.#lookup.clear();
-			this.#changeHandler = null;
-			this.#documentHandler = null;
-			this.#focusHandler = null;
-			this.#resetHandler = null;
 			this.#container = null;
 			this.#form = null;
 			this.#itemsList = null;
@@ -573,33 +561,27 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 		* Attaches control events and native form synchronization.
 		*/
 		#events() {
-			this.#focusHandler = () => {
+			this.listen(this.node, "focus.ui.selectmenu", () => {
 				_fr0st_query.default.focus(this.#multiple ? this.#searchInput : this.#toggle);
-			};
-			this.#changeHandler = (event) => {
+			});
+			this.listen(this.node, "change.ui.selectmenu", (event) => {
 				if (!event.skipUpdate) this.#loadValue(this.#readNativeValue());
-			};
-			_fr0st_query.default.addEvent(this.node, "focus.ui.selectmenu", this.#focusHandler);
-			_fr0st_query.default.addEvent(this.node, "change.ui.selectmenu", this.#changeHandler);
-			if (this.#form) {
-				this.#resetHandler = (event) => {
-					const timer = setTimeout(() => {
-						this.#resetTimers.delete(timer);
-						if (this.node && !event.defaultPrevented) {
-							const [selected] = _fr0st_query.default.getProperty(this.node, "selectedOptions");
-							if (!this.#multiple && this.#generatedOptions.has(selected) && !_fr0st_query.default.getProperty(selected, "defaultSelected")) _fr0st_query.default.setProperty(this.node, { selectedIndex: -1 });
-							this.#loadValue(this.#readNativeValue());
-							this.hide();
-						}
-					}, 0);
-					this.#resetTimers.add(timer);
-				};
-				_fr0st_query.default.addEvent(this.#form, "reset.ui.selectmenu", this.#resetHandler);
-			}
-			this.#documentHandler = (event) => {
+			});
+			if (this.#form) this.listen(this.#form, "reset.ui.selectmenu", (event) => {
+				const timer = setTimeout(() => {
+					this.#resetTimers.delete(timer);
+					if (this.node && !event.defaultPrevented) {
+						const [selected] = _fr0st_query.default.getProperty(this.node, "selectedOptions");
+						if (!this.#multiple && this.#generatedOptions.has(selected) && !_fr0st_query.default.getProperty(selected, "defaultSelected")) _fr0st_query.default.setProperty(this.node, { selectedIndex: -1 });
+						this.#loadValue(this.#readNativeValue());
+						this.hide();
+					}
+				}, 0);
+				this.#resetTimers.add(timer);
+			});
+			this.listen(this.node.ownerDocument, "mousedown.ui.selectmenu", (event) => {
 				if (this.#open && !containsNode(this.#container, event.target) && !containsNode(this.#menuNode, event.target)) this.hide();
-			};
-			_fr0st_query.default.addEvent(this.node.ownerDocument, "mousedown.ui.selectmenu", this.#documentHandler);
+			});
 			_fr0st_query.default.addEvent([this.#container, this.#menuNode], "focusin.ui.selectmenu", () => this.#refreshFocus());
 			_fr0st_query.default.addEvent([this.#container, this.#menuNode], "focusout.ui.selectmenu", () => {
 				queueMicrotask(() => {

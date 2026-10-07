@@ -178,12 +178,9 @@ export default class SelectMenu extends BaseComponent {
 
     #activeItems = [];
     #ariaHidden;
-    #changeHandler = null;
     #container = null;
     #data = [];
-    #documentHandler = null;
     #focusedItem = null;
-    #focusHandler = null;
     #form = null;
     #generatedOptions = new WeakSet();
     #hidden;
@@ -200,7 +197,6 @@ export default class SelectMenu extends BaseComponent {
     #popper = null;
     #request = null;
     #requestId = 0;
-    #resetHandler = null;
     #resetTimers = new Set();
     #scrollHandler = null;
     #searchInput = null;
@@ -313,22 +309,6 @@ export default class SelectMenu extends BaseComponent {
         this.#observer?.disconnect();
         this.#popper?.dispose();
 
-        if (this.#focusHandler) {
-            $.removeEvent(this.node, 'focus.ui.selectmenu', this.#focusHandler);
-        }
-
-        if (this.#changeHandler) {
-            $.removeEvent(this.node, 'change.ui.selectmenu', this.#changeHandler);
-        }
-
-        if (this.#documentHandler) {
-            $.removeEvent(this.node.ownerDocument, 'mousedown.ui.selectmenu', this.#documentHandler);
-        }
-
-        if (this.#form && this.#resetHandler) {
-            $.removeEvent(this.#form, 'reset.ui.selectmenu', this.#resetHandler);
-        }
-
         if (this.#hidden) {
             $.addClass(this.node, this.constructor.classes.hide);
         } else {
@@ -350,11 +330,6 @@ export default class SelectMenu extends BaseComponent {
         this.#data = [];
         this.#focusedItem = null;
         this.#lookup.clear();
-
-        this.#changeHandler = null;
-        this.#documentHandler = null;
-        this.#focusHandler = null;
-        this.#resetHandler = null;
 
         this.#container = null;
         this.#form = null;
@@ -613,21 +588,17 @@ export default class SelectMenu extends BaseComponent {
      * Attaches control events and native form synchronization.
      */
     #events() {
-        this.#focusHandler = () => {
+        this.listen(this.node, 'focus.ui.selectmenu', () => {
             $.focus(this.#multiple ? this.#searchInput : this.#toggle);
-        };
-
-        this.#changeHandler = (event) => {
+        });
+        this.listen(this.node, 'change.ui.selectmenu', (event) => {
             if (!event.skipUpdate) {
                 this.#loadValue(this.#readNativeValue());
             }
-        };
-
-        $.addEvent(this.node, 'focus.ui.selectmenu', this.#focusHandler);
-        $.addEvent(this.node, 'change.ui.selectmenu', this.#changeHandler);
+        });
 
         if (this.#form) {
-            this.#resetHandler = (event) => {
+            this.listen(this.#form, 'reset.ui.selectmenu', (event) => {
                 const timer = setTimeout(() => {
                     this.#resetTimers.delete(timer);
 
@@ -648,12 +619,10 @@ export default class SelectMenu extends BaseComponent {
                     }
                 }, 0);
                 this.#resetTimers.add(timer);
-            };
-
-            $.addEvent(this.#form, 'reset.ui.selectmenu', this.#resetHandler);
+            });
         }
 
-        this.#documentHandler = (event) => {
+        this.listen(this.node.ownerDocument, 'mousedown.ui.selectmenu', (event) => {
             if (
                 this.#open &&
                 !containsNode(this.#container, event.target) &&
@@ -661,9 +630,7 @@ export default class SelectMenu extends BaseComponent {
             ) {
                 this.hide();
             }
-        };
-
-        $.addEvent(this.node.ownerDocument, 'mousedown.ui.selectmenu', this.#documentHandler);
+        });
         $.addEvent([this.#container, this.#menuNode], 'focusin.ui.selectmenu', () => this.#refreshFocus());
         $.addEvent([this.#container, this.#menuNode], 'focusout.ui.selectmenu', () => {
             queueMicrotask(() => {
