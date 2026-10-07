@@ -315,7 +315,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 		* @param {SelectMenuOptions} [options] The component options.
 		*/
 		constructor(node, options) {
-			if (!_fr0st_query.default.is(node, "select")) throw new Error("SelectMenu must be created on a select element");
+			if (!_fr0st_query.default._isElement(node) || !_fr0st_query.default.is(node, "select")) throw new TypeError("SelectMenu must be created on a select element.");
 			super(node, options);
 			try {
 				this.#tabIndex = _fr0st_query.default.getAttribute(this.node, "tabindex");

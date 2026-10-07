@@ -283,7 +283,7 @@ var SelectMenu = class extends BaseComponent {
 	* @param {SelectMenuOptions} [options] The component options.
 	*/
 	constructor(node, options) {
-		if (!$.is(node, "select")) throw new Error("SelectMenu must be created on a select element");
+		if (!$._isElement(node) || !$.is(node, "select")) throw new TypeError("SelectMenu must be created on a select element.");
 		super(node, options);
 		try {
 			this.#tabIndex = $.getAttribute(this.node, "tabindex");

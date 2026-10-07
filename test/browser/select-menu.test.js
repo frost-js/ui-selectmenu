@@ -82,6 +82,52 @@ test.describe('SelectMenu', () => {
             await expect(page.getByRole('combobox')).toHaveCount(2);
         });
 
+        test('rejects non-element arguments without disturbing an existing instance', async ({ page }) => {
+            const state = await page.evaluate(() => {
+                const node = $.findOne('#select');
+                const instance = UI.SelectMenu.init(node);
+                const html = $.getHtml(document.body);
+                const errors = [];
+
+                for (const [name, argument] of [
+                    ['null', null],
+                    ['undefined', undefined],
+                    ['selector', '#select'],
+                    ['malformed selector', '['],
+                    ['array', [node]],
+                    ['QuerySet', $('#select')],
+                    ['document', document],
+                    ['text node', document.createTextNode('text')],
+                ]) {
+                    for (const [method, init] of [
+                        ['constructor', (node) => new UI.SelectMenu(node)],
+                        ['init', (node) => UI.SelectMenu.init(node)],
+                    ]) {
+                        let message = null;
+
+                        try {
+                            init(argument);
+                        } catch (error) {
+                            message = `${error.name}: ${error.message}`;
+                        }
+
+                        errors.push({ name, method, message });
+                    }
+                }
+
+                return {
+                    errors,
+                    unchanged: $.getHtml(document.body) === html &&
+                        $.getData(node, UI.SelectMenu.DATA_KEY) === instance,
+                };
+            });
+
+            for (const { name, method, message } of state.errors) {
+                expect(message, `${name} (${method})`).toBe('TypeError: SelectMenu must be created on a select element.');
+            }
+            expect(state.unchanged).toBe(true);
+        });
+
         test('rejects non-select nodes without leaving a registered instance', async ({ page }) => {
             expect(await page.evaluate(() => {
                 const node = $.findOne('#outside');
@@ -90,7 +136,7 @@ test.describe('SelectMenu', () => {
                 } catch (error) {
                     return error.message;
                 }
-            })).toBe('SelectMenu must be created on a select element');
+            })).toBe('SelectMenu must be created on a select element.');
             expect(await page.evaluate(() => $.hasData('#outside', 'selectmenu'))).toBe(false);
         });
 
