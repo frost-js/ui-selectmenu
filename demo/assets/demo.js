@@ -105,6 +105,10 @@ $.ready(() => {
     };
 
     // Initialize custom examples before the shared selector; init reuses existing instances.
+    SelectMenu.init($.findOneById('hero-fruit'), {
+        // Keep results outside the hero card's rounded overflow clipping.
+        appendTo: document.body,
+    });
     for (const id of ['cities', 'minimum']) {
         SelectMenu.init($.findOneById(id), { data: cities });
     }
