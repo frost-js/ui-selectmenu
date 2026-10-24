@@ -74,6 +74,7 @@ function normalizeText(value) {
 //#endregion
 //#region src/js/select-menu.js
 /** @import { Placement, Position } from '@fr0st/ui/src/js/popper/popper.js'; */
+var window = $.getWindow();
 var ariaAttributes = [
 	"aria-describedby",
 	"aria-errormessage",
@@ -332,7 +333,7 @@ var SelectMenu = class extends BaseComponent {
 		this.#transitionId++;
 		this.#cancelSearch();
 		this.#cancelValueRequest();
-		for (const timer of this.#resetTimers) clearTimeout(timer);
+		for (const timer of this.#resetTimers) window.clearTimeout(timer);
 		this.#resetTimers.clear();
 		this.#scrollHandler?.cancel();
 		this.#observer?.disconnect();
@@ -538,7 +539,7 @@ var SelectMenu = class extends BaseComponent {
 			if (!event.skipUpdate) this.#loadValue(this.#readNativeValue());
 		});
 		if (this.#form) this.listen(this.#form, "reset.ui.selectmenu", (event) => {
-			const timer = setTimeout(() => {
+			const timer = window.setTimeout(() => {
 				this.#resetTimers.delete(timer);
 				if (this.node && !event.defaultPrevented) {
 					const [selected] = $.getProperty(this.node, "selectedOptions");
@@ -658,7 +659,7 @@ var SelectMenu = class extends BaseComponent {
 		}, 250, { leading: false });
 		$.addEvent(this.#itemsList, "scroll.ui.selectmenu", this.#scrollHandler);
 		const nativeData = !this.options.data && !this.options.getResults;
-		this.#observer = new MutationObserver((records) => {
+		this.#observer = new window.MutationObserver((records) => {
 			if (!this.node) return;
 			if (this.#refreshData(records)) {
 				const focusedValue = $.getAttribute(this.#focusedItem, "data-ui-value");

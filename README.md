@@ -453,27 +453,7 @@ When native options provide the result data, option and group additions, removal
 
 To synchronize an external native value change, dispatch a bubbling `change` event after changing the select. Assigning `select.value` or `option.selected` does not produce an attribute mutation. `update()` only repositions the menu.
 
-## Themes and RTL
-
-Frost UI follows the user's preferred color scheme by default. Set `data-ui-theme="light"` or `data-ui-theme="dark"` on the document or an ancestor to select a theme explicitly.
-
-Load UI CSS before SelectMenu CSS. Apply `input-filled` or `input-outline` to the select, with optional `input-sm` / `input-lg`. Multiple mode uses the same classes. Floating labels, input groups, and modal-contained menus are demonstrated in [the demo](./demo/index.html).
-
-Menus size to their content with a default minimum width of `10rem`, bounded by the available width. Use `fullWidth: true` or `data-ui-full-width="true"` to match the control's width, overriding the minimum.
-
-The component uses UI theme tokens. UI follows the system theme unless `data-ui-theme="light"` or `data-ui-theme="dark"` is set on the document or an ancestor. Menus appended outside a scoped theme need that theme on their destination too.
-
-Customize the menu's CSS properties, for example:
-
-```css
-.selectmenu-menu {
-    --ui-selectmenu-min-width: 12rem;
-    --ui-selectmenu-item-padding-y: .5rem;
-    --ui-selectmenu-group-color: var(--ui-primary);
-}
-```
-
-Set `dir="rtl"` on the document, an ancestor, or the select before initialization. The generated control/menu copy the computed direction; logical spacing and Popper start/end placement follow it. Reinitialize after changing direction dynamically.
+## Customization
 
 ### Custom Sass builds
 
@@ -499,6 +479,28 @@ npx sass --load-path=node_modules src/styles.scss dist/styles.css
 ```
 
 The `selectmenu` module forwards the [component variables](./src/scss/_vars.scss), all of which have `!default` values. Include Frost UI CSS separately. Build tools that already resolve Sass modules from npm packages do not need the explicit load path.
+
+## Themes and RTL
+
+Frost UI follows the user's preferred color scheme by default. Set `data-ui-theme="light"` or `data-ui-theme="dark"` on the document or an ancestor to select a theme explicitly.
+
+Load UI CSS before SelectMenu CSS. Apply `input-filled` or `input-outline` to the select, with optional `input-sm` / `input-lg`. Multiple mode uses the same classes. Floating labels, input groups, and modal-contained menus are demonstrated in [the demo](./demo/index.html).
+
+Menus size to their content with a default minimum width of `10rem`, bounded by the available width. Use `fullWidth: true` or `data-ui-full-width="true"` to match the control's width, overriding the minimum.
+
+The component uses UI theme tokens. UI follows the system theme unless `data-ui-theme="light"` or `data-ui-theme="dark"` is set on the document or an ancestor. Menus appended outside a scoped theme need that theme on their destination too.
+
+Customize the menu's CSS properties, for example:
+
+```css
+.selectmenu-menu {
+    --ui-selectmenu-min-width: 12rem;
+    --ui-selectmenu-item-padding-y: .5rem;
+    --ui-selectmenu-group-color: var(--ui-primary);
+}
+```
+
+Set `dir="rtl"` on the document, an ancestor, or the select before initialization. The generated control/menu copy the computed direction; logical spacing and Popper start/end placement follow it. Reinitialize after changing direction dynamically.
 
 ## Development
 

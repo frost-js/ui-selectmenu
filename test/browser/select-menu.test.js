@@ -296,6 +296,19 @@ test.describe('SelectMenu', () => {
         });
     });
 
+    test.describe('#data', () => {
+        test('returns copied metadata without internal elements', async ({ page }) => {
+            expect(await page.evaluate(() => {
+                const instance = UI.SelectMenu.init($.findOne('#select'), { data: [{ value: 1, text: 'One', extra: 'metadata' }] });
+                instance.setValue(1);
+                const data = instance.data();
+                data.text = 'Changed';
+                return instance.data();
+            })).toEqual({ value: 1, text: 'One', extra: 'metadata', disabled: false });
+            await expect(page.getByRole('combobox')).toHaveText('One');
+        });
+    });
+
     for (const method of ['disable', 'enable']) {
         test.describe(`#${method}`, () => {
             test('synchronizes native and generated disabled state', async ({ page }) => {
@@ -325,6 +338,46 @@ test.describe('SelectMenu', () => {
                 return instance.getValue().length;
             })).toBe(2);
             await expect(page.locator('#select')).toHaveValues(['a', 'b']);
+        });
+    });
+
+    test.describe('#hide', () => {
+        test('updates visibility and expanded state', async ({ page }) => {
+            await page.evaluate(() => {
+                const instance = UI.SelectMenu.init($.findOne('#select'));
+
+                instance.show();
+                instance.hide();
+            });
+
+            await expect(page.getByRole('combobox')).toHaveAttribute('aria-expanded', 'false');
+            await expect(page.locator('.selectmenu-menu')).toHaveCount(0);
+        });
+    });
+
+    test.describe('#setMaxSelections', () => {
+        test('normalizes selection and exposes the updated limit', async ({ page }) => {
+            expect(await page.evaluate(() => {
+                const node = $.findOne('#select');
+                $.setProperty(node, 'multiple', true);
+                const instance = UI.SelectMenu.init(node);
+                instance.setValue(['a', 'b']);
+                instance.setMaxSelections(1);
+                return instance.getMaxSelections();
+            })).toBe(1);
+            await expect(page.locator('#select')).toHaveValues(['a']);
+        });
+    });
+
+    test.describe('#setPlaceholder', () => {
+        test('updates an empty selection without discarding valid values', async ({ page }) => {
+            expect(await page.evaluate(() => {
+                const instance = UI.SelectMenu.init($.findOne('#select'));
+                instance.setValue(null);
+                instance.setPlaceholder('Choose fruit');
+                return instance.getPlaceholder();
+            })).toBe('Choose fruit');
+            await expect(page.getByRole('combobox')).toHaveText('Choose fruit');
         });
     });
 
@@ -387,57 +440,15 @@ test.describe('SelectMenu', () => {
         }
     });
 
-    test.describe('#data', () => {
-        test('returns copied metadata without internal elements', async ({ page }) => {
-            expect(await page.evaluate(() => {
-                const instance = UI.SelectMenu.init($.findOne('#select'), { data: [{ value: 1, text: 'One', extra: 'metadata' }] });
-                instance.setValue(1);
-                const data = instance.data();
-                data.text = 'Changed';
-                return instance.data();
-            })).toEqual({ value: 1, text: 'One', extra: 'metadata', disabled: false });
-            await expect(page.getByRole('combobox')).toHaveText('One');
-        });
-    });
-
-    test.describe('#setMaxSelections', () => {
-        test('normalizes selection and exposes the updated limit', async ({ page }) => {
-            expect(await page.evaluate(() => {
-                const node = $.findOne('#select');
-                $.setProperty(node, 'multiple', true);
-                const instance = UI.SelectMenu.init(node);
-                instance.setValue(['a', 'b']);
-                instance.setMaxSelections(1);
-                return instance.getMaxSelections();
-            })).toBe(1);
-            await expect(page.locator('#select')).toHaveValues(['a']);
-        });
-    });
-
-    test.describe('#setPlaceholder', () => {
-        test('updates an empty selection without discarding valid values', async ({ page }) => {
-            expect(await page.evaluate(() => {
-                const instance = UI.SelectMenu.init($.findOne('#select'));
-                instance.setValue(null);
-                instance.setPlaceholder('Choose fruit');
-                return instance.getPlaceholder();
-            })).toBe('Choose fruit');
-            await expect(page.getByRole('combobox')).toHaveText('Choose fruit');
-        });
-    });
-
-    for (const method of ['show', 'hide', 'toggle']) {
+    for (const method of ['show', 'toggle']) {
         test.describe(`#${method}`, () => {
             test('updates visibility and expanded state', async ({ page }) => {
                 await page.evaluate((method) => {
                     const instance = UI.SelectMenu.init($.findOne('#select'));
-                    if (method === 'hide') {
-                        instance.show();
-                    }
                     instance[method]();
                 }, method);
-                await expect(page.getByRole('combobox')).toHaveAttribute('aria-expanded', String(method !== 'hide'));
-                await expect(page.locator('.selectmenu-menu')).toHaveCount(method === 'hide' ? 0 : 1);
+                await expect(page.getByRole('combobox')).toHaveAttribute('aria-expanded', 'true');
+                await expect(page.locator('.selectmenu-menu')).toHaveCount(1);
             });
         });
     }
