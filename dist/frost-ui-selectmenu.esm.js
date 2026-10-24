@@ -323,7 +323,7 @@ var SelectMenu = class extends BaseComponent {
 	* Disables the SelectMenu.
 	*/
 	disable() {
-		$.setProperty(this.node, { disabled: true });
+		$.setAttribute(this.node, { disabled: true });
 		this.#refreshState();
 		this.hide();
 	}
@@ -366,7 +366,7 @@ var SelectMenu = class extends BaseComponent {
 	* Enables the SelectMenu.
 	*/
 	enable() {
-		$.setProperty(this.node, { disabled: false });
+		$.removeAttribute(this.node, "disabled");
 		this.#refreshState();
 	}
 	/**

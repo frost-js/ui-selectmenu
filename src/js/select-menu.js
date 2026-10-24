@@ -302,7 +302,7 @@ export default class SelectMenu extends BaseComponent {
      * Disables the SelectMenu.
      */
     disable() {
-        $.setProperty(this.node, { disabled: true });
+        $.setAttribute(this.node, { disabled: true });
         this.#refreshState();
         this.hide();
     }
@@ -367,7 +367,7 @@ export default class SelectMenu extends BaseComponent {
      * Enables the SelectMenu.
      */
     enable() {
-        $.setProperty(this.node, { disabled: false });
+        $.removeAttribute(this.node, 'disabled');
         this.#refreshState();
     }
 

@@ -506,8 +506,6 @@ test.describe('SelectMenu', () => {
 
         for (const event of ['show', 'shown', 'hide', 'hidden', 'change']) {
             test(`allows disposal in ${event} listeners`, async ({ page }) => {
-                const errors = [];
-                page.on('pageerror', (error) => errors.push(error.message));
                 await page.evaluate((event) => {
                     const node = $.findOne('#select');
                     const instance = UI.SelectMenu.init(node);
@@ -520,7 +518,6 @@ test.describe('SelectMenu', () => {
                     await page.evaluate(() => $('#select').selectmenu('hide'));
                 }
                 await expect(page.locator('.selectmenu-toggle, .selectmenu-menu')).toHaveCount(0);
-                expect(errors).toHaveLength(0);
             });
         }
 

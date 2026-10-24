@@ -355,7 +355,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 		* Disables the SelectMenu.
 		*/
 		disable() {
-			_fr0st_query.default.setProperty(this.node, { disabled: true });
+			_fr0st_query.default.setAttribute(this.node, { disabled: true });
 			this.#refreshState();
 			this.hide();
 		}
@@ -398,7 +398,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 		* Enables the SelectMenu.
 		*/
 		enable() {
-			_fr0st_query.default.setProperty(this.node, { disabled: false });
+			_fr0st_query.default.removeAttribute(this.node, "disabled");
 			this.#refreshState();
 		}
 		/**
