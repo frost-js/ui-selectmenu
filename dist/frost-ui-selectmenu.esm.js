@@ -73,6 +73,7 @@ function normalizeText(value) {
 
 //#endregion
 //#region src/js/select-menu.js
+/** @import { Placement, Position } from '@fr0st/ui/src/js/popper/popper.js'; */
 var ariaAttributes = [
 	"aria-describedby",
 	"aria-errormessage",
@@ -114,7 +115,7 @@ var ariaAttributes = [
 * @param {HTMLElement} element The rendering destination, which can be filled directly.
 * @returns {string|HTMLElement|void} HTML to sanitize, an element, or nothing.
 */
-/** @typedef {(SelectMenuResults|PromiseLike<SelectMenuResults>) & {cancel?: Function}} SelectMenuPendingResults */
+/** @typedef {(SelectMenuResults|PromiseLike<SelectMenuResults>) & {cancel?: () => void}} SelectMenuPendingResults */
 /**
 * @callback SelectMenuGetResultsCallback
 * @param {SelectMenuRequest} request The search or value request.
@@ -159,8 +160,8 @@ var ariaAttributes = [
 * @property {string} [maxHeight='250px'] The results' maximum height.
 * @property {string|HTMLElement|null} [appendTo=null] The menu's insertion target.
 * @property {boolean} [fullWidth=false] Matches the reference width after positioning.
-* @property {'auto'|'top'|'bottom'|'start'|'end'} [placement='bottom'] The preferred menu placement.
-* @property {'start'|'center'|'end'} [position='start'] The menu alignment.
+* @property {Placement} [placement='bottom'] The preferred menu placement.
+* @property {Position} [position='start'] The menu alignment.
 * @property {boolean} [fixed=false] Whether to preserve the preferred placement.
 * @property {number} [spacing=0] The spacing from the control.
 * @property {number|false} [minContact=false] The minimum contact with the control.
@@ -276,6 +277,7 @@ var SelectMenu = class extends BaseComponent {
 	* Creates a SelectMenu.
 	* @param {HTMLSelectElement} node The native select.
 	* @param {SelectMenuOptions} [options] The component options.
+	* @throws {TypeError} When the node is not a select element.
 	*/
 	constructor(node, options) {
 		if (!$._isElement(node) || !$.is(node, "select")) throw new TypeError("SelectMenu must be created on a select element.");

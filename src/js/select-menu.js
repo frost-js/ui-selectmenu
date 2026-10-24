@@ -1,3 +1,5 @@
+/** @import { Placement, Position } from '@fr0st/ui/src/js/popper/popper.js'; */
+
 import $ from '@fr0st/query';
 import { BaseComponent, generateId, Popper, waitForTransition } from '@fr0st/ui';
 import { cloneItem, containsNode, flattenItems, getDomData, normalizeText, normalizeValues } from './helpers.js';
@@ -10,6 +12,7 @@ const ariaAttributes = [
 ];
 
 /** @typedef {string|number} SelectMenuValue */
+
 /**
  * @typedef {object} SelectMenuItem
  * @property {string} text The displayed label.
@@ -18,17 +21,20 @@ const ariaAttributes = [
  * @property {SelectMenuItem[]} [children] The group's items.
  * @property {HTMLOptionElement} [element] The internal native option.
  */
+
 /**
  * @typedef {object} SelectMenuResults
  * @property {SelectMenuItem[]} results The returned items or groups.
  * @property {boolean} [showMore=false] Whether another page is available.
  */
+
 /**
  * @typedef {object} SelectMenuRequest
  * @property {number} [offset] The number of previously loaded top-level results.
  * @property {string} [term] The search term, omitted when empty.
  * @property {SelectMenuValue|SelectMenuValue[]} [value] Values to resolve instead of searching.
  */
+
 /**
  * @typedef {object} SelectMenuLanguage
  * @property {string} [clear] The selection removal label.
@@ -38,29 +44,35 @@ const ariaAttributes = [
  * @property {string} [noResults] The empty results message.
  * @property {string} [search] The search input label.
  */
+
 /**
  * @callback SelectMenuRenderer
  * @param {SelectMenuItem} data A copy of the item, without internal DOM references.
  * @param {HTMLElement} element The rendering destination, which can be filled directly.
  * @returns {string|HTMLElement|void} HTML to sanitize, an element, or nothing.
  */
-/** @typedef {(SelectMenuResults|PromiseLike<SelectMenuResults>) & {cancel?: Function}} SelectMenuPendingResults */
+
+/** @typedef {(SelectMenuResults|PromiseLike<SelectMenuResults>) & {cancel?: () => void}} SelectMenuPendingResults */
+
 /**
  * @callback SelectMenuGetResultsCallback
  * @param {SelectMenuRequest} request The search or value request.
  * @returns {SelectMenuPendingResults} Results or a promise, optionally exposing a cancel method.
  */
+
 /**
  * @callback SelectMenuSanitizeCallback
  * @param {string} html The rendered HTML.
  * @returns {string} The sanitized HTML.
  */
+
 /**
  * @callback SelectMenuMatchCallback
  * @param {SelectMenuItem} item The item to match.
  * @param {string} term The search term.
  * @returns {boolean} Whether the item matches.
  */
+
 /**
  * @callback SelectMenuSortCallback
  * @param {SelectMenuItem} a The first item.
@@ -68,6 +80,7 @@ const ariaAttributes = [
  * @param {string} term The search term.
  * @returns {number} The relative sort order.
  */
+
 /**
  * @typedef {object} SelectMenuOptions
  * @property {string} [placeholder=''] The empty selection label.
@@ -89,8 +102,8 @@ const ariaAttributes = [
  * @property {string} [maxHeight='250px'] The results' maximum height.
  * @property {string|HTMLElement|null} [appendTo=null] The menu's insertion target.
  * @property {boolean} [fullWidth=false] Matches the reference width after positioning.
- * @property {'auto'|'top'|'bottom'|'start'|'end'} [placement='bottom'] The preferred menu placement.
- * @property {'start'|'center'|'end'} [position='start'] The menu alignment.
+ * @property {Placement} [placement='bottom'] The preferred menu placement.
+ * @property {Position} [position='start'] The menu alignment.
  * @property {boolean} [fixed=false] Whether to preserve the preferred placement.
  * @property {number} [spacing=0] The spacing from the control.
  * @property {number|false} [minContact=false] The minimum contact with the control.
@@ -212,6 +225,7 @@ export default class SelectMenu extends BaseComponent {
      * Creates a SelectMenu.
      * @param {HTMLSelectElement} node The native select.
      * @param {SelectMenuOptions} [options] The component options.
+     * @throws {TypeError} When the node is not a select element.
      */
     constructor(node, options) {
         if (!$._isElement(node) || !$.is(node, 'select')) {
