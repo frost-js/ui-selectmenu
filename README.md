@@ -488,7 +488,7 @@ Load UI CSS before SelectMenu CSS. Apply `input-filled` or `input-outline` to th
 
 Menus size to their content with a default minimum width of `10rem`, bounded by the available width. Use `fullWidth: true` or `data-ui-full-width="true"` to match the control's width, overriding the minimum.
 
-The component uses UI theme tokens. UI follows the system theme unless `data-ui-theme="light"` or `data-ui-theme="dark"` is set on the document or an ancestor. Menus appended outside a scoped theme need that theme on their destination too.
+The component uses UI theme tokens. Menus appended outside a scoped theme need that theme on their destination too.
 
 Customize the menu's CSS properties, for example:
 
