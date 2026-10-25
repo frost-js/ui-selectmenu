@@ -136,7 +136,7 @@ export default class SelectMenu extends BaseComponent {
         multiClear: 'btn',
         multiClearIcon: 'btn-close p-0 my-auto pe-none',
         multiGroup: 'btn-group my-n1',
-        multiItem: 'btn selectmenu-selection',
+        multiItem: 'btn selectmenu-selection pe-none',
         multiSearchInput: 'selectmenu-multi-input',
         multiToggle: 'selectmenu-multi d-flex flex-wrap position-relative text-start',
         placeholder: 'selectmenu-placeholder',
